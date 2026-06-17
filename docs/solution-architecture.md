@@ -37,7 +37,12 @@ All roles are scoped automatically by ServiceNow. Clean names, no prefix needed.
 | `leadership` | Business leaders | Group governance, user onboarding, approvals |
 | `creator` | Appointed power users | Design automations for their assigned groups |
 | `user` | All other staff | Trigger automations via Assistant or Workspace |
-| `viewer` | Stakeholders / auditors | Read-only across assigned groups |
+
+Viewer role is intentionally excluded. Every person with a legitimate
+need for visibility is covered by an existing role — leadership has full
+reporting via Operations Governance, admins have the full audit trail via
+Operations Command. If someone is in a group they should be able to use
+it (user), not merely observe it.
 
 **Group roles** (within a specific group, independent of system role):
 
@@ -45,7 +50,6 @@ All roles are scoped automatically by ServiceNow. Clean names, no prefix needed.
 |---|---|---|
 | `creator` | Leadership | Can create automations scoped to this group |
 | `user` | Leadership | Can trigger automations in this group |
-| `viewer` | Leadership | Read-only access to this group |
 
 ---
 
