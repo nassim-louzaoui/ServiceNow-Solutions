@@ -1395,10 +1395,17 @@ Retraining is triggered on: initial NLU setup (build step 10), each new
 automation publish, each automation deprecation, each automation update.
 
 ### Context Awareness
-The Operations Assistant widget passes `page_id` as a VA session variable.
-VAHelper reads this to adjust welcome message and topic routing per interface.
-On the `governance` page the embedded panel opens to the pending approvals
-summary. On `studio` it opens to creation guidance.
+The Operations Assistant panel passes two VA session variables on every interaction:
+- `page_id` — always `operations_intelligence` (single portal)
+- `active_section` — the current section the user is viewing (`workspace`, `activity`,
+  `studio`, `governance`, `command`); set by the Navigation Bar widget when the user
+  switches sections
+
+VAHelper reads `active_section` to adjust welcome message and topic routing.
+When `active_section = governance`, the VA opens to the pending approvals summary.
+When `active_section = studio`, it opens to creation guidance or resumes an
+in-progress spec. `pre_intent` overrides `active_section` routing when a creation
+tile or quick-start card sets a specific intent directly.
 
 ### System Topics (23 total)
 
@@ -1574,73 +1581,134 @@ app — global notification records are never modified.
 
 ---
 
-## Service Portal — Operations Workspace
+## Portal Interface — Operations Intelligence
+
+One portal. One URL. The entire platform lives at `/operations_intelligence`.
+There is no Standard UI app menu, no separate portal per role, no generic
+ServiceNow pages. Every pixel is custom-built for this solution.
+
+Users switch between role-appropriate sections within the same interface — no
+navigation to a different URL, no page reload. A leader sees Workspace, My Activity,
+and Governance in their nav bar. A creator additionally sees Studio. An admin
+additionally sees Command. A regular user sees Workspace and My Activity only.
+
+### Portal Record
 
 | Property | Value |
 |---|---|
 | Portal ID | `operations_intelligence` |
-| Title | Operations Workspace |
+| Title | Operations Intelligence |
 | URL suffix | `/operations_intelligence` |
-| Default page | `home` |
-| Unauthenticated access | Redirect to ServiceNow login; return to requested page after auth |
-| Theme | Inherits existing Service Portal theme |
+| Default page | `main` |
+| Theme | Fully custom — purpose-built CSS, no OOB theme inherited |
+| Unauthenticated | Redirect to ServiceNow login; return to requested URL after auth |
 
-### Pages
+### Pages (2 total)
 
-| Page ID | Name | Visible to | Notes |
-|---|---|---|---|
-| `home` | Group Workspace | All authenticated | Three-panel layout: Automations · Create New tiles · Existing Deliverables. See Group Workspace Interface section. |
-| `catalog` | Automation Catalog | All authenticated | Extended cross-group discovery; filter by category, group, search |
-| `my_requests` | My Requests | All authenticated | Full execution history; row-level ACL — own executions only |
-| `onboarding` | Onboarding | Nominees (status = pending / in_progress) | Step tracker, role/group confirmation |
-| `studio` | Operations Studio | creator, leadership, admin | Automation builder, deliverable builder, spec review, Copilot status, artifact management |
-| `governance` | Operations Governance | leadership, admin | Pending approvals, group tree, metrics, flow deactivation controls |
-| `command` | Operations Command | admin | Full audit view: all groups, executions, deliverables, system config |
+| Page | Purpose |
+|---|---|
+| `main` | The single role-based interface. All role sections live here. Never reloads — section switching is handled client-side by the Navigation Bar widget. |
+| `onboarding` | Isolated first-login flow for nominees completing onboarding. Separate because the nominee has not yet had their role and group confirmed. Redirects to `main` on completion. |
 
-### Widgets
+No catalog page. No governance page. No command page. No studio page. No requests page.
+Everything is a section within `main`.
 
-All widgets built with Bootstrap responsive grid — mobile-first layout.
+### Navigation Bar
 
-| Widget | Pages | Notes |
+A custom Navigation Bar widget sits at the top of `main`. It evaluates the
+current user's ServiceNow roles and active `group_member` records at render time
+and displays only the sections that user is permitted to see. A user holding
+multiple roles sees all applicable section links simultaneously.
+
+| Section label | URL anchor | Visible to |
 |---|---|---|
-| Workspace Automation Panel | home | Panel 1: automation cards with Trigger button (on-demand) or status+activity (event-driven); GlideModal for event-driven detail view |
-| Deliverable Type Tiles | home | Panel 2: role-filtered creation tiles; click → pre-populates VA via `pre_intent` session variable |
-| Deliverable Cards | home, studio | Panel 3: managed_artifact cards for user's groups; click → GlideModal viewer; creator controls (edit/deactivate/archive) on own artifacts |
-| GlideModal Viewer | home, studio | Opens correct ServiceNow URL per artifact_type inside a GlideModal popup; handles report_viewer, pa_dashboard, OI info pages, sys_ui_page, scoped list view |
-| Automation Card | catalog | Uses short_description, category colour, usage_count; browse-only in catalog (trigger from home panel) |
-| Catalog Browser | catalog | Filter by category, group, search; cross-group discovery |
-| Execution History | my_requests | Row-level ACL — user sees own executions only |
-| Group Manager | governance | Hierarchical group tree, member management |
-| Pending Actions | governance, command | Unified queue: automation approvals + artifact approvals + deactivations + expiries |
-| Creator Studio Panel | studio | Automation builder, deliverable builder, in-progress spec review, artifact lifecycle management |
-| Metrics Dashboard | governance, command | Usage counts, success rates, time saved, group activity, deliverable counts by type |
-| Onboarding Progress | onboarding | Step tracker, role/group confirmation |
-| Operations Assistant Launcher | all pages | Floating button bottom-right; passes `page_id` and optional `pre_intent` as VA session variables |
-| Copilot Status Banner | studio | Persistent warning when creator token is expired or disconnected |
+| Workspace | `#workspace` | All authenticated |
+| My Activity | `#activity` | All authenticated |
+| Studio | `#studio` | `creator` role |
+| Governance | `#governance` | `leadership` role |
+| Command | `#command` | `admin` role |
 
----
+Clicking a nav item sets a shared `activeSection` state in the AngularJS scope.
+The Content Area widget watches this value and swaps the rendered section widget
+in place. No page navigation, no URL change, no reload.
 
-## Standard UI — Operations Intelligence App Menu
+### Operations Assistant
 
-| Module | Role | Notes |
+Persistent right-side collapsible panel pinned to the interface — always present,
+never a floating button that appears and disappears. Opens automatically on first
+visit with the Welcome topic. The current `activeSection` is passed as `page_id`
+to the VA so it is always context-aware.
+
+When a creation tile in the Workspace section is clicked, the VA panel activates
+with the matching `pre_intent` already loaded — the conversation begins immediately
+without the user typing anything.
+
+### Section Layouts
+
+#### Workspace (all users)
+Three-panel layout as defined in the Group Workspace Interface section:
+Panel 1 — Automations (trigger on-demand; view status of event-driven)
+Panel 2 — Create New tiles (role-filtered; click → VA inline)
+Panel 3 — Existing Deliverables (click → GlideModal popup)
+
+#### My Activity (all users)
+- Execution history — own executions, row-level ACL, click to expand step log
+- Artifact request history — own `managed_artifact` records with status badges;
+  click on a draft to resume the creation conversation in the VA panel
+- Onboarding status card — shown only while onboarding is still in progress
+
+#### Studio (creator role)
+- Quick-start cards: "Build an Automation", "Create a Report/Dashboard",
+  "Set Up a Notification", "Create a Flow", "Request a Custom Table"
+  — each card pre-fills the VA with the matching creation intent
+- Active drafts: in-progress automation and deliverable specs with resume button
+- Published automations for my groups: version, usage count, edit / deprecate controls
+- Active deliverables for my groups: edit / deactivate / archive controls
+- Copilot status banner — persistent warning when token is expired or disconnected
+
+#### Governance (leadership role)
+- Pending approvals — unified `pending_action` queue (automation_approval and
+  artifact_approval types); inline approve / reject form; escalation indicator
+  and deadline countdown
+- Group management — group tree scoped to own groups; member list; add / remove
+  members; onboarding queue with expiry warnings and re-invite action
+- Flow oversight — all flows active for own groups; deactivate toggle; last
+  activation log per flow
+- Group metrics — execution counts, estimated time saved, active deliverable
+  counts per group
+
+#### Command (admin role)
+- System-wide metrics overview
+- All-groups tree — any group selectable; drill into members, executions,
+  deliverables
+- All executions — searchable, filterable; step log drill-down per execution
+- All deliverables — full `managed_artifact` list across all groups
+- Full `pending_action` queue across all types and all users
+- Audit log — `AuditService` entries; searchable by action, user, date range
+- System config — editable key configuration properties; debug mode toggle
+
+### Custom Widgets (all purpose-built — no OOB widgets used anywhere)
+
+| Widget | Section(s) | Purpose |
 |---|---|---|
-| Operations Command | admin | Full system view, all groups, all executions, all deliverables |
-| Operations Governance | leadership | Scoped to own groups and direct reports; flow deactivation controls |
-| Operations Studio | creator | Scoped to groups where group_role = creator; automations + deliverables + artifact lifecycle |
-| My Workspace | user | Opens Operations Workspace portal (Group Workspace home page) |
-| Execution Logs | admin, leadership | Admin: all logs; leadership: own groups only |
-
----
-
-## VA Placement Per Interface
-
-| Interface | Placement | Behaviour |
-|---|---|---|
-| Group Workspace (`home`) | Embedded side panel + floating button | Side panel opens when a creation tile or automation Trigger button is clicked; `pre_intent` + `page_id = home` passed to VA so the relevant topic fires immediately. Floating button available at all times for free-text interaction. Auto-opens on first-ever visit with the Welcome topic. |
-| Other portal pages | Floating button, bottom-right | Floating button available at all times; `page_id` passed for context-aware greeting |
-| Standard UI | Help panel (separate entry from Now Support) | Opens on demand; role-aware greeting |
-| Operations Governance page | Embedded side panel | `page_id = governance`; opens to pending approvals summary directly |
-| Operations Studio page | Embedded side panel | `page_id = studio`; opens to creation guidance or in-progress spec resume directly |
+| Navigation Bar | Global — `main` page | Role-filtered section links, branding, user profile, `activeSection` state management |
+| Content Area | Global — `main` page | Watches `activeSection`; swaps the correct section widget into the content frame |
+| Operations Assistant Panel | Global — `main` page | Persistent right-side panel; always visible; wired to `activeSection` as `page_id` and to `pre_intent` from creation tiles |
+| Workspace Automation Panel | workspace | Automation cards — Trigger button (on-demand) or status + activity count (event-driven); GlideModal for flow detail view |
+| Deliverable Type Tiles | workspace | Role-filtered creation tiles; click sets `pre_intent` and opens VA panel |
+| Deliverable Cards | workspace, studio | `managed_artifact` cards; click → GlideModal viewer; creator edit/deactivate/archive controls on own artifacts |
+| GlideModal Viewer | workspace, studio | Opens artifact in popup: `report_viewer.do` for reports, `$pa_dashboard.do` for PA dashboards, OI info page for notifications/scheduled jobs/flows, `sys_ui_page` frame for custom UI pages |
+| Execution History | activity | Own execution cards; row-level ACL; click to expand step log detail inline |
+| Artifact History | activity | Own `managed_artifact` cards; status badges; click draft → resumes VA conversation |
+| Creator Studio Panel | studio | Quick-start cards, draft list, published artifact management, Copilot status banner |
+| Pending Approvals | governance | `pending_action` queue with inline approve/reject form and escalation indicators |
+| Group Manager | governance | Group tree, member management, onboarding queue, re-invite controls |
+| Flow Oversight | governance | Active flows for own groups; deactivate toggle; activation log |
+| Group Metrics | governance | Execution counts, time saved, deliverable counts — charts per group |
+| Admin Overview | command | System-wide metrics, all-groups tree, execution and deliverable search |
+| Audit Log Viewer | command | `AuditService` records; searchable and filterable |
+| System Config Panel | command | Editable configuration properties, debug mode toggle |
+| Onboarding Progress | `onboarding` page | Step tracker, role/group confirmation, first-login guided flow |
 
 ---
 
@@ -1873,10 +1941,10 @@ log entry — no automation is silently abandoned.
 8. **VA NLU Model** — create `Operations Intelligence NLU` model record
 9. **VA System Topics** — all 23 system topics linked to Operations Assistant channel
 10. **NLU Initial Training** — trigger first model train via REST; poll until status = ready
-11. **Service Portal** — portal record (url_suffix = `operations_intelligence`, default page = `home`),
-    theme inheritance, all 8 pages, all 12 widgets
-12. **Standard UI** — app menu `Operations Intelligence`, all 6 modules with role gates
-13. **Custom topic auto-generation Business Rule** — on `group_automation` table,
+11. **Portal Interface** — portal record (url_suffix = `operations_intelligence`,
+    default page = `main`), fully custom theme, 2 pages (`main` + `onboarding`),
+    all 17 custom widgets; verify role-based section rendering for all 4 roles
+12. **Custom topic auto-generation Business Rule** — on `group_automation` table,
     fires when `approval_status` changes to `approved`;
     calls `CatalogService.onPublish()` which creates VA topic + NLU intent + retraining
 14. **GitHub Copilot integration** — CopilotBridge Connection alias, REST Message record,
