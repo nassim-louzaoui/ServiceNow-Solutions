@@ -4,15 +4,9 @@
 
 **Operations Intelligence** is an enterprise intelligent automation and deliverable
 platform built as a ServiceNow scoped application. It enables organisations to
-create, govern, and manage automations AND persistent ServiceNow deliverables
-(dashboards, reports, notification rules, flows, custom tables, UI pages) entirely
-through natural language via the Operations Assistant (Virtual Agent), with
-role-appropriate approval workflows and group-scoped governance.
-
-Creators never navigate directly to the underlying ServiceNow artifacts they
-create — all lifecycle management (edit, deactivate, archive, delete) happens
-exclusively through Operations Intelligence. This principle applies to every
-deliverable type.
+create, govern, and manage automations and persistent ServiceNow deliverables
+entirely through natural language via the Operations Assistant (Virtual Agent),
+with role-appropriate approval workflows and group-scoped governance.
 
 ### Scope Naming Note
 
@@ -57,15 +51,13 @@ from actual ServiceNow role assignments — never from a field on a custom table
 | `creator` | Appointed power users | Design and manage automations and deliverables within assigned groups |
 | `user` | All other staff | Execute automations and request deliverables via the Operations Assistant |
 
-Viewer role is intentionally excluded. Every legitimate read-only need is
-covered — leadership has full reporting in Operations Governance, admins
-have the full audit trail in Operations Command.
+A viewer role is not provided; read-only needs are met through role-appropriate
+section access within the portal.
 
 When leadership appoints a group creator, the system grants the `creator`
-system role (for Studio access) AND creates a `group_member` record with
-`group_role = creator` for that group. Creator appointment is a separate
-post-onboarding step — it is NOT part of the `onboarding_request` workflow.
-`onboarding_request.system_role` therefore only holds `leadership` or `user`.
+system role and creates a `group_member` record with `group_role = creator`.
+Creator appointment is a post-onboarding step; `onboarding_request.system_role`
+accepts `leadership` or `user` only.
 
 ### Group Roles (per group, independent of system role)
 
@@ -95,7 +87,7 @@ ADMIN
 - Each relationship is `primary` or `secondary`
 - A user has exactly ONE primary leader across all relationships
 - Automation approvals route to the primary leader only
-- Secondary leaders receive notifications but do not block approval
+- Secondary leaders receive notifications (informational only)
 - `delegation_rights` lives exclusively on the `person` record
 
 ### Delegation Rights
@@ -415,10 +407,8 @@ managed_artifact
   copilot_spec_applied      boolean (true once creator confirms Copilot spec)
   created_at                datetime
   updated_at                datetime
-  NOTE: Creators never access the underlying ServiceNow records directly.
-        All management (edit, deactivate, archive, delete) is performed
-        through OI via ArtifactManager. The artifact_sys_ids array is used
-        internally by builder Script Includes.
+  NOTE: artifact_sys_ids is used internally by builder Script Includes.
+        All lifecycle management is performed through OI via ArtifactManager.
 ```
 
 ### Security & Credential Tables
@@ -443,8 +433,8 @@ creator_credential
   ACL — FIELD LEVEL on github_pat:
     Read:   NOBODY — including admin, including scripts running as admin.
             CopilotBridge uses an elevated GlideRecord solely to pass the
-            decrypted value to the outbound REST call; it never returns the
-            value to any caller.
+            decrypted value to the outbound REST call; the value is not
+            returned to any caller.
     Write:  user = gs.getUserID() only
 
 pending_action
@@ -492,11 +482,11 @@ leadership approval gates creation, and how lifecycle management works.
 
 | Deliverable Type | Who can create | Approval required | Copilot role | OI-managed lifecycle |
 |---|---|---|---|---|
-| `report` | All users (via VA) and creators | No — active immediately | Auto fills field selection, conditions, chart type if not specified | Creator (and user who requested it) manages via OI |
-| `pa_dashboard` | All users (via VA) and creators | No — active immediately | Auto fills widget layout, widget types, data sources if not specified | Creator manages via OI |
-| `notification_rule` | All users (via VA) and creators | No — active immediately | Auto fills trigger conditions, email template if not specified | Creator manages via OI |
-| `scheduled_data_job` | All users (via VA) and creators | No — active immediately | Auto fills schedule, target table, field selection if not specified | Creator manages via OI |
-| `flow` | Creators only | No — active immediately; leadership notified (informational) | Auto fills trigger conditions, action logic if not specified | Creator manages via OI; leadership can deactivate |
+| `report` | All users (via VA) and creators | No (immediate) | Auto fills field selection, conditions, chart type if not specified | Creator (and user who requested it) manages via OI |
+| `pa_dashboard` | All users (via VA) and creators | No (immediate) | Auto fills widget layout, widget types, data sources if not specified | Creator manages via OI |
+| `notification_rule` | All users (via VA) and creators | No (immediate) | Auto fills trigger conditions, email template if not specified | Creator manages via OI |
+| `scheduled_data_job` | All users (via VA) and creators | No (immediate) | Auto fills schedule, target table, field selection if not specified | Creator manages via OI |
+| `flow` | Creators only | No (immediate); leadership notified (informational) | Auto fills trigger conditions, action logic if not specified | Creator manages via OI; leadership can deactivate |
 | `custom_table` | Creators only | Yes — leadership approval required | Full spec generation: field types, labels, mandatory flags, form layout | Creator manages via OI after approval |
 | `ui_page` | Creators only (optional complement to custom_table) | Yes — leadership approval required | Full UI spec from plain English: layout, fields, data binding to custom tables | Creator manages via OI after approval |
 
@@ -529,33 +519,29 @@ leadership approval gates creation, and how lifecycle management works.
    request is filed simultaneously, shares the same approval workflow, and is listed
    alongside the table in managed_artifact.
 
-6. **Scope isolation** — all custom tables created through OI are created within the
-   OI scoped application. They are NOT global tables. TableBuilder ensures the scoped
-   app prefix is applied automatically.
+6. **Scope isolation** — all custom tables are created within the OI scoped
+   application; TableBuilder applies the scope prefix automatically.
 
-7. **No ungated script artifacts** — no deliverable path creates `sysauto_script`
-   (Scheduled Scripts) or `sys_script` (Business Rules). Scheduled data delivery
-   uses `sysauto_report`. Flows are restricted to a curated safe action set.
-   UI pages (`sys_ui_page`) are full-capability pages — Jelly, GlideAjax, client
-   JavaScript — but are gated behind mandatory leadership approval. Copilot
-   generates the full implementation plan from the creator's plain-English
-   requirements; the plan is presented to the leader for approval before
-   UIPageBuilder creates a single line of code.
+7. **Approval-gated script capability** — scheduled data delivery uses the
+   declarative `sysauto_report` path. Flows execute against a curated action set
+   with creator permissions. UI pages carry full script capability (Jelly,
+   GlideAjax, client JavaScript) and are generated from a Copilot-produced
+   implementation plan that leadership must approve before UIPageBuilder runs.
 
 ### Builder Dispatch — Artifact Type to Underlying Records
 
-`ArtifactManager` routes each managed_artifact to its builder. No builder ever
-creates a script-bearing artifact.
+`ArtifactManager` routes each `managed_artifact` record to its builder based on
+`artifact_type`.
 
-| artifact_type | Builder | Underlying ServiceNow record(s) | Scripts? |
+| artifact_type | Builder | Underlying ServiceNow record(s) | Generation method |
 |---|---|---|---|
-| `report` | ReportBuilder | `sys_report` | None — declarative |
-| `pa_dashboard` | ReportBuilder | `pa_dashboards` + PA widgets (scorecards, breakdowns, trendlines) | None — declarative |
-| `notification_rule` | NotificationBuilder | `sysevent_email_action` | None — declarative condition + template |
-| `scheduled_data_job` | NotificationBuilder | `sys_report` + `sysauto_report` (scheduled delivery) | None — declarative |
-| `flow` | FlowBuilder | `sys_hub_flow` (+ trigger + actions) | No script steps; safe action set only |
-| `custom_table` | TableBuilder | `sys_db_object` + `sys_dictionary` (+ default form & list views) | None — schema only |
-| `ui_page` | UIPageBuilder | `sys_ui_page` (full UI Page — Jelly layout + GlideAjax + client JS per Copilot-generated spec) | Per requirements — full script capability; gated by leadership approval |
+| `report` | ReportBuilder | `sys_report` | Declarative |
+| `pa_dashboard` | ReportBuilder | `pa_dashboards` + PA widgets | Declarative |
+| `notification_rule` | NotificationBuilder | `sysevent_email_action` | Declarative |
+| `scheduled_data_job` | NotificationBuilder | `sys_report` + `sysauto_report` | Declarative |
+| `flow` | FlowBuilder | `sys_hub_flow` (+ trigger + actions) | Curated action set |
+| `custom_table` | TableBuilder | `sys_db_object` + `sys_dictionary` (+ default views) | Declarative schema |
+| `ui_page` | UIPageBuilder | `sys_ui_page` | Copilot-generated spec (leadership-approved) |
 
 ---
 
@@ -564,7 +550,7 @@ creates a script-bearing artifact.
 ### Common Pattern (all deliverable types)
 
 ```
-PHASE 1 — Requirements Conversation (always runs, never blocked)
+PHASE 1 — Requirements Conversation (unconditional)
   Operations Assistant guides creator/user through structured multi-turn dialogue
   Questions adapt to deliverable type (see type-specific flows below)
   Progress auto-saved to managed_artifact as creation_spec JSON after every turn
@@ -648,16 +634,16 @@ PHASE 4 — Create or Submit for Approval
 - NOTE: FlowBuilder creates a `sys_hub_flow` record within the OI scoped app and
   activates it immediately. Leadership receives OI - Flow Activated.
 
-**FlowBuilder security model** (creator flows bypass approval, so they are bounded):
+**FlowBuilder security model** (creator flows activate immediately, with bounded capability):
 - **Run-as-creator** — the flow executes with the creating creator's own
-  ServiceNow permissions, never elevated. A flow can never perform an operation
-  the creator could not perform manually.
+  ServiceNow permissions. Operations are bounded by the creator's existing access.
 - **Safe action set only** — FlowBuilder accepts a curated list of action types:
   record create, record update, set field values, assign to a group/user,
-  send notification (via OI templates), and wait/timer. It rejects any action
-  that runs arbitrary script, calls an unapproved external endpoint, or elevates
-  privileges.
-- **No script steps** — Flow Designer "Run Script" actions are never generated.
+  send notification (via OI templates), and wait/timer. Actions requiring
+  arbitrary script, unapproved external endpoints, or privilege elevation
+  are outside the accepted set.
+- **No script steps** — FlowBuilder does not include Flow Designer "Run Script"
+  action types in its accepted set.
 - **Action cap** — bounded by `{scope}.max_flow_actions` (default 20).
 - **Leadership override** — leadership sees every group flow in Operations
   Governance and can deactivate any of them at any time (OI - Flow Activated
@@ -941,12 +927,11 @@ PUBLISHED
   VA topic activated; NLU intent active; group_automation.approval_status = approved
   automation_version snapshot created
   usage_count maintained by Business Rule on each successful non-test execution
-  Cannot directly deprecate while any execution.status IN (running, awaiting_approval)
-    -> set to DEPRECATION_QUEUED instead
+  Deprecation while executions are in-flight transitions to DEPRECATION_QUEUED
     |
     v new version submitted -> old version transitions to DEPRECATION_QUEUED on new publish
 DEPRECATION_QUEUED
-  No new executions can be started for this automation
+  Accepts no new executions
   OI - Deprecation Guard BR monitors; auto-transitions to DEPRECATED once all
   in-flight executions complete
     |
@@ -1003,25 +988,20 @@ Deprecation guard:
   BR5 (OI - Deprecation Guard) monitors; completes automatically when all clear
 ```
 
-### Why automation scheduling may use `sysauto_script` but deliverables may not
+### Scheduled Execution vs. Deliverable `sysauto_script` Usage
 
-The deliverable governance excludes `sysauto_script` because it would let a
-creator author **arbitrary script** that runs in the global scope. The
-`sysauto_script` records ScheduleManager creates for scheduled automations carry
-a **fixed, system-authored body** — they contain only
-`new ExecutionEngine().runScheduled(automation_sys_id)`. The creator never writes
-a line of script; they define declarative steps that ExecutionEngine interprets
-against its bounded action set. The risk being excluded (creator-authored global
-script) therefore never exists on this path. Scheduled **data jobs** requested by
-end users take the fully declarative `sysauto_report` path instead and never
-touch `sysauto_script` at all.
+Deliverable governance routes scheduled data jobs through `sysauto_report` — the
+declarative scheduled report path. `sysauto_script` records are used only by
+ScheduleManager for automation scheduling; their body is always the fixed
+system-authored invocation `new ExecutionEngine().runScheduled(automation_sys_id)`.
+Creator input defines declarative steps that ExecutionEngine interprets at runtime.
 
 ---
 
 ## Automation Creation Flow
 
 ```
-PHASE 1 — NLU Requirements Conversation (always runs, never blocked)
+PHASE 1 — NLU Requirements Conversation (unconditional)
   Operations Assistant guides creator through structured multi-turn dialogue
   Covers: trigger phrases, inputs, steps, conditions, branch logic, schedule
   Progress saved to use_case_request after every turn — fully resumable
@@ -1445,7 +1425,7 @@ tile or quick-start card sets a specific intent directly.
 | [Operations Intelligence] Deactivation Action | Leader receives deactivation pending_action | Guided resolution: approve / notify / escalate |
 | [Operations Intelligence] Re-invite User | Leader requests after expiry | Re-sends invitation (max 2 re-invitations) |
 | [Operations Intelligence] Check Status | User mentions reference or asks about request | Execution status lookup by reference or description |
-| [Operations Intelligence] Help & Fallback | No intent matched | Suggests 3 closest available automations; never a dead end |
+| [Operations Intelligence] Help & Fallback | No intent matched | Suggests 3 closest available automations based on input similarity |
 | [Operations Intelligence] Approval Review | Leadership pending_action automation_approval or artifact_approval | Guided approval: review spec (automation, custom table, or UI page), approve or reject with reason |
 | [Operations Intelligence] Create Report or Dashboard | User/creator requests a report or PA dashboard | Multi-turn requirements; Copilot fills technical gaps; immediate creation (no approval) |
 | [Operations Intelligence] Create Notification Rule | User/creator requests an email trigger or alert | Multi-turn requirements including condition, recipients, email body; Copilot fills gaps; immediate creation |
@@ -1556,10 +1536,9 @@ Response parsing:
 ```
 
 ### PAT Access Pattern
-CopilotBridge never returns or logs the decrypted PAT value. It reads the
-password2 field via an elevated GlideRecord call, passes it directly to the
-outbound REST request, and discards the reference. No caller receives the
-plain-text value.
+CopilotBridge reads the password2 field via an elevated GlideRecord call, passes
+the value directly to the outbound REST request, and discards the reference.
+The decrypted value is not returned to any caller or recorded in any log.
 
 ### Timeout and Fallback
 - Timeout: `{scope}.copilot_timeout_ms` (default 15000ms)
@@ -1572,8 +1551,7 @@ plain-text value.
 
 ## Notification Templates (22 total)
 
-All notifications sent via NotificationService. Templates defined in the scoped
-app — global notification records are never modified.
+All notifications sent via NotificationService. Templates defined in the scoped app.
 
 | Template name | Trigger | Recipients |
 |---|---|---|
@@ -1655,10 +1633,9 @@ in place. No page navigation, no URL change, no reload.
 
 ### Operations Assistant
 
-Persistent right-side collapsible panel pinned to the interface — always present,
-never a floating button that appears and disappears. Opens automatically on first
-visit with the Welcome topic. The current `activeSection` is passed as `page_id`
-to the VA so it is always context-aware.
+Persistent right-side collapsible panel pinned to the interface — always present.
+Opens automatically on first visit with the Welcome topic. The current
+`activeSection` is passed as `page_id` to the VA so it is always context-aware.
 
 When a creation tile in the Workspace section is clicked, the VA panel activates
 with the matching `pre_intent` already loaded — the conversation begins immediately
@@ -1754,13 +1731,12 @@ switch in at the next poll interval with no page reload required.
 | Individual section(s) — `workspace`, `activity`, `studio`, `governance`, `command` | All users viewing that section | Maintenance Overlay replaces section content; Navigation Bar shows wrench badge on the affected link |
 | Entire application — `["all"]` | All users across all sections | Maintenance Overlay renders for every section; Export Application XML button activates in the Maintenance Control Panel |
 
-Admin users always retain access to the Command section and the Maintenance Control
-Panel regardless of maintenance state — the Command section is never self-blocked.
-When entire-app maintenance is active, admins see the Maintenance Overlay on all
-other sections but can still access Command normally.
+Admin users retain access to the Command section and the Maintenance Control
+Panel under all maintenance states. When entire-app maintenance is active, admins
+see the Maintenance Overlay on all other sections; Command remains available.
 
-Non-admin users who navigate to or are already viewing a section in maintenance see
-the Maintenance Overlay with the configured message. They cannot bypass it.
+Non-admin users viewing a section in maintenance see the Maintenance Overlay
+with the configured message.
 
 ### Maintenance Overlay Widget
 
@@ -2071,10 +2047,9 @@ generates the `{scope}` prefix, and registers the app in the system.
 | Short description | Enterprise intelligent automation and deliverable platform |
 
 > **Note on scope prefix:** ServiceNow may auto-suggest a scope based on the
-> application name — you can overwrite it. The exact prefix does NOT have to be
-> `x_opsi_ops_int`. Whatever value is set here becomes `{scope}` throughout the
-> entire architecture. The `01_bootstrap_api_access.js` script prints the resolved
-> `{scope}` value after the app is created — use that output as the authoritative
+> application name; the value can be overwritten. Whatever prefix is set here
+> becomes `{scope}` throughout the architecture. The `01_bootstrap_api_access.js`
+> script prints the resolved `{scope}` value — use that output as the authoritative
 > reference for all subsequent build steps.
 
 ### Step 3 — Create Application Roles
