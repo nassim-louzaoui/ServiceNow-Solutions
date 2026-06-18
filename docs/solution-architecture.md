@@ -1963,56 +1963,78 @@ Run scripts in order from **System Definition → Scripts - Background**:
 | Script | Purpose |
 |---|---|
 | `01_bootstrap_api_access.js` | Creates service account `svc_claude_api` with admin role; prints credentials, instance URL, and the resolved `{scope}` prefix. **Capture this output** — it is the prerequisite for all REST-based build tooling. |
-| `03_setup_update_sets.js` | Creates the batch update set structure (4 child sets); activates "OI v1.0 — Data Foundation" as the current update set. Run after capturing credentials from the above. |
+| `03_setup_update_sets.js` | Creates the single update set "Operations Intelligence v1.0.0" and activates it; also creates the per-environment config update sets. Run after capturing credentials from the above. |
 
 **Do not proceed to the main build until:**
 - `01_bootstrap_api_access.js` output has been captured (credentials + `{scope}` prefix)
-- The active update set shown in the top banner reads **OI v1.0 — Data Foundation**
+- The active update set shown in the top banner reads **Operations Intelligence v1.0.0**
 - The scope picker still shows **Operations Intelligence**
 
 ---
 
 ## Update Set & Migration Strategy
 
-Operations Intelligence uses a **batch update set** structure that groups build
-artifacts into four logically cohesive child sets. Each child can be individually
-reviewed; the parent batch promotes all four atomically.
+The goal is simple: move the entire platform from dev → test → production in one
+clean operation. Two approaches are available; **Studio Application Export is
+strongly preferred**.
 
-### Batch Structure
+### Preferred: Studio Application Export
+
+Because Operations Intelligence is a proper scoped application, ServiceNow Studio
+can export the entire app as a single XML file. This is more complete and reliable
+than an update set — it captures everything tied to the application scope with no
+risk of accidentally missing an artifact.
 
 ```
-sys_update_set_batch  (parent)
-  └── "Operations Intelligence v1.0.0"
-        │
-        ├── "OI v1.0 — Data Foundation"
-        │     19 custom tables (fields, choice lists, reference fields)
-        │     Roles and ACLs (table-level, row-level, field-level)
-        │     Seed data: automation_category + approved_flow records
-        │
-        ├── "OI v1.0 — Application Logic"
-        │     20 Script Includes (in dependency order)
-        │     5 Business Rules
-        │     5 Scheduled Jobs (initially inactive)
-        │     14 system properties
-        │
-        ├── "OI v1.0 — Notifications & VA"
-        │     22 notification templates
-        │     VA Channel (Operations Assistant)
-        │     NLU Model (Operations Intelligence NLU)
-        │     23 VA System Topics
-        │
-        └── "OI v1.0 — Portal Interface"
-              Portal record + custom theme
-              2 portal pages (main + onboarding)
-              18 custom widgets
-              GitHub Copilot Connection alias + REST Message record
+Export (on dev):
+  1. Open Studio (System Applications > Studio)
+  2. Select the Operations Intelligence application
+  3. File > Export to XML
+  4. Download the exported XML file
+
+Import (on test or prod):
+  1. Navigate to: System Applications > All Applications > Upload
+  2. Upload the XML file
+  3. ServiceNow installs the application and all its artifacts
+  4. Apply OI — Environment Config (see below)
+  5. Trigger NLU model retraining (see NLU note below)
+  6. Run 02_verify_implementation.js — all checks must pass
 ```
 
-### Environment-Specific Configuration (kept separate)
+### Fallback: Single Update Set
 
-A fifth update set is maintained per environment and is **NOT included in the
-batch**. Keeping it separate prevents dev credentials or debug settings from
-being overwritten by a batch migration.
+If Studio export is not available or not permitted on your instance, use a
+**single update set** for the entire build — do not split it into multiple sets.
+
+| Update set name | Contains |
+|---|---|
+| `Operations Intelligence v1.0.0` | Everything: all 19 tables, Script Includes, BRs, Jobs, notifications, VA, NLU, portal, widgets, properties |
+
+A single set keeps migration to one export, one import, one apply operation.
+Splitting into multiple sets adds management overhead with no practical benefit
+for a complete initial deployment where all parts always move together.
+
+```
+Export (on dev):
+  1. System Update Sets > Local Update Sets
+  2. Open "Operations Intelligence v1.0.0" > Make Current (to close it)
+  3. Right-click > Export to XML
+
+Import (on test or prod):
+  1. System Update Sets > Retrieved Update Sets > Import XML
+  2. Upload the XML file
+  3. Preview — resolve any conflicts
+  4. Apply
+  5. Apply OI — Environment Config (see below)
+  6. Trigger NLU model retraining (see NLU note below)
+  7. Run 02_verify_implementation.js — all checks must pass
+```
+
+### Environment-Specific Configuration (always separate)
+
+Regardless of which migration approach is used, keep environment-specific
+settings in a **separate, manually applied update set per environment**.
+This prevents dev credentials and debug flags from overwriting production values.
 
 | Update set name | Contents |
 |---|---|
@@ -2020,69 +2042,49 @@ being overwritten by a batch migration.
 | `OI — Environment Config (test)` | Same properties with test-environment values |
 | `OI — Environment Config (prod)` | Same properties with production values |
 
-Each environment config update set is applied manually on the target instance,
-never promoted as part of the batch.
+Apply the matching config set manually on each instance after the main migration.
+Never include these in the Studio export or the main update set.
 
 ### NLU Model Migration Note
 
-The `Operations Intelligence NLU` model record migrates via the batch (as a
-`sys_nlu_model` record in "OI v1.0 — Notifications & VA"). However, **trained
-model weights are NOT captured in update sets** — update sets record configuration
-only, not ML state.
+The `Operations Intelligence NLU` model record migrates (as a `sys_nlu_model`
+record). However, **trained model weights are NOT captured** — update sets and
+Studio exports record configuration only, not ML state.
 
-After promoting the batch to each environment, trigger a fresh NLU training run:
+After applying to each environment, trigger a fresh NLU training run:
 
 ```
 POST /api/sn_nlu/v1/model/{nlu_model_sys_id}/train
 Authorization: Basic {svc_claude_api credentials on that instance}
 ```
 
-Training runs against the same VA topics that were promoted; results are
-equivalent. Typical completion: 2–5 minutes.
+Training runs against the same VA topics that migrated; results are equivalent.
+Typical completion: 2–5 minutes. Poll `GET /api/sn_nlu/v1/model/{sys_id}` until
+`status = "ready"` before running the End-to-End Test Checklist.
 
-### Migration Sequence
+### Full Migration Sequence
 
 ```
 DEV — build and verify
-  1. Run 02_verify_implementation.js — all checks must pass
-  2. Ensure all 4 child update sets are fully committed (no open transactions)
-  3. Export batch update set XML from System Update Sets > Batch Update Sets
+  1. Complete all 15 Build Sequence steps
+  2. Run 02_verify_implementation.js — all checks must pass
+  3. Export: Studio XML (preferred) or update set XML (fallback)
 
 TEST
-  4. Import the batch XML (System Update Sets > Retrieved Update Sets > Import XML)
-  5. Preview the batch — resolve any conflicts before applying
-  6. Apply batch (dependency order enforced: Data Foundation applied first)
-  7. Apply OI — Environment Config (test) manually
-  8. Trigger NLU model retraining (POST to train endpoint on test instance)
-  9. Run 02_verify_implementation.js on test — all checks must pass
-  10. Execute End-to-End Test Checklist (items 1–15 minimum)
+  4. Import and apply the application XML
+  5. Apply OI — Environment Config (test)
+  6. Trigger NLU model retraining; wait for status = ready
+  7. Run 02_verify_implementation.js — all checks must pass
+  8. Execute End-to-End Test Checklist (items 1–15 minimum)
 
 PRODUCTION
-  11. Import the same batch XML (no re-export needed)
-  12. Preview and apply
-  13. Apply OI — Environment Config (prod) manually
-  14. Trigger NLU model retraining
-  15. Run 02_verify_implementation.js on prod — all checks must pass
-  16. Activate Scheduled Jobs (step 14 of Build Sequence)
-  17. Smoke-test: admin onboards one leader; confirm VA responds correctly
+  9.  Import and apply the same application XML
+  10. Apply OI — Environment Config (prod)
+  11. Trigger NLU model retraining; wait for status = ready
+  12. Run 02_verify_implementation.js — all checks must pass
+  13. Activate Scheduled Jobs (Build Sequence step 14)
+  14. Smoke-test: admin onboards one leader; confirm VA responds correctly
 ```
-
-### Switching the Active Child Update Set During Build
-
-`03_setup_update_sets.js` creates all four child sets and activates
-"OI v1.0 — Data Foundation" automatically. Switch the active child before
-starting each build phase — ServiceNow captures every artifact into whichever
-child is active at creation time.
-
-| Build phase | Active child update set |
-|---|---|
-| Steps 1–3 (tables, ACLs, seed data) | OI v1.0 — Data Foundation |
-| Steps 4–6 (Script Includes, BRs, Jobs) + properties | OI v1.0 — Application Logic |
-| Steps 7–10 (notifications, VA, NLU) | OI v1.0 — Notifications & VA |
-| Steps 11–13 (portal, widgets, Copilot integration) | OI v1.0 — Portal Interface |
-
-Switch via: **System Update Sets → Local Update Sets** → click the target child
-→ click **Make Current**.
 
 ---
 
@@ -2091,8 +2093,8 @@ Switch via: **System Update Sets → Local Update Sets** → click the target ch
 ### Pre-Build
 1. Create the scoped application in Studio (see **Scoped Application Setup** section)
 2. Run `01_bootstrap_api_access.js` — capture credentials and `{scope}` prefix
-3. Run `03_setup_update_sets.js` — creates batch structure; activates Data Foundation set
-4. Confirm: scope picker = **Operations Intelligence**; active update set = **OI v1.0 — Data Foundation**
+3. Run `03_setup_update_sets.js` — creates a single update set "Operations Intelligence v1.0.0" and activates it
+4. Confirm: scope picker = **Operations Intelligence**; active update set = **Operations Intelligence v1.0.0**
 
 ### Custom Tables (19 total — created in step 1)
 

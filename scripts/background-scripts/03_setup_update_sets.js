@@ -10,21 +10,26 @@
 //      (scope picker in top-right banner)
 //   2. Navigate to: System Definition > Scripts - Background
 //   3. Paste this ENTIRE script and click "Run script"
-//   4. Confirm the output shows all 4 child sets created
-//   5. Confirm the active update set banner changes to
-//      "OI v1.0 — Data Foundation"
+//   4. Confirm the active update set banner changes to
+//      "Operations Intelligence v1.0.0"
 //
 // WHAT THIS CREATES:
-//   - 1 batch parent: "Operations Intelligence v1.0.0"
-//   - 4 child update sets in dependency order:
-//       1. OI v1.0 — Data Foundation
-//       2. OI v1.0 — Application Logic
-//       3. OI v1.0 — Notifications & VA
-//       4. OI v1.0 — Portal Interface
-//   - Sets "OI v1.0 — Data Foundation" as the active update set
+//   1. "Operations Intelligence v1.0.0"
+//      Single update set capturing the entire platform build.
+//      All 15 build steps write into this one set.
 //
-// DO NOT re-run this script if the batch already exists —
-// check System Update Sets > Batch Update Sets first.
+//   2. "OI — Environment Config (dev)"
+//      Separate set for environment-specific properties.
+//      NOT included in the main migration — applied manually
+//      per environment after the app is promoted.
+//
+// MIGRATION APPROACH:
+//   Preferred  — Studio Application Export (File > Export to XML)
+//   Fallback   — Export "Operations Intelligence v1.0.0" as XML
+//   In either case, apply "OI — Environment Config" manually
+//   on each target instance, then retrain the NLU model.
+//
+// DO NOT re-run if the update sets already exist.
 // ============================================================
 
 (function setupOIUpdateSets() {
@@ -48,167 +53,127 @@
     gs.print('  Scope: ' + scope);
     gs.print('');
 
-    // ── Guard: check if batch already exists ─────────────────
-    var existingBatch = new GlideRecord('sys_update_set_batch');
-    existingBatch.addQuery('name', 'Operations Intelligence v1.0.0');
-    existingBatch.setLimit(1);
-    existingBatch.query();
-    if (existingBatch.next()) {
-        gs.print('WARNING: Batch update set "Operations Intelligence v1.0.0" already exists.');
-        gs.print('         Sys ID: ' + existingBatch.getUniqueValue());
+    // ── Guard: check if main set already exists ───────────────
+    var mainSetName = 'Operations Intelligence v1.0.0';
+    var existing = new GlideRecord('sys_update_set');
+    existing.addQuery('name', mainSetName);
+    existing.addQuery('application', gs.getCurrentApplicationID());
+    existing.setLimit(1);
+    existing.query();
+    if (existing.next()) {
+        gs.print('WARNING: Update set "' + mainSetName + '" already exists.');
+        gs.print('         Sys ID: ' + existing.getUniqueValue());
         gs.print('         Run aborted — no changes made.');
-        gs.print('         To rebuild, delete the existing batch and its children first.');
         gs.print('');
         gs.print(DIV);
         return;
     }
 
-    // ── Create batch parent ───────────────────────────────────
-    var batch = new GlideRecord('sys_update_set_batch');
-    batch.initialize();
-    batch.setValue('name', 'Operations Intelligence v1.0.0');
-    batch.setValue('description',
-        'Full Operations Intelligence platform — ' +
-        'dev to test to production migration batch. ' +
-        'Scope: ' + scope + '. ' +
-        'Contains 4 child sets covering Data Foundation, ' +
-        'Application Logic, Notifications & VA, and Portal Interface.');
-    batch.setValue('state', 'building');
-    var batchSysId = batch.insert();
+    var createdSysIds = {};
 
-    if (!batchSysId) {
-        gs.print('ERROR: Failed to create batch update set. Check permissions.');
-        return;
+    // ── Helper ────────────────────────────────────────────────
+    function createUpdateSet(name, description) {
+        var gr = new GlideRecord('sys_update_set');
+        gr.initialize();
+        gr.setValue('name', name);
+        gr.setValue('description', description);
+        gr.setValue('state', 'building');
+        gr.setValue('application', gs.getCurrentApplicationID());
+        var sysId = gr.insert();
+        if (!sysId) {
+            gs.print('  [FAIL] Could not create: "' + name + '"');
+            return null;
+        }
+        gs.print('  [OK]  Created: "' + name + '"');
+        gs.print('        Sys ID: ' + sysId);
+        return sysId;
     }
-    gs.print('  [OK] Batch parent created: "Operations Intelligence v1.0.0"');
-    gs.print('       Sys ID: ' + batchSysId);
+
+    // ── 1. Main build update set ──────────────────────────────
+    createdSysIds.main = createUpdateSet(
+        mainSetName,
+        'Complete Operations Intelligence platform build — all 19 tables, ' +
+        '20 Script Includes, 5 Business Rules, 5 Scheduled Jobs, 14 properties, ' +
+        '22 notifications, VA Channel, NLU model, 23 VA topics, portal, ' +
+        '18 widgets. Scope: ' + scope + '. ' +
+        'Migrate via Studio Application Export (preferred) or this update set XML.'
+    );
+
     gs.print('');
 
-    // ── Child set definitions ─────────────────────────────────
-    var children = [
+    // ── 2. Environment config sets (separate — not migrated with app) ──
+    var envSets = [
         {
-            name: 'OI v1.0 — Data Foundation',
+            name: 'OI — Environment Config (dev)',
             description:
-                'Custom tables (19), field definitions, choice lists, reference fields. ' +
-                'Roles and ACLs (table-level, row-level, field-level). ' +
-                'Seed data: automation_category + approved_flow records. ' +
-                'BUILD ORDER: Steps 1–3.',
-            order: 100
+                'Environment-specific properties for DEV. ' +
+                'Contents: debug_mode, copilot_api_endpoint, connection aliases, ' +
+                'integration credentials. ' +
+                'NOT included in the main app migration — apply manually on dev only.'
         },
         {
-            name: 'OI v1.0 — Application Logic',
+            name: 'OI — Environment Config (test)',
             description:
-                'Script Includes (20, in dependency order), Business Rules (5), ' +
-                'Scheduled Jobs (5, initially inactive), system properties (14). ' +
-                'BUILD ORDER: Steps 4–6 + properties.',
-            order: 200
+                'Environment-specific properties for TEST. ' +
+                'Apply manually on the test instance after promoting the main app. ' +
+                'Never apply this set on dev or production.'
         },
         {
-            name: 'OI v1.0 — Notifications & VA',
+            name: 'OI — Environment Config (prod)',
             description:
-                'Notification templates (22), VA Channel (Operations Assistant), ' +
-                'NLU Model (Operations Intelligence NLU), VA System Topics (23). ' +
-                'NOTE: NLU model weights do NOT migrate — retrain after promoting. ' +
-                'BUILD ORDER: Steps 7–10.',
-            order: 300
-        },
-        {
-            name: 'OI v1.0 — Portal Interface',
-            description:
-                'Portal record + custom theme, portal pages (main + onboarding), ' +
-                'custom widgets (18), GitHub Copilot Connection alias + REST Message. ' +
-                'BUILD ORDER: Steps 11–13.',
-            order: 400
+                'Environment-specific properties for PRODUCTION. ' +
+                'Apply manually on the production instance after promoting the main app. ' +
+                'Never apply this set on dev or test.'
         }
     ];
 
-    var childSysIds = {};
-
-    children.forEach(function(child) {
-        var gr = new GlideRecord('sys_update_set');
-        gr.initialize();
-        gr.setValue('name', child.name);
-        gr.setValue('description', child.description);
-        gr.setValue('state', 'building');
-        gr.setValue('application', gs.getCurrentApplicationID());
-        gr.setValue('batch_parent', batchSysId);
-        var sysId = gr.insert();
-
-        if (!sysId) {
-            gs.print('  [FAIL] Could not create child set: ' + child.name);
-        } else {
-            childSysIds[child.name] = sysId;
-            gs.print('  [OK]  Child created: "' + child.name + '"');
-            gs.print('        Sys ID: ' + sysId);
-        }
+    envSets.forEach(function(s) {
+        createUpdateSet(s.name, s.description);
     });
 
     gs.print('');
 
-    // ── Activate "Data Foundation" as the current update set ──
-    var dataFoundationName = 'OI v1.0 — Data Foundation';
-    var dataFoundationSysId = childSysIds[dataFoundationName];
-
-    if (!dataFoundationSysId) {
-        gs.print('ERROR: Could not activate Data Foundation set — sys_id not found.');
-        gs.print('       Set it manually: System Update Sets > Local Update Sets > click it > Make Current.');
-    } else {
-        gs.setProperty('sys_update_set', dataFoundationSysId);
-
-        // Verify activation
+    // ── Activate the main set ─────────────────────────────────
+    if (createdSysIds.main) {
+        gs.setProperty('sys_update_set', createdSysIds.main);
         var currentSet = gs.getProperty('sys_update_set');
-        if (currentSet === dataFoundationSysId) {
-            gs.print('  [OK] Active update set changed to: "' + dataFoundationName + '"');
+        if (currentSet === createdSysIds.main) {
+            gs.print('  [OK] Active update set set to: "' + mainSetName + '"');
         } else {
-            gs.print('  [WARN] Automatic activation may not have worked for your session.');
-            gs.print('         Set it manually: System Update Sets > Local Update Sets');
-            gs.print('         > "' + dataFoundationName + '" > Make Current.');
+            gs.print('  [WARN] Automatic activation may not have taken effect.');
+            gs.print('         Set it manually:');
+            gs.print('         System Update Sets > Local Update Sets');
+            gs.print('         > "' + mainSetName + '" > Make Current');
         }
     }
 
-    // ── Print migration guidance ──────────────────────────────
+    // ── Print guidance ────────────────────────────────────────
     gs.print('');
     gs.print(DIV2);
-    gs.print('  ENVIRONMENT-SPECIFIC CONFIG (keep separate — NOT in batch)');
+    gs.print('  MIGRATION GUIDANCE');
     gs.print(DIV2);
     gs.print('');
-    gs.print('  Create one manual update set per environment (do not add to batch):');
-    gs.print('    - OI — Environment Config (dev)');
-    gs.print('    - OI — Environment Config (test)');
-    gs.print('    - OI — Environment Config (prod)');
+    gs.print('  PREFERRED — Studio Application Export:');
+    gs.print('    Studio > File > Export to XML');
+    gs.print('    Import on target: System Applications > All Applications > Upload');
     gs.print('');
-    gs.print('  Contents: debug_mode, copilot_api_endpoint, connection aliases,');
-    gs.print('            integration credentials.');
-    gs.print('  Apply each manually on the target instance after batch promotion.');
+    gs.print('  FALLBACK — Update Set XML:');
+    gs.print('    Export "' + mainSetName + '" as XML');
+    gs.print('    Import on target: System Update Sets > Retrieved Update Sets > Import XML');
+    gs.print('    Preview, resolve conflicts, apply');
     gs.print('');
-    gs.print(DIV2);
-    gs.print('  SWITCH ACTIVE SET DURING BUILD');
-    gs.print(DIV2);
-    gs.print('');
-    gs.print('  Steps 1-3  (tables, ACLs, seed data)  -> OI v1.0 — Data Foundation');
-    gs.print('  Steps 4-6  (SIs, BRs, Jobs) + props   -> OI v1.0 — Application Logic');
-    gs.print('  Steps 7-10 (notifications, VA, NLU)   -> OI v1.0 — Notifications & VA');
-    gs.print('  Steps 11-13 (portal, widgets, Copilot) -> OI v1.0 — Portal Interface');
-    gs.print('');
-    gs.print('  Switch via: System Update Sets > Local Update Sets');
-    gs.print('              > click the target child > Make Current');
-    gs.print('');
-    gs.print(DIV2);
-    gs.print('  NLU MODEL NOTE');
-    gs.print(DIV2);
-    gs.print('');
-    gs.print('  After promoting the batch to test or production, trigger');
-    gs.print('  a fresh NLU training run on that instance:');
-    gs.print('');
-    gs.print('  POST /api/sn_nlu/v1/model/{nlu_model_sys_id}/train');
-    gs.print('  Authorization: Basic {svc_claude_api credentials on that instance}');
-    gs.print('');
-    gs.print('  Trained model weights are NOT captured in update sets.');
+    gs.print('  AFTER MIGRATING TO EACH ENVIRONMENT:');
+    gs.print('    1. Apply the matching "OI — Environment Config" set manually');
+    gs.print('    2. Retrain NLU model:');
+    gs.print('       POST /api/sn_nlu/v1/model/{nlu_model_sys_id}/train');
+    gs.print('       Authorization: Basic {svc_claude_api on that instance}');
+    gs.print('    3. Run 02_verify_implementation.js — all checks must pass');
+    gs.print('    4. (Production only) Activate Scheduled Jobs');
     gs.print('');
     gs.print(DIV);
     gs.print('  SETUP COMPLETE');
+    gs.print('  Active update set: "' + mainSetName + '"');
     gs.print('  Next step: begin Build Order step 1 (custom tables).');
-    gs.print('  Active update set: "' + dataFoundationName + '"');
     gs.print(DIV);
     gs.print('');
 
