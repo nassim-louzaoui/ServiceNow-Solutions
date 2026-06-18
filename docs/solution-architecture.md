@@ -31,14 +31,13 @@ unprefixed name for readability.
 | Component | Name |
 |---|---|
 | Platform | Operations Intelligence |
-| Admin interface | Operations Command |
-| Leadership interface | Operations Governance |
-| Creator interface | Operations Studio |
-| User portal | Operations Workspace |
+| Portal section — admin | Operations Command |
+| Portal section — leadership | Operations Governance |
+| Portal section — creator | Operations Studio |
+| Portal section — all users | Workspace |
 | VA / AI layer | Operations Assistant |
 | Service Portal ID | `operations_intelligence` |
 | Portal URL suffix | `/operations_intelligence` |
-| App Navigator menu | Operations Intelligence |
 | VA Channel | Operations Assistant |
 | NLU Model | Operations Intelligence NLU |
 
@@ -176,6 +175,9 @@ group_member
   status                    active / inactive
 
 onboarding_request
+  number                    string (auto-generated; format ONB0001001; read-only
+                            after creation; used in notifications and support
+                            conversations as the human-readable reference)
   nominee                   person reference
   initiated_by              person reference
   target_group              group reference
@@ -220,6 +222,9 @@ approved_flow
         execution time.
 
 automation
+  number                    string (auto-generated; format AUT0001001; read-only
+                            after creation; used in approval notifications and
+                            leadership references)
   name                      string
   short_description         string (one-liner for cards and catalog views)
   description               string (full description)
@@ -302,6 +307,9 @@ group_automation
   rejected_reason           string
 
 execution
+  number                    string (auto-generated; format EXC0001001; read-only
+                            after creation; shown to user as the execution
+                            reference in VA confirmation and My Activity)
   automation                automation reference
   automation_version        integer (version number at time of execution)
   triggered_by              person reference
@@ -348,6 +356,8 @@ automation_schedule
         Scheduled triggers are independent of execution steps.
 
 use_case_request
+  number                    string (auto-generated; format UCR0001001; read-only
+                            after creation; used in admin and leadership tracking)
   title                     string
   description               string (full NL requirements captured by VA)
   structured_spec           string (JSON — parsed from NLU conversation)
@@ -372,6 +382,9 @@ use_case_request
 
 ```
 managed_artifact
+  number                    string (auto-generated; format ART0001001; read-only
+                            after creation; used in approval notifications and
+                            creator references in Operations Studio)
   display_name              string
   description               string
   artifact_type             report / pa_dashboard / notification_rule /
@@ -435,6 +448,9 @@ creator_credential
     Write:  user = gs.getUserID() only
 
 pending_action
+  number                    string (auto-generated; format PND0001001; read-only
+                            after creation; used in admin queries and escalation
+                            audit trail)
   action_type               user_deactivation / automation_approval /
                             onboarding_expiry / token_expiry /
                             leader_reassignment / artifact_approval
@@ -674,8 +690,8 @@ PHASE 4 — Create or Submit for Approval
 
 ## Group Workspace Interface
 
-The Group Workspace (`home` page of Operations Workspace) is the single surface
-where users see and interact with everything their groups have. It is automatically
+The Group Workspace is the **Workspace section of the `main` page** — the single
+surface where users see and interact with everything their groups have. It is automatically
 kept in sync — when a creator publishes a new automation or deliverable, it appears
 in the workspace for all members of the relevant group(s) without any manual steps.
 
@@ -1411,7 +1427,7 @@ tile or quick-start card sets a specific intent directly.
 
 | Topic | Fires when | Purpose |
 |---|---|---|
-| [Operations Intelligence] Welcome | VA opens on any page | Role-aware greeting; top 5 most-used group automations + "See all [X]"; zero-groups message rendered as inline branch within this topic — not a separate invocation |
+| [Operations Intelligence] Welcome | VA opens on any page | Role-aware greeting based on `active_section`; contextual next-action prompts (e.g. "You have X pending approvals" for leaders, "Resume your last draft?" for creators); zero-groups message rendered as inline branch within this topic — not a separate invocation |
 | [Operations Intelligence] Complete Onboarding | First login post-invitation | Walks nominee through role, group, capabilities; Copilot setup for creators |
 | [Operations Intelligence] Copilot Setup | Creator connects Copilot or during onboarding | Step-by-step PAT guidance, validation, confirmation |
 | [Operations Intelligence] Onboard Leadership | Admin initiates | Leadership onboarding — sets delegation rights |
@@ -1852,7 +1868,7 @@ are on the `automation_step` record, not inside this JSON.
 
 ## Scheduled Jobs
 
-All jobs initially inactive during build; activated in step 15.
+All jobs initially inactive during build; activated in step 14.
 Any job failure generates an admin in-app notification and an AuditService
 log entry — no automation is silently abandoned.
 
@@ -1889,12 +1905,194 @@ log entry — no automation is silently abandoned.
 
 ---
 
+## Scoped Application Setup
+
+The scoped application must be created manually in ServiceNow Studio before
+running any of the background scripts. This establishes the application scope,
+generates the `{scope}` prefix, and registers the app in the system.
+
+### Step 1 — Open Studio
+
+1. Navigate to: **System Applications → Studio** (or search "Studio" in the App Navigator)
+2. Click **Create Application**
+3. Select **Start from scratch**
+
+### Step 2 — Application Details
+
+| Field | Value |
+|---|---|
+| Name | `Operations Intelligence` |
+| Scope | `x_opsi_ops_int` (suggested; type exactly as shown if this prefix is available on your instance) |
+| Version | `1.0.0` |
+| Short description | Enterprise intelligent automation and deliverable platform |
+
+> **Note on scope prefix:** ServiceNow may auto-suggest a scope based on the
+> application name — you can overwrite it. The exact prefix does NOT have to be
+> `x_opsi_ops_int`. Whatever value is set here becomes `{scope}` throughout the
+> entire architecture. The `01_bootstrap_api_access.js` script prints the resolved
+> `{scope}` value after the app is created — use that output as the authoritative
+> reference for all subsequent build steps.
+
+### Step 3 — Create Application Roles
+
+After the app is created, remain in Studio and create the four application roles:
+
+| Role name (suffix) | Full scoped name | Description |
+|---|---|---|
+| `admin` | `{scope}.admin` | Platform administrators — full access |
+| `leadership` | `{scope}.leadership` | Business leaders — group governance and approvals |
+| `creator` | `{scope}.creator` | Power users — design automations and deliverables |
+| `user` | `{scope}.user` | All other staff — trigger automations, request deliverables |
+
+In Studio: **File → Create Application File → Application Role**
+Create one role at a time. ServiceNow automatically prefixes the role with the
+application scope.
+
+### Step 4 — Confirm the Active Scope
+
+After the app is created, confirm the scope picker in the ServiceNow banner
+(top-right corner) shows **Operations Intelligence**, not **Global**. All
+subsequent configuration — tables, Script Includes, BRs, ACLs — must be created
+while this scope is active. Artifacts created under the wrong scope cannot be
+easily moved.
+
+### Step 5 — Run the Bootstrap Scripts
+
+Run scripts in order from **System Definition → Scripts - Background**:
+
+| Script | Purpose |
+|---|---|
+| `01_bootstrap_api_access.js` | Creates service account `svc_claude_api` with admin role; prints credentials, instance URL, and the resolved `{scope}` prefix. **Capture this output** — it is the prerequisite for all REST-based build tooling. |
+| `03_setup_update_sets.js` | Creates the batch update set structure (4 child sets); activates "OI v1.0 — Data Foundation" as the current update set. Run after capturing credentials from the above. |
+
+**Do not proceed to the main build until:**
+- `01_bootstrap_api_access.js` output has been captured (credentials + `{scope}` prefix)
+- The active update set shown in the top banner reads **OI v1.0 — Data Foundation**
+- The scope picker still shows **Operations Intelligence**
+
+---
+
+## Update Set & Migration Strategy
+
+Operations Intelligence uses a **batch update set** structure that groups build
+artifacts into four logically cohesive child sets. Each child can be individually
+reviewed; the parent batch promotes all four atomically.
+
+### Batch Structure
+
+```
+sys_update_set_batch  (parent)
+  └── "Operations Intelligence v1.0.0"
+        │
+        ├── "OI v1.0 — Data Foundation"
+        │     19 custom tables (fields, choice lists, reference fields)
+        │     Roles and ACLs (table-level, row-level, field-level)
+        │     Seed data: automation_category + approved_flow records
+        │
+        ├── "OI v1.0 — Application Logic"
+        │     20 Script Includes (in dependency order)
+        │     5 Business Rules
+        │     5 Scheduled Jobs (initially inactive)
+        │     14 system properties
+        │
+        ├── "OI v1.0 — Notifications & VA"
+        │     22 notification templates
+        │     VA Channel (Operations Assistant)
+        │     NLU Model (Operations Intelligence NLU)
+        │     23 VA System Topics
+        │
+        └── "OI v1.0 — Portal Interface"
+              Portal record + custom theme
+              2 portal pages (main + onboarding)
+              18 custom widgets
+              GitHub Copilot Connection alias + REST Message record
+```
+
+### Environment-Specific Configuration (kept separate)
+
+A fifth update set is maintained per environment and is **NOT included in the
+batch**. Keeping it separate prevents dev credentials or debug settings from
+being overwritten by a batch migration.
+
+| Update set name | Contents |
+|---|---|
+| `OI — Environment Config (dev)` | `debug_mode`, `copilot_api_endpoint`, connection aliases, integration credentials |
+| `OI — Environment Config (test)` | Same properties with test-environment values |
+| `OI — Environment Config (prod)` | Same properties with production values |
+
+Each environment config update set is applied manually on the target instance,
+never promoted as part of the batch.
+
+### NLU Model Migration Note
+
+The `Operations Intelligence NLU` model record migrates via the batch (as a
+`sys_nlu_model` record in "OI v1.0 — Notifications & VA"). However, **trained
+model weights are NOT captured in update sets** — update sets record configuration
+only, not ML state.
+
+After promoting the batch to each environment, trigger a fresh NLU training run:
+
+```
+POST /api/sn_nlu/v1/model/{nlu_model_sys_id}/train
+Authorization: Basic {svc_claude_api credentials on that instance}
+```
+
+Training runs against the same VA topics that were promoted; results are
+equivalent. Typical completion: 2–5 minutes.
+
+### Migration Sequence
+
+```
+DEV — build and verify
+  1. Run 02_verify_implementation.js — all checks must pass
+  2. Ensure all 4 child update sets are fully committed (no open transactions)
+  3. Export batch update set XML from System Update Sets > Batch Update Sets
+
+TEST
+  4. Import the batch XML (System Update Sets > Retrieved Update Sets > Import XML)
+  5. Preview the batch — resolve any conflicts before applying
+  6. Apply batch (dependency order enforced: Data Foundation applied first)
+  7. Apply OI — Environment Config (test) manually
+  8. Trigger NLU model retraining (POST to train endpoint on test instance)
+  9. Run 02_verify_implementation.js on test — all checks must pass
+  10. Execute End-to-End Test Checklist (items 1–15 minimum)
+
+PRODUCTION
+  11. Import the same batch XML (no re-export needed)
+  12. Preview and apply
+  13. Apply OI — Environment Config (prod) manually
+  14. Trigger NLU model retraining
+  15. Run 02_verify_implementation.js on prod — all checks must pass
+  16. Activate Scheduled Jobs (step 14 of Build Sequence)
+  17. Smoke-test: admin onboards one leader; confirm VA responds correctly
+```
+
+### Switching the Active Child Update Set During Build
+
+`03_setup_update_sets.js` creates all four child sets and activates
+"OI v1.0 — Data Foundation" automatically. Switch the active child before
+starting each build phase — ServiceNow captures every artifact into whichever
+child is active at creation time.
+
+| Build phase | Active child update set |
+|---|---|
+| Steps 1–3 (tables, ACLs, seed data) | OI v1.0 — Data Foundation |
+| Steps 4–6 (Script Includes, BRs, Jobs) + properties | OI v1.0 — Application Logic |
+| Steps 7–10 (notifications, VA, NLU) | OI v1.0 — Notifications & VA |
+| Steps 11–13 (portal, widgets, Copilot integration) | OI v1.0 — Portal Interface |
+
+Switch via: **System Update Sets → Local Update Sets** → click the target child
+→ click **Make Current**.
+
+---
+
 ## Build Order
 
 ### Pre-Build
-- Create update set: `Operations Intelligence v1.0 — Initial Build`
-- All artifacts created within this update set
-- Export and promote through dev -> test -> production
+1. Create the scoped application in Studio (see **Scoped Application Setup** section)
+2. Run `01_bootstrap_api_access.js` — capture credentials and `{scope}` prefix
+3. Run `03_setup_update_sets.js` — creates batch structure; activates Data Foundation set
+4. Confirm: scope picker = **Operations Intelligence**; active update set = **OI v1.0 — Data Foundation**
 
 ### Custom Tables (19 total — created in step 1)
 
@@ -1943,14 +2141,14 @@ log entry — no automation is silently abandoned.
 10. **NLU Initial Training** — trigger first model train via REST; poll until status = ready
 11. **Portal Interface** — portal record (url_suffix = `operations_intelligence`,
     default page = `main`), fully custom theme, 2 pages (`main` + `onboarding`),
-    all 17 custom widgets; verify role-based section rendering for all 4 roles
+    all 18 custom widgets; verify role-based section rendering for all 4 roles
 12. **Custom topic auto-generation Business Rule** — on `group_automation` table,
     fires when `approval_status` changes to `approved`;
     calls `CatalogService.onPublish()` which creates VA topic + NLU intent + retraining
-14. **GitHub Copilot integration** — CopilotBridge Connection alias, REST Message record,
+13. **GitHub Copilot integration** — CopilotBridge Connection alias, REST Message record,
     `{scope}.copilot_api_endpoint` and `{scope}.copilot_timeout_ms` properties
-15. **Activate Scheduled Jobs** — enable all 5 jobs
-16. **End-to-end testing** — run `02_verify_implementation.js` first, then Test Checklist
+14. **Activate Scheduled Jobs** — enable all 5 jobs
+15. **End-to-end testing** — run `02_verify_implementation.js` first, then Test Checklist
 
 ### End-to-End Test Checklist
 
