@@ -54,8 +54,8 @@ from actual ServiceNow role assignments — never from a field on a custom table
 |---|---|---|
 | `admin` | IT / platform team | Full system access, onboards top-level leadership |
 | `leadership` | Business leaders | Group governance, user onboarding, approvals |
-| `creator` | Appointed power users | Design automations and deliverables for assigned groups |
-| `user` | All other staff | Trigger automations; request reports and dashboards via Assistant |
+| `creator` | Appointed power users | Design OI process automations (stored in `{scope}_automation`, executed by `ExecutionEngine`) and persistent deliverables (reports, flows, custom tables, UI pages) for assigned groups. Cannot create Scheduled Scripts (`sysauto_script`), Business Rules (`sys_script`), or scripted SP widgets — these are excluded regardless of role. |
+| `user` | All other staff | Trigger automations; request reports, dashboards, notification rules, and scheduled data reports via Assistant |
 
 Viewer role is intentionally excluded. Every legitimate read-only need is
 covered — leadership has full reporting in Operations Governance, admins
@@ -71,8 +71,8 @@ post-onboarding step — it is NOT part of the `onboarding_request` workflow.
 
 | Group Role | Granted by | Effect |
 |---|---|---|
-| `creator` | Leadership via Appoint Creator topic | Can design automations and deliverables scoped to this group |
-| `user` | Leadership during onboarding | Can trigger automations; may request reports/dashboards for this group |
+| `creator` | Leadership via Appoint Creator topic | Can design OI automations and persistent deliverables (flows, custom tables, UI pages) scoped to this group |
+| `user` | Leadership during onboarding | Can trigger automations; may request reports, dashboards, notification rules, and scheduled data reports for this group |
 
 A person can hold `creator` group role in Group A and `user` group role in
 Group B simultaneously.
@@ -484,6 +484,23 @@ Operations Intelligence extends beyond process automations to deliver persistent
 ServiceNow artifacts on behalf of creators. The following governance matrix
 governs who can request each type, whether approval is required, and how
 lifecycle management works.
+
+**Terminology distinction — automations vs deliverables:**
+Throughout this document these are two separate concepts.
+
+- **Automations** — process automation records stored in `{scope}_automation`,
+  built by creators through the `[Operations Intelligence] Create Automation`
+  VA topic, executed on demand or on schedule by `ExecutionEngine` using a
+  bounded step action set. Creators define data, conditions, and targets —
+  never script logic.
+- **Deliverables** — persistent ServiceNow artifacts listed in the table below
+  (reports, dashboards, notification rules, flows, custom tables, UI pages).
+  Created through their own VA topics and managed via `managed_artifact`.
+
+Creators build both. The governance rules and approval paths differ between them.
+`sysauto_script` (Scheduled Scripts) and `sys_script` (Business Rules) are
+excluded from both tracks — no path in Operations Intelligence allows a creator
+to author a script that runs in the global scope.
 
 ### Governance Matrix
 
@@ -1185,12 +1202,12 @@ Dependency order determines build sequence in step 4.
 | `NotificationService` | Email and in-app notification dispatch; resolves escalation targets |
 | `GroupManager` | Group and group_member CRUD, hierarchy resolution |
 | `CatalogService` | Automation lifecycle: create, version, publish, deprecate, VA topic, NLU retraining |
-| `ScheduleManager` | Creates/deactivates sysauto_script records for scheduled automations |
+| `ScheduleManager` | Creates/deactivates sysauto_script records for scheduled automations — script body is fixed, system-authored (`new ExecutionEngine().runScheduled(id)`); creators never write the script |
 | `ExecutionEngine` | Runs steps in order, template variable resolution, dry-run mode, step logging |
 | `ApprovalRouter` | Self-approval guard, null-leader fallback, escalation chain, target resolution |
 | `OnboardingService` | Existing person check, request creation, invitation, completion |
 | `DeactivationHandler` | Detects deactivation type (user vs leader), routes accordingly |
-| `FlowBridge` | Triggers admin-approved flows — resolves approved_flow.flow_sys_id to sys_hub_flow |
+| `FlowBridge` | Triggers admin-approved flows as automation steps — resolves `approved_flow.flow_sys_id` to `sys_hub_flow`. Distinct from `FlowBuilder`: FlowBridge triggers an existing admin-curated flow inside an automation step; FlowBuilder creates a new flow deliverable for a creator. |
 | `RESTBridge` | Outbound REST executor for rest_call steps: auth, timeout, retry |
 | `CopilotBridge` | GitHub Copilot API: write-only PAT access, timeout, fallback, phrase merge, deliverable spec |
 | `AuditService` | Field-level audit logging for admin actions on key tables |
@@ -1879,6 +1896,11 @@ searchable by event key, user, and date range.
 
 Scheduled execution is NOT a step type — managed via automation_schedule and
 ScheduleManager as an independent trigger.
+
+**No step type corresponds to creating a Scheduled Script, Business Rule, or
+any other script-bearing artifact.** Creators define data, conditions, and
+targets in step configuration JSON. `ExecutionEngine` interprets these against
+the bounded action set above — no creator-authored script ever executes.
 
 ### Action Type Configuration Schemas
 
