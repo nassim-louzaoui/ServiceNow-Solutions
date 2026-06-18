@@ -515,10 +515,10 @@ lifecycle management works.
    app prefix is applied automatically.
 
 7. **No script artifacts ever** — no deliverable path creates `sysauto_script`
-   (Scheduled Scripts), `sys_script` (Business Rules), or scripted Service Portal
-   widgets. Scheduled data delivery uses `sysauto_report` (declarative report
-   scheduling). Flows are restricted to a curated safe action set with no script
-   steps. UI pages use only out-of-box declarative widgets.
+   (Scheduled Scripts) or `sys_script` (Business Rules). Scheduled data delivery
+   uses `sysauto_report` (declarative report scheduling). Flows are restricted to
+   a curated safe action set with no script steps. UI pages (`sys_ui_page`) are
+   Jelly display views only — `<g:evaluate>` is never generated.
 
 ### Builder Dispatch — Artifact Type to Underlying Records
 
@@ -528,19 +528,12 @@ creates a script-bearing artifact.
 | artifact_type | Builder | Underlying ServiceNow record(s) | Scripts? |
 |---|---|---|---|
 | `report` | ReportBuilder | `sys_report` | None — declarative |
-| `pa_dashboard` | ReportBuilder | `sys_dashboard` (platform dashboard); `pa_dashboards` + widgets when PA is licensed | None — declarative |
+| `pa_dashboard` | ReportBuilder | `pa_dashboards` + PA widgets (scorecards, breakdowns, trendlines) | None — declarative |
 | `notification_rule` | NotificationBuilder | `sysevent_email_action` | None — declarative condition + template |
 | `scheduled_data_job` | NotificationBuilder | `sys_report` + `sysauto_report` (scheduled delivery) | None — declarative |
 | `flow` | FlowBuilder | `sys_hub_flow` (+ trigger + actions) | No script steps; safe action set only |
 | `custom_table` | TableBuilder | `sys_db_object` + `sys_dictionary` (+ default form & list views) | None — schema only |
-| `ui_page` | UIPageBuilder | `sp_page` + `sp_instance` (out-of-box widgets) | None — OOB widgets via instance options |
-
-**Dashboard / PA licensing note:** ReportBuilder creates platform dashboards
-(`sys_dashboard` + responsive canvas) by default, which require no Performance
-Analytics licence. When PA is licensed and the request needs PA-specific
-visualisations (scorecards, breakdowns, trendlines), ReportBuilder creates
-`pa_dashboards` artifacts instead. ArtifactManager records which path was used
-in `creation_spec`.
+| `ui_page` | UIPageBuilder | `sys_ui_page` (Jelly display view of the custom table; no `<g:evaluate>` blocks) | None — display Jelly only |
 
 ---
 
@@ -598,8 +591,9 @@ PHASE 4 — Create or Submit for Approval
 - Which ITSM modules? (incident, change, problem, task, etc.)
 - What time period?
 - What filters? (assigned group, state, priority, etc.)
-- What should the main visualisation show? (Copilot suggests if not specified)
-- For PA dashboard: how many panels / widgets? (Copilot suggests layout if not specified)
+- What should the main visualisation show? (Copilot suggests chart type and metrics if not specified)
+- For PA dashboard: how many tabs/panels? What key metrics per panel? (Copilot generates
+  full widget layout — scorecard, breakdown, trendline, list — if not specified)
 
 **notification_rule**
 - Which table should trigger the notification?
@@ -662,14 +656,12 @@ PHASE 4 — Create or Submit for Approval
 - What should the layout look like? (describe in plain English — Copilot generates layout spec)
 - What actions should users be able to perform? (create record, view list, search, export)
 - Should it show related records from other tables?
-- NOTE: UI pages contain NO custom scripts of any kind — neither client nor
-  server. UIPageBuilder composes a Service Portal page (`sp_page`) from
-  out-of-box declarative widgets (Data Table from Instance Definition, Form,
-  Simple List, Search) and binds them to the selected custom table(s) purely
-  through widget instance options (table name + encoded query). This satisfies
-  the "no scripted Service Portal widgets" security exclusion while still giving
-  the creator a usable interface. Anything that would require custom script is
-  not offered.
+- NOTE: UIPageBuilder creates a `sys_ui_page` record — a proper ServiceNow UI
+  Page (Jelly). The generated Jelly renders lists and forms for the selected
+  custom table using standard display tags (`<g:form>`, `<g:list_v2>`,
+  `<g:evaluate>` is NEVER used). No JavaScript blocks. No GlideAjax calls.
+  The page is purely a display layer over the table the creator already owns.
+  Anything that would require script logic is not offered.
 
 ---
 
@@ -1083,11 +1075,11 @@ Dependency order determines build sequence in step 4.
 | `CopilotBridge` | GitHub Copilot API: write-only PAT access, timeout, fallback, phrase merge, deliverable spec |
 | `AuditService` | Field-level audit logging for admin actions on key tables |
 | `ArtifactManager` | Central registry: managed_artifact CRUD, lifecycle transitions, builder dispatch |
-| `ReportBuilder` | Creates/updates/deletes sys_report and platform dashboards (sys_dashboard; pa_dashboards when PA licensed) — declarative only |
+| `ReportBuilder` | Creates/updates/deletes `sys_report` and `pa_dashboards` (+ PA widgets) — declarative only |
 | `NotificationBuilder` | Creates/updates sysevent_email_action (event email rules) and sysauto_report (scheduled report delivery) — declarative, no scripts |
 | `FlowBuilder` | Creates/activates/deactivates sys_hub_flow records within OI scope; enforces run-as-creator, safe action set, no script steps |
 | `TableBuilder` | Creates custom table definitions (sys_db_object + sys_dictionary fields) + default form/list views within OI scope |
-| `UIPageBuilder` | Composes Service Portal pages from out-of-box declarative widgets configured via instance options — never authors scripts |
+| `UIPageBuilder` | Creates `sys_ui_page` records (ServiceNow UI Pages) as display-only Jelly views of the creator's custom table — no `<g:evaluate>` script blocks |
 
 **Dependency note for new Script Includes:**
 `ArtifactManager` depends on `PermissionResolver`, `NotificationService`, `AuditService`.
