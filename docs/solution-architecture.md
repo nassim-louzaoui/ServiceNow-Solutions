@@ -514,6 +514,34 @@ lifecycle management works.
    OI scoped application. They are NOT global tables. TableBuilder ensures the scoped
    app prefix is applied automatically.
 
+7. **No script artifacts ever** — no deliverable path creates `sysauto_script`
+   (Scheduled Scripts), `sys_script` (Business Rules), or scripted Service Portal
+   widgets. Scheduled data delivery uses `sysauto_report` (declarative report
+   scheduling). Flows are restricted to a curated safe action set with no script
+   steps. UI pages use only out-of-box declarative widgets.
+
+### Builder Dispatch — Artifact Type to Underlying Records
+
+`ArtifactManager` routes each managed_artifact to its builder. No builder ever
+creates a script-bearing artifact.
+
+| artifact_type | Builder | Underlying ServiceNow record(s) | Scripts? |
+|---|---|---|---|
+| `report` | ReportBuilder | `sys_report` | None — declarative |
+| `pa_dashboard` | ReportBuilder | `sys_dashboard` (platform dashboard); `pa_dashboards` + widgets when PA is licensed | None — declarative |
+| `notification_rule` | NotificationBuilder | `sysevent_email_action` | None — declarative condition + template |
+| `scheduled_data_job` | NotificationBuilder | `sys_report` + `sysauto_report` (scheduled delivery) | None — declarative |
+| `flow` | FlowBuilder | `sys_hub_flow` (+ trigger + actions) | No script steps; safe action set only |
+| `custom_table` | TableBuilder | `sys_db_object` + `sys_dictionary` (+ default form & list views) | None — schema only |
+| `ui_page` | UIPageBuilder | `sp_page` + `sp_instance` (out-of-box widgets) | None — OOB widgets via instance options |
+
+**Dashboard / PA licensing note:** ReportBuilder creates platform dashboards
+(`sys_dashboard` + responsive canvas) by default, which require no Performance
+Analytics licence. When PA is licensed and the request needs PA-specific
+visualisations (scorecards, breakdowns, trendlines), ReportBuilder creates
+`pa_dashboards` artifacts instead. ArtifactManager records which path was used
+in `creation_spec`.
+
 ---
 
 ## Deliverable Creation Flows
@@ -587,9 +615,11 @@ PHASE 4 — Create or Submit for Approval
 - Who should receive it?
 - How often? (daily / weekly / specific day and time)
 - Copilot generates the field selection and email format if not specified
-- NOTE: Implemented as sysevent_email_action with scheduled trigger — NOT as
-  a raw sysauto_script. FlowBuilder creates an OI-managed scheduled flow that
-  performs the query and sends the notification.
+- NOTE: Implemented declaratively as a `sys_report` plus a `sysauto_report`
+  (scheduled report delivery) created by NotificationBuilder — NOT as a
+  `sysauto_script` and NOT as a flow. This keeps scheduled data jobs open to
+  all users with zero script surface. The schedule, target table, filters and
+  recipients are all declarative configuration.
 
 **flow**
 - What should trigger this flow? (record created / record updated with condition /
@@ -599,8 +629,23 @@ PHASE 4 — Create or Submit for Approval
 - What should happen? (update a field, send a notification, assign to a user, etc.)
 - Should it be event-driven (fires automatically) or manually triggered?
 - Copilot translates plain-English action descriptions into Flow Designer action config
-- NOTE: FlowBuilder creates a sys_hub_flow record within the OI scoped app.
-  The flow is activated immediately on creation. Leadership receives OI - Flow Activated.
+- NOTE: FlowBuilder creates a `sys_hub_flow` record within the OI scoped app and
+  activates it immediately. Leadership receives OI - Flow Activated.
+
+**FlowBuilder security model** (creator flows bypass approval, so they are bounded):
+- **Run-as-creator** — the flow executes with the creating creator's own
+  ServiceNow permissions, never elevated. A flow can never perform an operation
+  the creator could not perform manually.
+- **Safe action set only** — FlowBuilder accepts a curated list of action types:
+  record create, record update, set field values, assign to a group/user,
+  send notification (via OI templates), and wait/timer. It rejects any action
+  that runs arbitrary script, calls an unapproved external endpoint, or elevates
+  privileges.
+- **No script steps** — Flow Designer "Run Script" actions are never generated.
+- **Action cap** — bounded by `{scope}.max_flow_actions` (default 20).
+- **Leadership override** — leadership sees every group flow in Operations
+  Governance and can deactivate any of them at any time (OI - Flow Activated
+  gives them immediate awareness). This is an override, not a blocking gate.
 
 **custom_table**
 - What is the purpose of this table? (e.g. "activity tracker replacing our Excel sheet")
@@ -617,9 +662,14 @@ PHASE 4 — Create or Submit for Approval
 - What should the layout look like? (describe in plain English — Copilot generates layout spec)
 - What actions should users be able to perform? (create record, view list, search, export)
 - Should it show related records from other tables?
-- NOTE: UI pages contain NO client-side scripts — data binding only.
-  UIPageBuilder generates a Service Portal widget with server-side GlideRecord
-  queries bound to the selected custom table(s).
+- NOTE: UI pages contain NO custom scripts of any kind — neither client nor
+  server. UIPageBuilder composes a Service Portal page (`sp_page`) from
+  out-of-box declarative widgets (Data Table from Instance Definition, Form,
+  Simple List, Search) and binds them to the selected custom table(s) purely
+  through widget instance options (table name + encoded query). This satisfies
+  the "no scripted Service Portal widgets" security exclusion while still giving
+  the creator a usable interface. Anything that would require custom script is
+  not offered.
 
 ---
 
@@ -838,6 +888,19 @@ Deprecation guard:
   BR5 (OI - Deprecation Guard) monitors; completes automatically when all clear
 ```
 
+### Why automation scheduling may use `sysauto_script` but deliverables may not
+
+The deliverable governance excludes `sysauto_script` because it would let a
+creator author **arbitrary script** that runs in the global scope. The
+`sysauto_script` records ScheduleManager creates for scheduled automations carry
+a **fixed, system-authored body** — they contain only
+`new ExecutionEngine().runScheduled(automation_sys_id)`. The creator never writes
+a line of script; they define declarative steps that ExecutionEngine interprets
+against its bounded action set. The risk being excluded (creator-authored global
+script) therefore never exists on this path. Scheduled **data jobs** requested by
+end users take the fully declarative `sysauto_report` path instead and never
+touch `sysauto_script` at all.
+
 ---
 
 ## Automation Creation Flow
@@ -1020,11 +1083,11 @@ Dependency order determines build sequence in step 4.
 | `CopilotBridge` | GitHub Copilot API: write-only PAT access, timeout, fallback, phrase merge, deliverable spec |
 | `AuditService` | Field-level audit logging for admin actions on key tables |
 | `ArtifactManager` | Central registry: managed_artifact CRUD, lifecycle transitions, builder dispatch |
-| `ReportBuilder` | Creates/updates/deletes sys_report and pa_dashboard records via REST API |
-| `NotificationBuilder` | Creates/updates sysevent_email_action and OI-managed scheduled flow notification jobs |
-| `FlowBuilder` | Creates/activates/deactivates sys_hub_flow records within OI scoped app |
-| `TableBuilder` | Creates custom table definitions (sys_db_object + sys_dictionary fields) within OI scope |
-| `UIPageBuilder` | Creates Service Portal widgets (data binding only, no scripts) from Copilot-generated layout spec |
+| `ReportBuilder` | Creates/updates/deletes sys_report and platform dashboards (sys_dashboard; pa_dashboards when PA licensed) — declarative only |
+| `NotificationBuilder` | Creates/updates sysevent_email_action (event email rules) and sysauto_report (scheduled report delivery) — declarative, no scripts |
+| `FlowBuilder` | Creates/activates/deactivates sys_hub_flow records within OI scope; enforces run-as-creator, safe action set, no script steps |
+| `TableBuilder` | Creates custom table definitions (sys_db_object + sys_dictionary fields) + default form/list views within OI scope |
+| `UIPageBuilder` | Composes Service Portal pages from out-of-box declarative widgets configured via instance options — never authors scripts |
 
 **Dependency note for new Script Includes:**
 `ArtifactManager` depends on `PermissionResolver`, `NotificationService`, `AuditService`.
@@ -1254,12 +1317,12 @@ summary. On `studio` it opens to creation guidance.
 | [Operations Intelligence] Appoint Creator | Leader initiates | Grants creator group role; creator system role auto-granted |
 | [Operations Intelligence] Create Group | Leader initiates | Custom group creation, member selection, creator assignment |
 | [Operations Intelligence] Create Automation | Creator initiates | Full multi-turn NL requirements conversation, resumable |
-| [Operations Intelligence] Review Approvals | Governance page or leadership request | Walks through pending_action queue |
+| [Operations Intelligence] Review Approvals | Governance page or leadership request | Walks through unified pending_action queue (automation_approval AND artifact_approval) |
 | [Operations Intelligence] Deactivation Action | Leader receives deactivation pending_action | Guided resolution: approve / notify / escalate |
 | [Operations Intelligence] Re-invite User | Leader requests after expiry | Re-sends invitation (max 2 re-invitations) |
 | [Operations Intelligence] Check Status | User mentions reference or asks about request | Execution status lookup by reference or description |
 | [Operations Intelligence] Help & Fallback | No intent matched | Suggests 3 closest available automations; never a dead end |
-| [Operations Intelligence] Approval Review | Leadership pending_action automation_approval | Guided approval: review spec, approve or reject with reason |
+| [Operations Intelligence] Approval Review | Leadership pending_action automation_approval or artifact_approval | Guided approval: review spec (automation, custom table, or UI page), approve or reject with reason |
 | [Operations Intelligence] Create Report or Dashboard | User/creator requests a report or PA dashboard | Multi-turn requirements; Copilot fills technical gaps; immediate creation (no approval) |
 | [Operations Intelligence] Create Notification Rule | User/creator requests an email trigger or alert | Multi-turn requirements including condition, recipients, email body; Copilot fills gaps; immediate creation |
 | [Operations Intelligence] Create Scheduled Data Report | User/creator requests periodic data email | Requirements: table, filters, fields, recipients, schedule; Copilot fills gaps; immediate creation |
