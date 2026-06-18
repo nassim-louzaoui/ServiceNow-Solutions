@@ -1,0 +1,133 @@
+<div class="oi-maint-cp">
+
+  <!-- Header -->
+  <div class="oi-cp-header">
+    <h3 class="oi-cp-heading">Maintenance Control</h3>
+    <p class="oi-cp-sub">
+      Manage maintenance state for individual sections or the entire application.
+      The Export button activates only during full-application maintenance.
+    </p>
+  </div>
+
+  <!-- ── Entire Application toggle ──────────────────────────── -->
+  <div class="oi-cp-card oi-cp-app-card" ng-class="{'oi-app-active': c.isAll}">
+    <div class="oi-cp-row">
+      <div class="oi-cp-label-group">
+        <span class="oi-label-main">Entire Application</span>
+        <span class="oi-label-sub">
+          Supersedes individual section toggles.
+          Enables the Export Application XML button.
+        </span>
+      </div>
+      <div class="oi-toggle-wrap">
+        <label class="oi-toggle" title="Toggle entire-application maintenance">
+          <input type="checkbox"
+                 ng-model="c.isAll"
+                 ng-change="c.onAppToggle()"/>
+          <span class="oi-toggle-track"></span>
+        </label>
+        <span class="oi-badge"
+              ng-class="c.isAll ? 'oi-badge-maint' : 'oi-badge-live'">
+          {{c.isAll ? 'Maintenance' : 'Live'}}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Section status grid ────────────────────────────────── -->
+  <div class="oi-cp-card oi-cp-section-card">
+    <p class="oi-section-grid-label">Section overrides</p>
+    <div class="oi-section-row"
+         ng-repeat="sec in c.sections"
+         ng-class="{'oi-row-dimmed': c.isAll}">
+      <span class="oi-label-main">{{sec.label}}</span>
+      <div class="oi-toggle-wrap">
+        <label class="oi-toggle"
+               ng-class="{'oi-toggle-locked': c.isAll}"
+               title="{{c.isAll ? 'Entire-app maintenance supersedes section toggles' : 'Toggle ' + sec.label}}">
+          <input type="checkbox"
+                 ng-model="sec.active"
+                 ng-disabled="c.isAll"
+                 ng-change="c.onSectionToggle(sec)"/>
+          <span class="oi-toggle-track"></span>
+        </label>
+        <span class="oi-badge"
+              ng-class="(c.isAll || sec.active) ? 'oi-badge-maint' : 'oi-badge-live'">
+          {{(c.isAll || sec.active) ? 'Maintenance' : 'Live'}}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Message & estimated return ────────────────────────── -->
+  <div class="oi-cp-card">
+    <div class="oi-cp-field">
+      <label class="oi-field-label">
+        Maintenance Message
+        <span class="oi-optional">(optional)</span>
+      </label>
+      <textarea class="oi-textarea"
+                ng-model="c.message"
+                rows="3"
+                placeholder="Shown to users on the overlay. Leave blank for default text.">
+      </textarea>
+    </div>
+    <div class="oi-cp-field">
+      <label class="oi-field-label">
+        Estimated Return
+        <span class="oi-optional">(optional)</span>
+      </label>
+      <input type="datetime-local"
+             class="oi-input"
+             ng-model="c.returnAt"/>
+      <span class="oi-field-hint">
+        Displays as &#x201C;Back at 14:30&#x201D; or &#x201C;Back in ~25 min&#x201D; on the overlay.
+        Cleared automatically once the return time passes.
+      </span>
+    </div>
+    <button class="oi-btn oi-btn-primary"
+            ng-click="c.applyMessageSettings()"
+            ng-disabled="c.saving">
+      <span ng-if="!c.saving">Apply Message &amp; Return Time</span>
+      <span ng-if="c.saving">Saving&#8230;</span>
+    </button>
+  </div>
+
+  <!-- ── Export Application XML ─────────────────────────────── -->
+  <div class="oi-cp-card oi-cp-export-card"
+       ng-class="{'oi-export-unlocked': c.isAll}">
+    <div class="oi-cp-row">
+      <div class="oi-cp-label-group">
+        <span class="oi-label-main">Export Application XML</span>
+        <span class="oi-label-sub" ng-if="!c.isAll">
+          &#x1F512; Put the entire application in maintenance first
+        </span>
+        <span class="oi-label-sub oi-export-ready-label" ng-if="c.isAll">
+          &#x2714; Application is in maintenance &#x2014; export is available
+        </span>
+      </div>
+      <button class="oi-btn oi-btn-export"
+              ng-click="c.exportXML()"
+              ng-disabled="!c.isAll || c.exporting"
+              title="{{c.isAll ? 'Download application XML for migration' : 'Put the entire application in maintenance first'}}">
+        <span ng-if="!c.exporting">&#x2B07; Export XML</span>
+        <span ng-if="c.exporting">Preparing&#8230;</span>
+      </button>
+    </div>
+    <p ng-if="c.exportMsg"
+       class="oi-export-msg"
+       ng-class="c.exportMsgOk ? 'oi-msg-ok' : 'oi-msg-err'"
+       role="status">
+      {{c.exportMsg}}
+    </p>
+  </div>
+
+  <!-- ── Status feedback (auto-dismisses after 4 s) ──────────── -->
+  <div ng-if="c.statusMsg"
+       class="oi-status-bar"
+       ng-class="c.statusClass"
+       role="status">
+    {{c.statusMsg}}
+  </div>
+
+</div>
