@@ -49,12 +49,12 @@
         else fail('Table', tbl);
     });
 
-    // ── 2. SCRIPT INCLUDES (20) ──────────────────────────────
+    // ── 2. SCRIPT INCLUDES (21) ──────────────────────────────
     var includes = [
         'PermissionResolver', 'VAHelper', 'NotificationService', 'GroupManager',
         'CatalogService', 'ScheduleManager', 'ExecutionEngine', 'ApprovalRouter',
         'OnboardingService', 'DeactivationHandler', 'FlowBridge', 'RESTBridge',
-        'CopilotBridge', 'AuditService',
+        'CopilotBridge', 'AuditService', 'MaintenanceManager',
         'ArtifactManager', 'ReportBuilder', 'NotificationBuilder',
         'FlowBuilder', 'TableBuilder', 'UIPageBuilder'
     ];
@@ -68,7 +68,7 @@
         else fail('ScriptInclude', si);
     });
 
-    // ── 3. SYSTEM PROPERTIES (14) ────────────────────────────
+    // ── 3. SYSTEM PROPERTIES (19) ────────────────────────────
     var props = [
         scope + '.debug_mode',
         scope + '.version',
@@ -83,7 +83,12 @@
         scope + '.catalog_top_n',
         scope + '.max_custom_tables_per_group',
         scope + '.max_flow_actions',
-        scope + '.artifact_log_retention_days'
+        scope + '.artifact_log_retention_days',
+        scope + '.maintenance_sections',
+        scope + '.maintenance_message',
+        scope + '.maintenance_return_at',
+        scope + '.maintenance_initiated_by',
+        scope + '.maintenance_initiated_at'
     ];
     props.forEach(function(prop) {
         var gr = new GlideRecord('sys_properties');

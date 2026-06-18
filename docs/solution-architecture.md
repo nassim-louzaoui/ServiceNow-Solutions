@@ -1194,6 +1194,7 @@ Dependency order determines build sequence in step 4.
 | `RESTBridge` | Outbound REST executor for rest_call steps: auth, timeout, retry |
 | `CopilotBridge` | GitHub Copilot API: write-only PAT access, timeout, fallback, phrase merge, deliverable spec |
 | `AuditService` | Field-level audit logging for admin actions on key tables |
+| `MaintenanceManager` | Reads/writes maintenance state via system properties; generates Studio export URL; logs all state changes via AuditService |
 | `ArtifactManager` | Central registry: managed_artifact CRUD, lifecycle transitions, builder dispatch |
 | `ReportBuilder` | Creates/updates/deletes `sys_report` and `pa_dashboards` (+ PA widgets) — declarative only |
 | `NotificationBuilder` | Creates/updates sysevent_email_action (event email rules) and sysauto_report (scheduled report delivery) — declarative, no scripts |
@@ -1202,6 +1203,7 @@ Dependency order determines build sequence in step 4.
 | `UIPageBuilder` | Creates full `sys_ui_page` records (ServiceNow UI Pages) — Jelly layout, GlideAjax, client-side JavaScript — all generated from the Copilot implementation plan; leadership-approved before creation |
 
 **Dependency note for new Script Includes:**
+`MaintenanceManager` depends on `AuditService` only.
 `ArtifactManager` depends on `PermissionResolver`, `NotificationService`, `AuditService`.
 `ReportBuilder`, `NotificationBuilder`, `FlowBuilder`, `TableBuilder`, `UIPageBuilder`
 all depend on `ArtifactManager`. Build in the order listed above.
@@ -1702,13 +1704,17 @@ Panel 3 — Existing Deliverables (click → GlideModal popup)
 - Full `pending_action` queue across all types and all users
 - Audit log — `AuditService` entries; searchable by action, user, date range
 - System config — editable key configuration properties; debug mode toggle
+- Maintenance control — per-section and full-app maintenance toggles, message and
+  estimated return time inputs, and the Export Application XML button (enabled
+  only when entire-app maintenance is active; always accessible to admins
+  regardless of maintenance state)
 
 ### Custom Widgets (all purpose-built — no OOB widgets used anywhere)
 
 | Widget | Section(s) | Purpose |
 |---|---|---|
-| Navigation Bar | Global — `main` page | Role-filtered section links, branding, user profile, `activeSection` state management |
-| Content Area | Global — `main` page | Watches `activeSection`; swaps the correct section widget into the content frame |
+| Navigation Bar | Global — `main` page | Role-filtered section links, branding, user profile, `activeSection` state management; shows a wrench badge on any section currently in maintenance |
+| Content Area | Global — `main` page | Watches `activeSection`; polls maintenance state every 30 s; swaps the correct section widget OR the Maintenance Overlay into the content frame |
 | Operations Assistant Panel | Global — `main` page | Persistent right-side panel; always visible; wired to `activeSection` as `page_id` and to `pre_intent` from creation tiles |
 | Workspace Automation Panel | workspace | Automation cards — Trigger button (on-demand) or status + activity count (event-driven); GlideModal for flow detail view |
 | Deliverable Type Tiles | workspace | Role-filtered creation tiles; click sets `pre_intent` and opens VA panel |
@@ -1724,7 +1730,137 @@ Panel 3 — Existing Deliverables (click → GlideModal popup)
 | Admin Overview | command | System-wide metrics, all-groups tree, execution and deliverable search |
 | Audit Log Viewer | command | `AuditService` records; searchable and filterable |
 | System Config Panel | command | Editable configuration properties, debug mode toggle |
+| Maintenance Control Panel | command | Per-section and full-app maintenance toggles; message + estimated-return input; Export Application XML button (active only during full-app maintenance) |
+| Maintenance Overlay | all sections | Rendered by Content Area in place of section content when maintenance is active; inline SVG illustration, message, estimated return time, admin "Clear" button |
 | Onboarding Progress | `onboarding` page | Step tracker, role/group confirmation, first-login guided flow |
+
+---
+
+## Maintenance Mode
+
+Admin can place individual portal sections or the entire platform into maintenance
+mode from the Maintenance Control Panel in the Command section. Maintenance state
+is stored in system properties and polled by the Content Area widget every 30
+seconds while the portal is open — users already in a section see the overlay
+switch in at the next poll interval with no page reload required.
+
+### Scope of Control
+
+| Target | Who is affected | Effect |
+|---|---|---|
+| Individual section(s) — `workspace`, `activity`, `studio`, `governance`, `command` | All users viewing that section | Maintenance Overlay replaces section content; Navigation Bar shows wrench badge on the affected link |
+| Entire application — `["all"]` | All users across all sections | Maintenance Overlay renders for every section; Export Application XML button activates in the Maintenance Control Panel |
+
+Admin users always retain access to the Command section and the Maintenance Control
+Panel regardless of maintenance state — the Command section is never self-blocked.
+When entire-app maintenance is active, admins see the Maintenance Overlay on all
+other sections but can still access Command normally.
+
+Non-admin users who navigate to or are already viewing a section in maintenance see
+the Maintenance Overlay with the configured message. They cannot bypass it.
+
+### Maintenance Overlay Widget
+
+Rendered by the Content Area widget in place of the normal section widget when
+`MaintenanceManager.isInMaintenance(section)` returns true for that section.
+
+The overlay displays:
+
+- **Inline SVG illustration** — a hand-drawn / sketched-style maintenance scene
+  (tools, scaffolding, hard hat). Rendered as an embedded SVG block — no external
+  image dependencies. No custom image URL property is needed; the SVG is part of
+  the widget's HTML template and version-controlled with the application.
+- **Title** — `[Section name] is Under Maintenance` (or `Operations Intelligence
+  is Under Maintenance` for full-app mode)
+- **Message** — value of `{scope}.maintenance_message`; falls back to:
+  `"This section is temporarily unavailable while we make improvements."`
+- **Estimated return** — shown only when `{scope}.maintenance_return_at` is set;
+  auto-formats as `"Back at 14:30"` (same day) or `"Back in approximately 25
+  minutes"` (< 1 hour away). Countdown is recalculated on every 30 s poll tick.
+- **Admin "Clear Maintenance" button** — visible to admin users only, rendered
+  inline on the overlay. Calls `MaintenanceManager.clearMaintenance([section])`
+  via GlideAjax without navigating away. Lets admin restore a single section
+  without opening the Maintenance Control Panel.
+
+### Maintenance Control Panel Widget (Command section)
+
+Located in the Command section alongside the System Config Panel. Only rendered for
+admin role. Accessible even when entire-app maintenance is active.
+
+**Section status grid:**
+One row per portal section (`Workspace`, `My Activity`, `Studio`, `Governance`,
+`Command`). Each row shows: section label, current status badge
+(`Maintenance` / `Live`), and a toggle switch. Toggling a section immediately
+calls `MaintenanceManager.setMaintenance()` or `clearMaintenance()` via GlideAjax.
+
+**Message & estimated return:**
+- Free-text input for `{scope}.maintenance_message` — applies to all sections
+  currently in maintenance simultaneously.
+- Datetime picker for `{scope}.maintenance_return_at` — optional; clears
+  automatically once the return time passes.
+
+**"Entire Application" toggle:**
+Distinct top-level switch above the section rows. When enabled:
+- Sets `{scope}.maintenance_sections = ["all"]`
+- Section-level toggles become inactive (entire-app setting supersedes them)
+- Export Application XML button transitions from greyed-out to active
+
+**Export Application XML button:**
+- Enabled only when `maintenance_sections = ["all"]`; greyed-out and
+  non-clickable at all other times
+- Tooltip when disabled: `"Put the entire application in maintenance first"`
+- On click:
+  1. GlideAjax calls `MaintenanceManager.getExportURL()`
+  2. Server looks up the `sys_app` record for the current scope and returns:
+     `sys_app_export.do?sysparm_record_id={app_sys_id}`
+  3. Client opens the URL in a new browser tab → ServiceNow streams the
+     application XML as a file download
+  4. A confirmation toast is shown: `"Application XML download started — check
+     your browser downloads."`
+  5. `AuditService` logs the export event: app sys_id, triggered_by, triggered_at
+
+This gate is intentional: export is only accessible while the app is in
+maintenance, preventing accidental export while users are actively using the
+platform and ensuring the XML represents a stable, consistent state.
+
+### MaintenanceManager API
+
+```javascript
+MaintenanceManager.setMaintenance(sections, message, returnAt)
+  // sections: string[] — e.g. ['workspace'] or ['all']
+  // message:  string   — shown on overlay; '' uses default
+  // returnAt: string   — ISO datetime or '' for none
+  // Sets properties, logs via AuditService
+
+MaintenanceManager.clearMaintenance(sections)
+  // sections: string[] — specific sections, or ['all'] to clear everything
+  // If clearing 'all': zeroes all maintenance properties
+  // Logs via AuditService
+
+MaintenanceManager.isInMaintenance(section)
+  // Returns true if 'all' or the given section ID is in maintenance_sections
+
+MaintenanceManager.getStatus()
+  // Returns { sections, message, returnAt, initiatedBy, initiatedAt }
+  // Used by the Maintenance Control Panel to render current state on load
+
+MaintenanceManager.getExportURL()
+  // Looks up sys_app record for the current scope
+  // Returns 'sys_app_export.do?sysparm_record_id={app_sys_id}'
+  // Returns null if app record not found (logs to AuditService)
+  // Logs export trigger via AuditService
+```
+
+### AuditService Events Logged
+
+| Event key | When | Fields recorded |
+|---|---|---|
+| `maintenance_enabled` | setMaintenance() called | sections, message, returnAt, initiated_by, initiated_at |
+| `maintenance_disabled` | clearMaintenance() called | sections_cleared, cleared_by, cleared_at |
+| `app_export_triggered` | getExportURL() called | app_sys_id, triggered_by, triggered_at |
+
+These entries appear in the Audit Log Viewer widget in the Command section,
+searchable by event key, user, and date range.
 
 ---
 
@@ -1902,6 +2038,11 @@ log entry — no automation is silently abandoned.
 | `{scope}.max_custom_tables_per_group` | `10` | Maximum approved custom tables per group |
 | `{scope}.max_flow_actions` | `20` | Maximum actions per creator-built flow |
 | `{scope}.artifact_log_retention_days` | `365` | Days before archived managed_artifact records are eligible for purge |
+| `{scope}.maintenance_sections` | `[]` | JSON array of section IDs in maintenance. `["all"]` = entire application. `[]` = no maintenance active. Valid section IDs: `workspace`, `activity`, `studio`, `governance`, `command`. |
+| `{scope}.maintenance_message` | `` | Message displayed on the Maintenance Overlay. Empty = default text shown. |
+| `{scope}.maintenance_return_at` | `` | ISO datetime of estimated return. Shown on overlay as "Back at [time]" or "Back in approx. X minutes". Empty = not shown. |
+| `{scope}.maintenance_initiated_by` | `` | sys_id of the admin who last enabled maintenance. Set automatically by `MaintenanceManager`. Read-only from the portal. |
+| `{scope}.maintenance_initiated_at` | `` | ISO datetime when maintenance was last enabled. Set automatically. Read-only from the portal. |
 
 ---
 
@@ -2008,7 +2149,7 @@ If Studio export is not available or not permitted on your instance, use a
 
 | Update set name | Contains |
 |---|---|
-| `Operations Intelligence v1.0.0` | Everything: all 19 tables, Script Includes, BRs, Jobs, notifications, VA, NLU, portal, widgets, properties |
+| `Operations Intelligence v1.0.0` | Everything: all 19 tables, 21 Script Includes, BRs, Jobs, notifications, VA, NLU, portal, 20 widgets, 19 properties |
 
 A single set keeps migration to one export, one import, one apply operation.
 Splitting into multiple sets adds management overhead with no practical benefit
@@ -2132,7 +2273,7 @@ PRODUCTION
    `PermissionResolver` -> `VAHelper` -> `NotificationService` -> `GroupManager` ->
    `CatalogService` -> `ScheduleManager` -> `ExecutionEngine` -> `ApprovalRouter` ->
    `OnboardingService` -> `DeactivationHandler` -> `FlowBridge` -> `RESTBridge` ->
-   `CopilotBridge` -> `AuditService` -> `ArtifactManager` ->
+   `CopilotBridge` -> `AuditService` -> `MaintenanceManager` -> `ArtifactManager` ->
    `ReportBuilder` -> `NotificationBuilder` -> `FlowBuilder` ->
    `TableBuilder` -> `UIPageBuilder`
 5. **Business Rules** — all 5 OI BRs in the order listed in the Business Rules section
@@ -2143,7 +2284,7 @@ PRODUCTION
 10. **NLU Initial Training** — trigger first model train via REST; poll until status = ready
 11. **Portal Interface** — portal record (url_suffix = `operations_intelligence`,
     default page = `main`), fully custom theme, 2 pages (`main` + `onboarding`),
-    all 18 custom widgets; verify role-based section rendering for all 4 roles
+    all 20 custom widgets; verify role-based section rendering for all 4 roles
 12. **Custom topic auto-generation Business Rule** — on `group_automation` table,
     fires when `approval_status` changes to `approved`;
     calls `CatalogService.onPublish()` which creates VA topic + NLU intent + retraining
