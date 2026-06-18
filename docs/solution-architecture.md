@@ -54,8 +54,8 @@ from actual ServiceNow role assignments — never from a field on a custom table
 |---|---|---|
 | `admin` | IT / platform team | Full system access, onboards top-level leadership |
 | `leadership` | Business leaders | Group governance, user onboarding, approvals |
-| `creator` | Appointed power users | Build and manage process automations and persistent deliverables (reports, flows, custom tables, UI pages) for assigned groups via the Operations Assistant and Operations Studio |
-| `user` | All other staff | Trigger automations; request reports, dashboards, notification rules, and scheduled data reports via the Operations Assistant |
+| `creator` | Appointed power users | Design and manage automations and deliverables within assigned groups |
+| `user` | All other staff | Execute automations and request deliverables via the Operations Assistant |
 
 Viewer role is intentionally excluded. Every legitimate read-only need is
 covered — leadership has full reporting in Operations Governance, admins
@@ -71,8 +71,8 @@ post-onboarding step — it is NOT part of the `onboarding_request` workflow.
 
 | Group Role | Granted by | Effect |
 |---|---|---|
-| `creator` | Leadership via Appoint Creator topic | Builds automations and persistent deliverables scoped to this group |
-| `user` | Leadership during onboarding | Triggers automations; requests reports, dashboards, notification rules, and scheduled data reports for this group |
+| `creator` | Leadership via Appoint Creator topic | Designs automations and deliverables scoped to this group |
+| `user` | Leadership during onboarding | Executes automations and requests deliverables for this group |
 
 A person can hold `creator` group role in Group A and `user` group role in
 Group B simultaneously.
