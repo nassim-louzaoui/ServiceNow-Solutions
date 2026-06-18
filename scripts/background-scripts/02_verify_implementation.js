@@ -30,13 +30,14 @@
         report.failed.push({ c: category, n: name, d: detail || 'NOT FOUND' });
     }
 
-    // ── 1. TABLES (18) ───────────────────────────────────────
+    // ── 1. TABLES (19) ───────────────────────────────────────
     var tables = [
         'person', 'reporting_relationship', 'group', 'group_member',
         'onboarding_request', 'automation_category', 'approved_flow',
         'automation', 'automation_version', 'automation_step', 'automation_input',
         'group_automation', 'execution', 'execution_step_log', 'automation_schedule',
-        'use_case_request', 'creator_credential', 'pending_action'
+        'use_case_request', 'creator_credential', 'pending_action',
+        'managed_artifact'
     ];
     tables.forEach(function(tbl) {
         var gr = new GlideRecord('sys_db_object');
@@ -48,12 +49,14 @@
         else fail('Table', tbl);
     });
 
-    // ── 2. SCRIPT INCLUDES (14) ──────────────────────────────
+    // ── 2. SCRIPT INCLUDES (20) ──────────────────────────────
     var includes = [
         'PermissionResolver', 'VAHelper', 'NotificationService', 'GroupManager',
         'CatalogService', 'ScheduleManager', 'ExecutionEngine', 'ApprovalRouter',
         'OnboardingService', 'DeactivationHandler', 'FlowBridge', 'RESTBridge',
-        'CopilotBridge', 'AuditService'
+        'CopilotBridge', 'AuditService',
+        'ArtifactManager', 'ReportBuilder', 'NotificationBuilder',
+        'FlowBuilder', 'TableBuilder', 'UIPageBuilder'
     ];
     includes.forEach(function(si) {
         var gr = new GlideRecord('sys_script_include');
@@ -65,7 +68,7 @@
         else fail('ScriptInclude', si);
     });
 
-    // ── 3. SYSTEM PROPERTIES (11) ────────────────────────────
+    // ── 3. SYSTEM PROPERTIES (14) ────────────────────────────
     var props = [
         scope + '.debug_mode',
         scope + '.version',
@@ -77,7 +80,10 @@
         scope + '.execution_log_retention_days',
         scope + '.copilot_api_endpoint',
         scope + '.copilot_timeout_ms',
-        scope + '.catalog_top_n'
+        scope + '.catalog_top_n',
+        scope + '.max_custom_tables_per_group',
+        scope + '.max_flow_actions',
+        scope + '.artifact_log_retention_days'
     ];
     props.forEach(function(prop) {
         var gr = new GlideRecord('sys_properties');
@@ -106,7 +112,7 @@
         else fail('BusinessRule', br);
     });
 
-    // ── 5. NOTIFICATION TEMPLATES (15) ───────────────────────
+    // ── 5. NOTIFICATION TEMPLATES (22) ───────────────────────
     var templates = [
         'OI - Onboarding Invitation',
         'OI - Onboarding Reminder',
@@ -122,7 +128,14 @@
         'OI - User Deactivation Alert',
         'OI - Auto Removal Executed',
         'OI - Copilot Token Expired',
-        'OI - Leader Reassignment Required'
+        'OI - Leader Reassignment Required',
+        'OI - Flow Activated',
+        'OI - Custom Table Submitted',
+        'OI - Custom Table Approved',
+        'OI - Custom Table Rejected',
+        'OI - UI Page Submitted',
+        'OI - UI Page Approved',
+        'OI - UI Page Rejected'
     ];
     templates.forEach(function(tpl) {
         var gr = new GlideRecord('sysevent_email_action');
@@ -182,10 +195,13 @@
         else fail('ServicePortal', 'operations_intelligence');
     })();
 
-    // ── 10. VA SYSTEM TOPICS (spot-check 3 key topics) ───────
+    // ── 10. VA SYSTEM TOPICS (spot-check 6 key topics) ───────
     var topics = [
         '[Operations Intelligence] Welcome',
         '[Operations Intelligence] Create Automation',
+        '[Operations Intelligence] Create Report or Dashboard',
+        '[Operations Intelligence] Create Flow',
+        '[Operations Intelligence] Request Custom Table',
         '[Operations Intelligence] Help & Fallback'
     ];
     topics.forEach(function(topic) {
@@ -199,7 +215,6 @@
 
     // ── 11. GITHUB_PAT FIELD ACL (read-deny) ─────────────────
     (function() {
-        // Look for a deny-read ACL on the github_pat field
         var gr = new GlideRecord('sys_security_acl');
         gr.addQuery('operation', 'read');
         gr.addQuery('type', 'field');
@@ -211,6 +226,21 @@
         } else {
             fail('FieldACL', 'github_pat read-deny',
                  'No read ACL found on creator_credential — github_pat may be exposed');
+        }
+    })();
+
+    // ── 12. MANAGED_ARTIFACT FIELD ACLs ──────────────────────
+    (function() {
+        var gr = new GlideRecord('sys_security_acl');
+        gr.addQuery('type', 'field');
+        gr.addQuery('name', 'CONTAINS', 'managed_artifact');
+        gr.setLimit(1);
+        gr.query();
+        if (gr.next()) {
+            pass('FieldACL', 'managed_artifact field ACL (record exists)');
+        } else {
+            fail('FieldACL', 'managed_artifact field ACL',
+                 'No field-level ACL found on managed_artifact — artifact_sys_ids may be exposed');
         }
     })();
 

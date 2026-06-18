@@ -2,11 +2,17 @@
 
 ## Platform Overview
 
-**Operations Intelligence** is an enterprise intelligent automation platform
-built as a ServiceNow scoped application. It enables organisations to create,
-govern, and interact with automations entirely through natural language via
-the Operations Assistant (Virtual Agent), with structured approval workflows
-and role-based group governance.
+**Operations Intelligence** is an enterprise intelligent automation and deliverable
+platform built as a ServiceNow scoped application. It enables organisations to
+create, govern, and manage automations AND persistent ServiceNow deliverables
+(dashboards, reports, notification rules, flows, custom tables, UI pages) entirely
+through natural language via the Operations Assistant (Virtual Agent), with
+role-appropriate approval workflows and group-scoped governance.
+
+Creators never navigate directly to the underlying ServiceNow artifacts they
+create — all lifecycle management (edit, deactivate, archive, delete) happens
+exclusively through Operations Intelligence. This principle applies to every
+deliverable type.
 
 ### Scope Naming Note
 
@@ -49,8 +55,8 @@ from actual ServiceNow role assignments — never from a field on a custom table
 |---|---|---|
 | `admin` | IT / platform team | Full system access, onboards top-level leadership |
 | `leadership` | Business leaders | Group governance, user onboarding, approvals |
-| `creator` | Appointed power users | Design automations for assigned groups |
-| `user` | All other staff | Trigger automations via Assistant or Workspace |
+| `creator` | Appointed power users | Design automations and deliverables for assigned groups |
+| `user` | All other staff | Trigger automations; request reports and dashboards via Assistant |
 
 Viewer role is intentionally excluded. Every legitimate read-only need is
 covered — leadership has full reporting in Operations Governance, admins
@@ -66,8 +72,8 @@ post-onboarding step — it is NOT part of the `onboarding_request` workflow.
 
 | Group Role | Granted by | Effect |
 |---|---|---|
-| `creator` | Leadership via Appoint Creator topic | Can design automations scoped to this group |
-| `user` | Leadership during onboarding | Can trigger automations in this group |
+| `creator` | Leadership via Appoint Creator topic | Can design automations and deliverables scoped to this group |
+| `user` | Leadership during onboarding | Can trigger automations; may request reports/dashboards for this group |
 
 A person can hold `creator` group role in Group A and `user` group role in
 Group B simultaneously.
@@ -82,7 +88,7 @@ ADMIN
        └── LEADERSHIP (delegation_rights=true) onboards sub-LEADERSHIP
        └── LEADERSHIP onboards USERS (direct reports)
             └── LEADERSHIP appoints CREATORS from their user pool
-                 └── CREATOR designs automations scoped to their group(s)
+                 └── CREATOR designs automations and deliverables scoped to their group(s)
 ```
 
 ### Reporting Relationships
@@ -116,8 +122,9 @@ Sarah's Team (Leadership Group — parent)
   └── HR Onboarding  (Custom Group — child)
 ```
 
-Automations assigned to a parent group are NOT automatically inherited by
-child groups. Each group's catalog is managed independently.
+Automations and deliverables assigned to a parent group are NOT automatically
+inherited by child groups. Each group's catalog and deliverable registry is
+managed independently.
 
 ---
 
@@ -208,8 +215,9 @@ approved_flow
   approved_by               person reference (admin)
   approved_at               datetime
   NOTE: Admin curates this list. Only these flows are available as flow_trigger
-        targets. Creators see display_name and description — never the sys_id.
-        FlowBridge resolves flow_sys_id to sys_hub_flow at execution time.
+        targets for automation steps. Creators see display_name and description
+        — never the sys_id. FlowBridge resolves flow_sys_id to sys_hub_flow at
+        execution time.
 
 automation
   name                      string
@@ -360,6 +368,46 @@ use_case_request
   resulting_automation      automation reference
 ```
 
+### Deliverable Table
+
+```
+managed_artifact
+  display_name              string
+  description               string
+  artifact_type             report / pa_dashboard / notification_rule /
+                            scheduled_data_job / flow / custom_table / ui_page
+  owner_group               group reference
+  created_by                person reference
+  status                    draft / pending_approval / active /
+                            inactive / archived
+                            NOTE: pending_approval applies only to
+                            artifact_types that require leadership approval
+                            (custom_table, ui_page). All others go
+                            directly from draft to active on creation.
+  approval_required         boolean (true for custom_table and ui_page)
+  approved_by               person reference
+  approved_at               datetime
+  rejected_reason           string
+  artifact_sys_ids          string (JSON array of sys_ids of the actual
+                            ServiceNow records created. May contain multiple
+                            entries — e.g. a PA dashboard + its underlying
+                            report, or a custom_table + its form layout.)
+  creation_spec             string (JSON — full configuration used at
+                            creation time. Enables ArtifactManager to
+                            re-create or update the artifact. Field format
+                            varies by artifact_type — see Deliverable
+                            Creation Flows section.)
+  copilot_assisted          boolean (true if Copilot filled any technical
+                            gaps during spec generation)
+  copilot_spec_applied      boolean (true once creator confirms Copilot spec)
+  created_at                datetime
+  updated_at                datetime
+  NOTE: Creators never access the underlying ServiceNow records directly.
+        All management (edit, deactivate, archive, delete) is performed
+        through OI via ArtifactManager. The artifact_sys_ids array is used
+        internally by builder Script Includes.
+```
+
 ### Security & Credential Tables
 
 ```
@@ -389,14 +437,17 @@ creator_credential
 pending_action
   action_type               user_deactivation / automation_approval /
                             onboarding_expiry / token_expiry /
-                            leader_reassignment
+                            leader_reassignment / artifact_approval
                             NOTE: approval escalation UPDATES the existing
                             pending_action record (status = escalated,
                             assigned_to changes to the leader's leader).
                             A new pending_action record is NOT created for
                             escalation — one traceable record per approval.
+                            artifact_approval type: used when custom_table
+                            or ui_page requires leadership sign-off.
   subject_user              person reference (who the action concerns)
   related_automation        automation reference (automation_approval type)
+  related_artifact          managed_artifact reference (artifact_approval type)
   related_group             group reference (which group's approval)
   assigned_to               person reference (updated on escalation)
   status                    pending / actioned / auto_resolved / escalated
@@ -408,6 +459,284 @@ pending_action
                             notified_user / reassigned / no_action
   notes                     string
 ```
+
+---
+
+## Deliverable Types & Governance
+
+Operations Intelligence extends beyond process automations to deliver persistent
+ServiceNow artifacts on behalf of creators. The following governance matrix
+governs who can request each type, whether approval is required, and how
+lifecycle management works.
+
+### Governance Matrix
+
+| Deliverable Type | Who can create | Approval required | Copilot role | OI-managed lifecycle |
+|---|---|---|---|---|
+| `report` | All users (via VA) and creators | No — active immediately | Auto fills field selection, conditions, chart type if not specified | Creator (and user who requested it) manages via OI |
+| `pa_dashboard` | All users (via VA) and creators | No — active immediately | Auto fills widget layout, widget types, data sources if not specified | Creator manages via OI |
+| `notification_rule` | All users (via VA) and creators | No — active immediately | Auto fills trigger conditions, email template if not specified | Creator manages via OI |
+| `scheduled_data_job` | All users (via VA) and creators | No — active immediately | Auto fills schedule, target table, field selection if not specified | Creator manages via OI |
+| `flow` | Creators only | No — active immediately; leadership notified (informational) | Auto fills trigger conditions, action logic if not specified | Creator manages via OI; leadership can deactivate |
+| `custom_table` | Creators only | Yes — leadership approval required | Full spec generation: field types, labels, mandatory flags, form layout | Creator manages via OI after approval |
+| `ui_page` | Creators only (optional complement to custom_table) | Yes — leadership approval required | Full UI spec from plain English: layout, fields, data binding to custom tables | Creator manages via OI after approval |
+
+**Excluded types (security risk):**
+- `sysauto_script` (Scheduled Scripts) — global scope execution risk
+- `sys_script` (Business Rules) — global scope execution risk
+- Service Portal widgets with scripts — script injection risk
+
+### Key Governance Principles
+
+1. **No direct artifact access** — creators and users never navigate to the underlying
+   ServiceNow records (`sys_report`, `pa_dashboards`, `sysevent_email_action`, etc.).
+   All management is through Operations Intelligence.
+
+2. **User-accessible deliverables** — any user may request a report, PA dashboard,
+   notification rule, or scheduled data job via the Operations Assistant. The system
+   guides them through requirements; if they lack sufficient technical detail, Copilot
+   automatically fills the gaps (see Copilot Role in Deliverables).
+
+3. **Creator-only deliverables** — flows, custom tables, and UI pages require creator
+   permissions due to their system-level impact.
+
+4. **Leadership visibility of flows** — when a creator activates a flow, leadership
+   receives an informational notification (OI - Flow Activated). Leadership may
+   deactivate a flow from Operations Governance without creator approval — this is
+   an override capability, not a blocking approval gate.
+
+5. **Custom table + UI page pairing** — when a custom table is approved, the creator
+   is offered the option to also create a UI page interface. If chosen, the UI page
+   request is filed simultaneously, shares the same approval workflow, and is listed
+   alongside the table in managed_artifact.
+
+6. **Scope isolation** — all custom tables created through OI are created within the
+   OI scoped application. They are NOT global tables. TableBuilder ensures the scoped
+   app prefix is applied automatically.
+
+---
+
+## Deliverable Creation Flows
+
+### Common Pattern (all deliverable types)
+
+```
+PHASE 1 — Requirements Conversation (always runs, never blocked)
+  Operations Assistant guides creator/user through structured multi-turn dialogue
+  Questions adapt to deliverable type (see type-specific flows below)
+  Progress auto-saved to managed_artifact as creation_spec JSON after every turn
+  Fully resumable if conversation is interrupted
+
+PHASE 2 — Gap Detection & Copilot Fill
+  System checks creation_spec for missing or underspecified technical fields
+  If gaps detected AND creator has active copilot credential:
+    -> CopilotBridge generates full technical specification for the missing parts
+    -> Assistant displays: "Based on your requirements, here is what I suggest for
+       the technical details: [formatted spec]. Does this look right?"
+    -> Creator reviews and confirms or adjusts each suggestion
+    -> managed_artifact.copilot_assisted = true
+    -> managed_artifact.copilot_spec_applied = true on confirmation
+  If gaps detected but NO active copilot credential:
+    -> Assistant asks targeted follow-up questions to resolve each gap manually
+  If no gaps: creation proceeds directly to Phase 3
+
+PHASE 3 — Creator Review
+  Full spec displayed in conversation and/or Operations Studio
+  Creator can edit any field before confirming
+  Deliverable is complete and ready to create at this point
+
+PHASE 4 — Create or Submit for Approval
+  Deliverables NOT requiring approval (report, pa_dashboard, notification_rule,
+    scheduled_data_job, flow):
+    -> ArtifactManager calls the relevant builder Script Include
+    -> Underlying ServiceNow artifact created immediately
+    -> managed_artifact.status = active
+    -> Creator/user notified of successful creation with record reference
+    -> For flows: leadership informed via OI - Flow Activated (non-blocking)
+
+  Deliverables requiring approval (custom_table, ui_page):
+    -> managed_artifact.status = pending_approval
+    -> pending_action created (type: artifact_approval) for primary leader
+    -> Leader notified via OI - Custom Table Submitted or OI - UI Page Submitted
+    -> 72-hour response window (same escalation rules as automation approvals)
+    -> On approval: ArtifactManager calls builder; artifact created; creator notified
+    -> On rejection: managed_artifact.status = draft; creator notified with reason
+```
+
+### Type-Specific Requirements Conversations
+
+**report / pa_dashboard**
+- Which group's data should this show? (system lists groups the user belongs to)
+- Which ITSM modules? (incident, change, problem, task, etc.)
+- What time period?
+- What filters? (assigned group, state, priority, etc.)
+- What should the main visualisation show? (Copilot suggests if not specified)
+- For PA dashboard: how many panels / widgets? (Copilot suggests layout if not specified)
+
+**notification_rule**
+- Which table should trigger the notification?
+- What condition should fire it? (e.g. assigned_to group = dns_sam AND state changes)
+- Who should receive it? (specific email, group members, triggering user, etc.)
+- What should the email subject and body contain? (Copilot generates template if not specified)
+- Should it fire on insert only, update only, or both?
+
+**scheduled_data_job**
+- What data should be fetched and sent?
+- Which table and which filters?
+- Which fields to include in the report email?
+- Who should receive it?
+- How often? (daily / weekly / specific day and time)
+- Copilot generates the field selection and email format if not specified
+- NOTE: Implemented as sysevent_email_action with scheduled trigger — NOT as
+  a raw sysauto_script. FlowBuilder creates an OI-managed scheduled flow that
+  performs the query and sends the notification.
+
+**flow**
+- What should trigger this flow? (record created / record updated with condition /
+  one-time manual / scheduled)
+- Which table should it watch?
+- What condition? (e.g. assigned_to.group = dns_sam)
+- What should happen? (update a field, send a notification, assign to a user, etc.)
+- Should it be event-driven (fires automatically) or manually triggered?
+- Copilot translates plain-English action descriptions into Flow Designer action config
+- NOTE: FlowBuilder creates a sys_hub_flow record within the OI scoped app.
+  The flow is activated immediately on creation. Leadership receives OI - Flow Activated.
+
+**custom_table**
+- What is the purpose of this table? (e.g. "activity tracker replacing our Excel sheet")
+- What information should each record track? (Copilot generates field definitions)
+- Which fields are mandatory?
+- Should it have an approval process of its own? (adds an approval field + state)
+- Who should be able to create / edit / view records? (role-based access)
+- Copilot generates: field list, field types, field labels, form layout, list view columns
+- Full spec subject to leadership approval before TableBuilder creates the table
+
+**ui_page**
+- This option is only offered when a custom_table has been approved
+- What should the page show? (system lists available custom tables to choose from)
+- What should the layout look like? (describe in plain English — Copilot generates layout spec)
+- What actions should users be able to perform? (create record, view list, search, export)
+- Should it show related records from other tables?
+- NOTE: UI pages contain NO client-side scripts — data binding only.
+  UIPageBuilder generates a Service Portal widget with server-side GlideRecord
+  queries bound to the selected custom table(s).
+
+---
+
+## Managed Artifact Lifecycle
+
+```
+DRAFT
+  Requirements being captured or spec being reviewed
+    |
+    v confirmed (no approval required)       v submitted (approval required)
+ACTIVE                                   PENDING_APPROVAL
+  Artifact live in ServiceNow              pending_action created for leader
+  Creator manages via OI only                |
+    |                                        v approved
+    +-- Edit request:                    ACTIVE (same as left path)
+    |     Re-opens requirements            |
+    |     conversation for the            +-- Leadership override (flows only):
+    |     specific change;                |     managed_artifact.status = inactive
+    |     ArtifactManager updates              Artifact deactivated in ServiceNow
+    |     underlying record               |
+    |                                    +-- Creator deactivates:
+    +-- Deactivate:                      |     managed_artifact.status = inactive
+    |     managed_artifact.status        |     Artifact deactivated in ServiceNow
+    |       = inactive                   |
+    |     Artifact deactivated           +-- Creator re-activates:
+    |     in ServiceNow                  |     managed_artifact.status = active
+    |                                    |     Artifact reactivated
+    +-- Re-activate:                     |
+    |     status = active                +-- Archive:
+    |     Artifact reactivated                managed_artifact.status = archived
+    |                                         Underlying artifact DELETED from SN
+    +-- Archive:                              History preserved in managed_artifact
+          status = archived                   Creator cannot un-archive
+          Underlying artifact DELETED
+          History preserved
+
+INACTIVE
+  Artifact exists in ServiceNow but is deactivated
+  Can be re-activated by creator (or by resolving leadership override)
+  Custom tables: underlying table is NOT deleted on inactive — only deactivated
+
+ARCHIVED
+  Artifact and all managed_artifact records retained for audit
+  Underlying ServiceNow record permanently deleted
+  managed_artifact record preserved with artifact_sys_ids and creation_spec
+  for historical reference
+```
+
+### Creator's Artifact Management View
+
+In Operations Studio, creators see a "My Deliverables" panel showing all
+managed_artifact records for their group(s). From this view they can:
+- Filter by artifact_type and status
+- View creation spec and Copilot contribution
+- Initiate edit (opens requirements re-conversation)
+- Deactivate / re-activate
+- Archive (with confirmation — irreversible)
+- See which artifacts are pending_approval and their deadline
+
+Leadership sees all group deliverables in Operations Governance, with the
+ability to deactivate flows as an override action.
+
+---
+
+## Copilot Role in Deliverables
+
+For automations, Copilot is an optional Phase 3 enhancement that suggests NLU
+training phrases. For deliverables, Copilot plays a fundamentally different role:
+it automatically generates the full technical specification when the creator
+provides requirements in plain English but does not specify technical details.
+
+### Automatic Gap Fill (not optional)
+
+When a creator describes what they need but omits technical specifics, Copilot
+is invoked automatically (not as an opt-in step) to produce the technical spec.
+The system explicitly acknowledges this to the creator:
+
+> "You've told me what you need — I'll use AI to fill in the technical details.
+> Here's what I'm proposing: [formatted spec]. Review each section and tell me
+> if anything needs adjusting."
+
+The creator must explicitly confirm or adjust the proposed spec before it is
+saved to `managed_artifact.creation_spec`. Nothing is applied silently.
+
+### CopilotBridge Request for Deliverables
+
+The request contract extends the automation-phrase contract with a
+`deliverable_spec_mode` flag:
+
+```
+System prompt (deliverable mode):
+  "You are a ServiceNow configuration specialist. Given a plain-English
+   requirement and a deliverable type, return ONLY valid JSON with:
+   'spec' (the complete technical configuration object for this deliverable
+   type — see per-type schema), 'assumptions' (array of strings describing
+   any assumptions made), 'questions' (array of clarifying questions if
+   critical information is missing — empty array if none).
+   No prose outside the JSON object."
+
+User message:
+  "Deliverable type: {artifact_type}
+   Requirements: {plain_english_requirements}
+   Already specified: {partial_creation_spec}"
+```
+
+`max_tokens` is raised to `3000` for deliverable spec generation (vs `1000`
+for automation phrase suggestions). All other timeout and fallback rules apply
+identically — on failure, the conversation falls back to manual clarifying
+questions.
+
+### Copilot Credential Requirement
+
+The automatic gap-fill path requires an active `creator_credential`. If the
+creator does not have an active PAT:
+- System proceeds with manual clarifying questions only
+- No Copilot spec generation is attempted
+- Creator is shown a prompt offering to set up Copilot integration
 
 ---
 
@@ -686,10 +1015,21 @@ Dependency order determines build sequence in step 4.
 | `ApprovalRouter` | Self-approval guard, null-leader fallback, escalation chain, target resolution |
 | `OnboardingService` | Existing person check, request creation, invitation, completion |
 | `DeactivationHandler` | Detects deactivation type (user vs leader), routes accordingly |
-| `FlowBridge` | Triggers approved flows — resolves approved_flow.flow_sys_id to sys_hub_flow |
+| `FlowBridge` | Triggers admin-approved flows — resolves approved_flow.flow_sys_id to sys_hub_flow |
 | `RESTBridge` | Outbound REST executor for rest_call steps: auth, timeout, retry |
-| `CopilotBridge` | GitHub Copilot API: write-only PAT access, timeout, fallback, phrase merge |
+| `CopilotBridge` | GitHub Copilot API: write-only PAT access, timeout, fallback, phrase merge, deliverable spec |
 | `AuditService` | Field-level audit logging for admin actions on key tables |
+| `ArtifactManager` | Central registry: managed_artifact CRUD, lifecycle transitions, builder dispatch |
+| `ReportBuilder` | Creates/updates/deletes sys_report and pa_dashboard records via REST API |
+| `NotificationBuilder` | Creates/updates sysevent_email_action and OI-managed scheduled flow notification jobs |
+| `FlowBuilder` | Creates/activates/deactivates sys_hub_flow records within OI scoped app |
+| `TableBuilder` | Creates custom table definitions (sys_db_object + sys_dictionary fields) within OI scope |
+| `UIPageBuilder` | Creates Service Portal widgets (data binding only, no scripts) from Copilot-generated layout spec |
+
+**Dependency note for new Script Includes:**
+`ArtifactManager` depends on `PermissionResolver`, `NotificationService`, `AuditService`.
+`ReportBuilder`, `NotificationBuilder`, `FlowBuilder`, `TableBuilder`, `UIPageBuilder`
+all depend on `ArtifactManager`. Build in the order listed above.
 
 ---
 
@@ -818,6 +1158,7 @@ implemented as ServiceNow ACL script conditions.
 | `use_case_request` | admin; leadership (target_group); submitted_by | creator | submitted_by (draft/in_review only); System | admin only |
 | `creator_credential` | Row: own user OR admin; github_pat unconditionally blocked at field level for ALL readers | System; own user (initial setup) | own user (PAT + token_status); admin (revoke only: token_status + clear PAT) | admin only |
 | `pending_action` | assigned_to (own); admin | System only | assigned_to (actioned fields); admin; System | System (auto-resolution); admin |
+| `managed_artifact` | admin (all); leadership (own groups); creator (own group rows); user (active rows in own groups — display_name and description only) | System (ArtifactManager, via creator/user request) | creator (own, draft/inactive only — display_name, description); System (status, artifact_sys_ids, creation_spec); admin | admin only (archived status = soft delete) |
 
 ### Field-Level ACLs
 
@@ -827,11 +1168,15 @@ implemented as ServiceNow ACL script conditions.
 | `execution` | `input_values` | triggered_by OR leadership/admin of that group | System only |
 | `use_case_request` | `structured_spec` | submitted_by OR leadership/admin | System only |
 | `use_case_request` | `description` | submitted_by OR leadership/admin | submitted_by |
+| `managed_artifact` | `artifact_sys_ids` | admin; System (ArtifactManager) | System only |
+| `managed_artifact` | `creation_spec` | creator (own); admin | System only |
+| `managed_artifact` | `copilot_assisted` | creator (own); leadership; admin | System only |
 
 ### Auditing
 Field-level auditing enabled on:
 `automation` · `group` · `group_member` · `reporting_relationship` ·
-`pending_action` · `creator_credential` (metadata fields only — github_pat excluded)
+`pending_action` · `creator_credential` (metadata fields only — github_pat excluded) ·
+`managed_artifact`
 
 AuditService logs all admin actions that bypass normal role checks.
 
@@ -896,7 +1241,7 @@ VAHelper reads this to adjust welcome message and topic routing per interface.
 On the `governance` page the embedded panel opens to the pending approvals
 summary. On `studio` it opens to creation guidance.
 
-### System Topics (15 total)
+### System Topics (23 total)
 
 | Topic | Fires when | Purpose |
 |---|---|---|
@@ -915,6 +1260,14 @@ summary. On `studio` it opens to creation guidance.
 | [Operations Intelligence] Check Status | User mentions reference or asks about request | Execution status lookup by reference or description |
 | [Operations Intelligence] Help & Fallback | No intent matched | Suggests 3 closest available automations; never a dead end |
 | [Operations Intelligence] Approval Review | Leadership pending_action automation_approval | Guided approval: review spec, approve or reject with reason |
+| [Operations Intelligence] Create Report or Dashboard | User/creator requests a report or PA dashboard | Multi-turn requirements; Copilot fills technical gaps; immediate creation (no approval) |
+| [Operations Intelligence] Create Notification Rule | User/creator requests an email trigger or alert | Multi-turn requirements including condition, recipients, email body; Copilot fills gaps; immediate creation |
+| [Operations Intelligence] Create Scheduled Data Report | User/creator requests periodic data email | Requirements: table, filters, fields, recipients, schedule; Copilot fills gaps; immediate creation |
+| [Operations Intelligence] Create Flow | Creator initiates a Flow Designer flow | Requirements: trigger type, table, condition, actions; Copilot translates plain English to flow config; immediate activation + leadership notified |
+| [Operations Intelligence] Request Custom Table | Creator requests a custom tracking table | Requirements: purpose, fields, access; Copilot generates full field spec; submitted for leadership approval |
+| [Operations Intelligence] Request UI Page | Creator requests a UI page for an existing custom table | Lists available custom tables; requirements: layout, actions, data binding; Copilot generates layout spec; submitted for leadership approval |
+| [Operations Intelligence] Manage My Artifacts | Creator or user wants to manage existing deliverables | Lists managed_artifact records for group; options: view, edit, deactivate, archive |
+| [Operations Intelligence] Check Artifact Status | Creator checks status of pending-approval deliverables | Shows pending_approval records for creator's groups with deadlines and assigned approver |
 
 ---
 
@@ -942,7 +1295,7 @@ On new version published: new topic created; previous topic deactivated.
 
 ## CopilotBridge API Specification
 
-### Request Contract
+### Request Contract — Automation Mode (phrase generation)
 
 ```
 Endpoint:   POST https://api.githubcopilot.com/chat/completions
@@ -979,6 +1332,42 @@ Response parsing:
   On any parse failure -> treat as API failure -> silent fallback
 ```
 
+### Request Contract — Deliverable Mode (spec generation)
+
+```
+Request body:
+{
+  "model": "gpt-4o",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a ServiceNow configuration specialist. Given a
+                  plain-English requirement and a deliverable type, return
+                  ONLY valid JSON with: 'spec' (the complete technical
+                  configuration object for this deliverable type),
+                  'assumptions' (array of strings describing any assumptions
+                  made), 'questions' (array of clarifying questions if
+                  critical information is missing — empty array if none).
+                  No prose outside the JSON object."
+    },
+    {
+      "role": "user",
+      "content": "Deliverable type: {artifact_type}
+                  Requirements: {plain_english_requirements}
+                  Already specified: {partial_creation_spec_as_JSON_string}"
+    }
+  ],
+  "max_tokens": 3000,
+  "temperature": 0.2
+}
+
+Response parsing:
+  choices[0].message.content -> parse as JSON
+  Extract 'spec' -> merge with partial creation_spec
+  Extract 'assumptions' + 'questions' -> present to creator for review
+  On any parse failure -> treat as API failure -> fall back to manual questions
+```
+
 ### PAT Access Pattern
 CopilotBridge never returns or logs the decrypted PAT value. It reads the
 password2 field via an elevated GlideRecord call, passes it directly to the
@@ -988,14 +1377,13 @@ plain-text value.
 ### Timeout and Fallback
 - Timeout: `{scope}.copilot_timeout_ms` (default 15000ms)
 - On timeout, HTTP error, parse failure, or credits exhausted:
-  - `use_case_request.copilot_enhanced = false`
-  - Return original structured_spec unchanged
-  - Creator sees: "AI enhancement unavailable — your automation is complete"
+  - Automation mode: `use_case_request.copilot_enhanced = false`; return original structured_spec; creator sees "AI enhancement unavailable"
+  - Deliverable mode: `managed_artifact.copilot_assisted = false`; fall back to manual clarifying questions; no error shown to creator — conversation continues naturally
   - Log error details to AuditService (not surfaced to creator)
 
 ---
 
-## Notification Templates (15 total)
+## Notification Templates (22 total)
 
 All notifications sent via NotificationService. Templates defined in the scoped
 app — global notification records are never modified.
@@ -1017,6 +1405,13 @@ app — global notification records are never modified.
 | OI - Auto Removal Executed | auto-removal completes | Primary leader |
 | OI - Copilot Token Expired | weekly validation fails | Creator |
 | OI - Leader Reassignment Required | leader deactivated | Their leader + admin |
+| OI - Flow Activated | FlowBuilder activates a new flow | Group's leadership (informational only — not approval-blocking) |
+| OI - Custom Table Submitted | managed_artifact custom_table pending_approval | Creator's primary leader |
+| OI - Custom Table Approved | managed_artifact custom_table status = active | Creator |
+| OI - Custom Table Rejected | managed_artifact custom_table rejected_reason populated | Creator |
+| OI - UI Page Submitted | managed_artifact ui_page pending_approval | Creator's primary leader |
+| OI - UI Page Approved | managed_artifact ui_page status = active | Creator |
+| OI - UI Page Rejected | managed_artifact ui_page rejected_reason populated | Creator |
 
 ---
 
@@ -1038,6 +1433,7 @@ app — global notification records are never modified.
 | `home` | Home | All authenticated |
 | `catalog` | Automation Catalog | All authenticated |
 | `my_requests` | My Requests | All authenticated |
+| `my_deliverables` | My Deliverables | All authenticated (shows group artifacts for the user's groups) |
 | `onboarding` | Onboarding | Nominees with status = pending / in_progress |
 | `studio` | Operations Studio | creator, leadership, admin |
 | `governance` | Operations Governance | leadership, admin |
@@ -1053,10 +1449,11 @@ All widgets built with Bootstrap responsive grid — mobile-first layout.
 | Automation Card | catalog, home | Uses short_description, category colour, usage_count |
 | Catalog Browser | catalog | Filter by category, group, search; top-5 default (configurable) |
 | Execution History | my_requests, home | Row-level ACL — user sees own executions only |
+| Deliverables List | my_deliverables, studio | Shows managed_artifact records for user's groups; filter by type and status; edit/deactivate/archive actions for creators |
 | Group Manager | governance | Hierarchical group tree, member management |
-| Pending Actions | governance, command | Unified queue: approvals + deactivations + expiries |
-| Creator Studio Panel | studio | Automation builder, spec review, Copilot status banner |
-| Metrics Dashboard | governance, command | Usage counts, success rates, time saved, group activity |
+| Pending Actions | governance, command | Unified queue: approvals + deactivations + expiries + artifact approvals |
+| Creator Studio Panel | studio | Automation builder, deliverable builder, spec review, Copilot status banner |
+| Metrics Dashboard | governance, command | Usage counts, success rates, time saved, group activity, deliverable counts |
 | Onboarding Progress | onboarding | Step tracker, role/group confirmation |
 | Operations Assistant Launcher | all pages | Floating button bottom-right; passes page_id as VA session variable |
 | Copilot Status Banner | studio | Persistent warning when token expired or disconnected |
@@ -1067,10 +1464,11 @@ All widgets built with Bootstrap responsive grid — mobile-first layout.
 
 | Module | Role | Notes |
 |---|---|---|
-| Operations Command | admin | Full system view, all groups, all executions |
-| Operations Governance | leadership | Scoped to own groups and direct reports |
-| Operations Studio | creator | Scoped to groups where group_role = creator |
+| Operations Command | admin | Full system view, all groups, all executions, all deliverables |
+| Operations Governance | leadership | Scoped to own groups and direct reports; flow deactivation controls |
+| Operations Studio | creator | Scoped to groups where group_role = creator; automations + deliverables |
 | My Workspace | user | Scoped to own executions and group catalog |
+| My Deliverables | user, creator | All managed_artifact records for the user's groups |
 | Execution Logs | admin, leadership | Admin: all logs; leadership: own groups only |
 
 ---
@@ -1234,7 +1632,7 @@ log entry — no automation is silently abandoned.
 |---|---|---|
 | OI - Validate Creator Copilot Tokens | Weekly | Pings Copilot API; marks expired; notifies creator. On API unreachable: logs warning, no status change. |
 | OI - Onboarding Expiry Check | Hourly | Expires requests past deadline; creates pending_action for leader. |
-| OI - Approval Escalation Check | Every 6 hours | Updates assigned_to on existing pending_action records past 72h. |
+| OI - Approval Escalation Check | Every 6 hours | Updates assigned_to on existing pending_action records past 72h (covers both automation and artifact approvals). |
 | OI - Deactivation Auto-Remove | Every 2 hours | Executes removal where deadline passed and no leader action taken. |
 | OI - Execution Cleanup | Daily | Hard-deletes execution_step_log + parent execution records older than retention threshold. EXCLUDES executions with status = awaiting_approval regardless of age. |
 
@@ -1257,6 +1655,9 @@ log entry — no automation is silently abandoned.
 | `{scope}.copilot_api_endpoint` | `https://api.githubcopilot.com` | Copilot API base URL |
 | `{scope}.copilot_timeout_ms` | `15000` | Copilot API call timeout in milliseconds |
 | `{scope}.catalog_top_n` | `5` | Automations shown in welcome message |
+| `{scope}.max_custom_tables_per_group` | `10` | Maximum approved custom tables per group |
+| `{scope}.max_flow_actions` | `20` | Maximum actions per creator-built flow |
+| `{scope}.artifact_log_retention_days` | `365` | Days before archived managed_artifact records are eligible for purge |
 
 ---
 
@@ -1267,7 +1668,7 @@ log entry — no automation is silently abandoned.
 - All artifacts created within this update set
 - Export and promote through dev -> test -> production
 
-### Custom Tables (18 total — created in step 1)
+### Custom Tables (19 total — created in step 1)
 
 | # | Table (unprefixed) | Purpose |
 |---|---|---|
@@ -1289,28 +1690,32 @@ log entry — no automation is silently abandoned.
 | 16 | `use_case_request` | NLU requirements capture + Copilot spec |
 | 17 | `creator_credential` | Encrypted GitHub PAT storage |
 | 18 | `pending_action` | Leadership action queue |
+| 19 | `managed_artifact` | Registry of all OI-created deliverables |
 
 ### Build Sequence
 
-1. **Core tables** — all 18 tables with fields, choice lists, reference fields
+1. **Core tables** — all 19 tables with fields, choice lists, reference fields
 2. **Seed data** — `automation_category` initial records; `approved_flow` initial curated flows
    (tables must exist before seed data is inserted)
 3. **Roles and ACLs** — system roles, complete table-level ACLs, row-level ACLs,
    field-level ACLs. Verify github_pat read-deny via REST before proceeding.
+   Verify managed_artifact.artifact_sys_ids and creation_spec field ACLs.
 4. **Script Includes** — in dependency order:
    `PermissionResolver` -> `VAHelper` -> `NotificationService` -> `GroupManager` ->
    `CatalogService` -> `ScheduleManager` -> `ExecutionEngine` -> `ApprovalRouter` ->
    `OnboardingService` -> `DeactivationHandler` -> `FlowBridge` -> `RESTBridge` ->
-   `CopilotBridge` -> `AuditService`
+   `CopilotBridge` -> `AuditService` -> `ArtifactManager` ->
+   `ReportBuilder` -> `NotificationBuilder` -> `FlowBuilder` ->
+   `TableBuilder` -> `UIPageBuilder`
 5. **Business Rules** — all 5 OI BRs in the order listed in the Business Rules section
 6. **Scheduled Jobs** — all 5 jobs, initially inactive
-7. **Notification Templates** — all 15 OI notification records
+7. **Notification Templates** — all 22 OI notification records
 8. **VA NLU Model** — create `Operations Intelligence NLU` model record
-9. **VA System Topics** — all 15 system topics linked to Operations Assistant channel
+9. **VA System Topics** — all 23 system topics linked to Operations Assistant channel
 10. **NLU Initial Training** — trigger first model train via REST; poll until status = ready
 11. **Service Portal** — portal record (url_suffix = `operations_intelligence`, default page = `home`),
-    theme inheritance, all 7 pages, all 11 widgets
-12. **Standard UI** — app menu `Operations Intelligence`, all 5 modules with role gates
+    theme inheritance, all 8 pages, all 12 widgets
+12. **Standard UI** — app menu `Operations Intelligence`, all 6 modules with role gates
 13. **Custom topic auto-generation Business Rule** — on `group_automation` table,
     fires when `approval_status` changes to `approved`;
     calls `CatalogService.onPublish()` which creates VA topic + NLU intent + retraining
@@ -1343,3 +1748,13 @@ log entry — no automation is silently abandoned.
 | 18 | Invitation expiry and re-invite | After 48h: status = expired; leader re-sends (max 2); third attempt blocked |
 | 19 | Self-approval guard | Creator whose primary leader IS themselves -> escalated immediately to leader's leader; no 72h wait |
 | 20 | Zero-groups login | Welcome topic fires; zero-groups message branch shown; no catalog rendered |
+| 21 | User requests a PA dashboard via VA | Requirements captured; Copilot fills technical gaps; `managed_artifact` created (type: pa_dashboard, status: active); underlying pa_dashboard record created immediately; no approval step |
+| 22 | User requests a notification rule via VA | Condition + recipients + email template captured; Copilot fills gaps; notification rule active immediately; `managed_artifact` created |
+| 23 | Creator builds a flow via VA | Trigger + condition + actions captured in plain English; Copilot translates to flow config; flow activated; `managed_artifact` created; OI - Flow Activated sent to leadership |
+| 24 | Leadership deactivates a creator's flow | Flow deactivated in ServiceNow; `managed_artifact.status = inactive`; creator notified |
+| 25 | Creator requests a custom table | Requirements captured; Copilot generates full field spec; creator reviews; `managed_artifact` (status: pending_approval) created; OI - Custom Table Submitted sent to leader |
+| 26 | Leader approves custom table | `managed_artifact.status = active`; TableBuilder creates scoped table; OI - Custom Table Approved sent to creator |
+| 27 | Leader rejects custom table | `managed_artifact.status = draft`; OI - Custom Table Rejected with reason sent to creator |
+| 28 | Creator archives a deliverable | `managed_artifact.status = archived`; underlying ServiceNow record deleted; archived record preserved in OI |
+| 29 | Verify managed_artifact.artifact_sys_ids unreadable by non-admin | Field-level ACL blocks read for non-System/non-admin callers |
+| 30 | Copilot gap-fill for deliverable with no PAT | Manual clarifying questions only; no Copilot call attempted; creation still completes successfully |
