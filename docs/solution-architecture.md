@@ -514,11 +514,14 @@ lifecycle management works.
    OI scoped application. They are NOT global tables. TableBuilder ensures the scoped
    app prefix is applied automatically.
 
-7. **No script artifacts ever** — no deliverable path creates `sysauto_script`
+7. **No ungated script artifacts** — no deliverable path creates `sysauto_script`
    (Scheduled Scripts) or `sys_script` (Business Rules). Scheduled data delivery
-   uses `sysauto_report` (declarative report scheduling). Flows are restricted to
-   a curated safe action set with no script steps. UI pages (`sys_ui_page`) are
-   Jelly display views only — `<g:evaluate>` is never generated.
+   uses `sysauto_report`. Flows are restricted to a curated safe action set.
+   UI pages (`sys_ui_page`) are full-capability pages — Jelly, GlideAjax, client
+   JavaScript — but are gated behind mandatory leadership approval. Copilot
+   generates the full implementation plan from the creator's plain-English
+   requirements; the plan is presented to the leader for approval before
+   UIPageBuilder creates a single line of code.
 
 ### Builder Dispatch — Artifact Type to Underlying Records
 
@@ -533,7 +536,7 @@ creates a script-bearing artifact.
 | `scheduled_data_job` | NotificationBuilder | `sys_report` + `sysauto_report` (scheduled delivery) | None — declarative |
 | `flow` | FlowBuilder | `sys_hub_flow` (+ trigger + actions) | No script steps; safe action set only |
 | `custom_table` | TableBuilder | `sys_db_object` + `sys_dictionary` (+ default form & list views) | None — schema only |
-| `ui_page` | UIPageBuilder | `sys_ui_page` (Jelly display view of the custom table; no `<g:evaluate>` blocks) | None — display Jelly only |
+| `ui_page` | UIPageBuilder | `sys_ui_page` (full UI Page — Jelly layout + GlideAjax + client JS per Copilot-generated spec) | Per requirements — full script capability; gated by leadership approval |
 
 ---
 
@@ -652,16 +655,117 @@ PHASE 4 — Create or Submit for Approval
 
 **ui_page**
 - This option is only offered when a custom_table has been approved
-- What should the page show? (system lists available custom tables to choose from)
-- What should the layout look like? (describe in plain English — Copilot generates layout spec)
-- What actions should users be able to perform? (create record, view list, search, export)
-- Should it show related records from other tables?
-- NOTE: UIPageBuilder creates a `sys_ui_page` record — a proper ServiceNow UI
-  Page (Jelly). The generated Jelly renders lists and forms for the selected
-  custom table using standard display tags (`<g:form>`, `<g:list_v2>`,
-  `<g:evaluate>` is NEVER used). No JavaScript blocks. No GlideAjax calls.
-  The page is purely a display layer over the table the creator already owns.
-  Anything that would require script logic is not offered.
+- What should the page show? (system lists approved custom tables to choose from)
+- Describe the layout and features in plain English — what should a user be able
+  to do on this page? (view records, filter, create new, click to expand a record,
+  show related data from another table, auto-refresh, export, etc.)
+- Which custom tables should it pull data from?
+- Copilot generates a full implementation plan: Jelly layout, GlideAjax calls for
+  dynamic data, client-side JavaScript for UI interactions, server-side Jelly for
+  data binding. The plan is presented to the leader as part of the approval package.
+- NOTE: UIPageBuilder creates a `sys_ui_page` record — a full ServiceNow UI Page.
+  The implementation may include GlideAjax, client-side JavaScript, and server-side
+  Jelly as required by the stated features. The mandatory leadership approval step is
+  the security gate — no code is created until the leader approves the spec.
+  The page opens in a GlideModal on the Group Workspace (see Group Workspace
+  Interface section).
+
+---
+
+## Group Workspace Interface
+
+The Group Workspace (`home` page of Operations Workspace) is the single surface
+where users see and interact with everything their groups have. It is automatically
+kept in sync — when a creator publishes a new automation or deliverable, it appears
+in the workspace for all members of the relevant group(s) without any manual steps.
+
+### Three-Panel Layout
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Group selector  [All my groups ▾]          [Operations Assistant]│
+├───────────────────────┬─────────────────────────────────────────┤
+│  PANEL 1              │  PANEL 3                                 │
+│  Automations          │  Existing Deliverables                   │
+│  ─────────────────    │  ─────────────────────────────────────   │
+│  [card] [card] ...    │  [card] [card] [card] ...                │
+│                       │  (click any → GlideModal popup)          │
+├───────────────────────┴─────────────────────────────────────────┤
+│  PANEL 2 — Create New                                            │
+│  [Report/Dashboard] [Notification] [Scheduled Email] │(creator)  │
+│                              [Flow] [Custom Table] [UI Page]     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Panel 1 — Automations
+
+One card per published automation available to the user's selected group(s).
+Cards show: name, short_description, category colour, usage_count, trigger type.
+
+**On-demand automation card:**
+- "Trigger" button present
+- Clicking Trigger opens the Operations Assistant side panel pre-populated with
+  the automation's NLU intent — VA collects inputs, launches execution, shows
+  reference number. No page navigation occurs.
+
+**Event-driven automation (Flow-backed):**
+- No Trigger button — shows status badge (Active / Inactive) and how many
+  times it fired this month
+- Clicking the card opens a GlideModal showing: trigger condition, action summary,
+  recent activation log (last 10 firings with timestamp and outcome)
+
+### Panel 2 — Create New Deliverable Tiles
+
+Tiles are role-filtered at render time:
+
+| Tile | Visible to |
+|---|---|
+| Report or Dashboard | All users |
+| Notification Rule | All users |
+| Scheduled Data Report | All users |
+| Flow | Creators only |
+| Custom Table | Creators only |
+| UI Page | Creators only (only shown when ≥1 custom_table is active for this group) |
+
+Clicking a tile:
+1. Opens the Operations Assistant side panel (if not already open)
+2. Pre-populates it with the matching creation intent via the `pre_intent` VA session
+   variable (`VAHelper.setPreIntent(intentName)`)
+3. The VA topic fires immediately — no user typing required
+4. The creation conversation runs inline; the user never navigates away
+5. On completion, the new deliverable card appears in Panel 3 automatically
+
+### Panel 3 — Existing Deliverables
+
+One card per active `managed_artifact` in the user's groups. Cards show:
+`display_name`, artifact type icon, `owner_group`, `created_by`, `created_at`,
+status badge. Cross-group deliverables appear in the workspace for all member groups.
+
+Clicking any deliverable card opens it inside a GlideModal popup. No navigation.
+
+**GlideModal target per artifact type:**
+
+| artifact_type | GlideModal opens |
+|---|---|
+| `report` | `report_viewer.do?sysparm_report={artifact_sys_id}` |
+| `pa_dashboard` | `$pa_dashboard.do?sys_id={artifact_sys_id}` |
+| `notification_rule` | OI info page: rule name, condition, recipients, status, last triggered |
+| `scheduled_data_job` | OI info page: schedule, target table, filters, last run, next run |
+| `flow` | OI info page: trigger, condition, action summary, recent activation log |
+| `custom_table` | The group's UI page (`sys_ui_page`) for this table if one exists and is active; otherwise a standard scoped GlideList view of the custom table |
+| `ui_page` | The `sys_ui_page` record rendered directly inside the GlideModal frame |
+
+**Creator controls** (visible only to creators on their own group's artifacts):
+Edit · Deactivate · Archive — these actions open the Operations Assistant side panel
+with the management intent pre-filled rather than navigating away.
+
+### Cross-Group Surfacing
+
+When a creator shares an automation or deliverable with multiple groups, the item
+appears in the workspace for every member of every listed group. The group selector
+at the top of the workspace lets users filter by a specific group or see all at once.
+The content a user sees is always scoped to their active `group_member` records —
+they never see content for groups they are not a member of.
 
 ---
 
@@ -1079,7 +1183,7 @@ Dependency order determines build sequence in step 4.
 | `NotificationBuilder` | Creates/updates sysevent_email_action (event email rules) and sysauto_report (scheduled report delivery) — declarative, no scripts |
 | `FlowBuilder` | Creates/activates/deactivates sys_hub_flow records within OI scope; enforces run-as-creator, safe action set, no script steps |
 | `TableBuilder` | Creates custom table definitions (sys_db_object + sys_dictionary fields) + default form/list views within OI scope |
-| `UIPageBuilder` | Creates `sys_ui_page` records (ServiceNow UI Pages) as display-only Jelly views of the creator's custom table — no `<g:evaluate>` script blocks |
+| `UIPageBuilder` | Creates full `sys_ui_page` records (ServiceNow UI Pages) — Jelly layout, GlideAjax, client-side JavaScript — all generated from the Copilot implementation plan; leadership-approved before creation |
 
 **Dependency note for new Script Includes:**
 `ArtifactManager` depends on `PermissionResolver`, `NotificationService`, `AuditService`.
@@ -1483,16 +1587,15 @@ app — global notification records are never modified.
 
 ### Pages
 
-| Page ID | Name | Visible to |
-|---|---|---|
-| `home` | Home | All authenticated |
-| `catalog` | Automation Catalog | All authenticated |
-| `my_requests` | My Requests | All authenticated |
-| `my_deliverables` | My Deliverables | All authenticated (shows group artifacts for the user's groups) |
-| `onboarding` | Onboarding | Nominees with status = pending / in_progress |
-| `studio` | Operations Studio | creator, leadership, admin |
-| `governance` | Operations Governance | leadership, admin |
-| `command` | Operations Command | admin |
+| Page ID | Name | Visible to | Notes |
+|---|---|---|---|
+| `home` | Group Workspace | All authenticated | Three-panel layout: Automations · Create New tiles · Existing Deliverables. See Group Workspace Interface section. |
+| `catalog` | Automation Catalog | All authenticated | Extended cross-group discovery; filter by category, group, search |
+| `my_requests` | My Requests | All authenticated | Full execution history; row-level ACL — own executions only |
+| `onboarding` | Onboarding | Nominees (status = pending / in_progress) | Step tracker, role/group confirmation |
+| `studio` | Operations Studio | creator, leadership, admin | Automation builder, deliverable builder, spec review, Copilot status, artifact management |
+| `governance` | Operations Governance | leadership, admin | Pending approvals, group tree, metrics, flow deactivation controls |
+| `command` | Operations Command | admin | Full audit view: all groups, executions, deliverables, system config |
 
 ### Widgets
 
@@ -1500,18 +1603,20 @@ All widgets built with Bootstrap responsive grid — mobile-first layout.
 
 | Widget | Pages | Notes |
 |---|---|---|
-| Welcome Banner | home | Role-aware; shows name, role, group membership |
-| Automation Card | catalog, home | Uses short_description, category colour, usage_count |
-| Catalog Browser | catalog | Filter by category, group, search; top-5 default (configurable) |
-| Execution History | my_requests, home | Row-level ACL — user sees own executions only |
-| Deliverables List | my_deliverables, studio | Shows managed_artifact records for user's groups; filter by type and status; edit/deactivate/archive actions for creators |
+| Workspace Automation Panel | home | Panel 1: automation cards with Trigger button (on-demand) or status+activity (event-driven); GlideModal for event-driven detail view |
+| Deliverable Type Tiles | home | Panel 2: role-filtered creation tiles; click → pre-populates VA via `pre_intent` session variable |
+| Deliverable Cards | home, studio | Panel 3: managed_artifact cards for user's groups; click → GlideModal viewer; creator controls (edit/deactivate/archive) on own artifacts |
+| GlideModal Viewer | home, studio | Opens correct ServiceNow URL per artifact_type inside a GlideModal popup; handles report_viewer, pa_dashboard, OI info pages, sys_ui_page, scoped list view |
+| Automation Card | catalog | Uses short_description, category colour, usage_count; browse-only in catalog (trigger from home panel) |
+| Catalog Browser | catalog | Filter by category, group, search; cross-group discovery |
+| Execution History | my_requests | Row-level ACL — user sees own executions only |
 | Group Manager | governance | Hierarchical group tree, member management |
-| Pending Actions | governance, command | Unified queue: approvals + deactivations + expiries + artifact approvals |
-| Creator Studio Panel | studio | Automation builder, deliverable builder, spec review, Copilot status banner |
-| Metrics Dashboard | governance, command | Usage counts, success rates, time saved, group activity, deliverable counts |
+| Pending Actions | governance, command | Unified queue: automation approvals + artifact approvals + deactivations + expiries |
+| Creator Studio Panel | studio | Automation builder, deliverable builder, in-progress spec review, artifact lifecycle management |
+| Metrics Dashboard | governance, command | Usage counts, success rates, time saved, group activity, deliverable counts by type |
 | Onboarding Progress | onboarding | Step tracker, role/group confirmation |
-| Operations Assistant Launcher | all pages | Floating button bottom-right; passes page_id as VA session variable |
-| Copilot Status Banner | studio | Persistent warning when token expired or disconnected |
+| Operations Assistant Launcher | all pages | Floating button bottom-right; passes `page_id` and optional `pre_intent` as VA session variables |
+| Copilot Status Banner | studio | Persistent warning when creator token is expired or disconnected |
 
 ---
 
@@ -1521,9 +1626,8 @@ All widgets built with Bootstrap responsive grid — mobile-first layout.
 |---|---|---|
 | Operations Command | admin | Full system view, all groups, all executions, all deliverables |
 | Operations Governance | leadership | Scoped to own groups and direct reports; flow deactivation controls |
-| Operations Studio | creator | Scoped to groups where group_role = creator; automations + deliverables |
-| My Workspace | user | Scoped to own executions and group catalog |
-| My Deliverables | user, creator | All managed_artifact records for the user's groups |
+| Operations Studio | creator | Scoped to groups where group_role = creator; automations + deliverables + artifact lifecycle |
+| My Workspace | user | Opens Operations Workspace portal (Group Workspace home page) |
 | Execution Logs | admin, leadership | Admin: all logs; leadership: own groups only |
 
 ---
@@ -1532,10 +1636,11 @@ All widgets built with Bootstrap responsive grid — mobile-first layout.
 
 | Interface | Placement | Behaviour |
 |---|---|---|
-| Operations Workspace (portal) | Floating button, bottom-right, all pages | Auto-opens on first-ever visit; page_id passed as context |
+| Group Workspace (`home`) | Embedded side panel + floating button | Side panel opens when a creation tile or automation Trigger button is clicked; `pre_intent` + `page_id = home` passed to VA so the relevant topic fires immediately. Floating button available at all times for free-text interaction. Auto-opens on first-ever visit with the Welcome topic. |
+| Other portal pages | Floating button, bottom-right | Floating button available at all times; `page_id` passed for context-aware greeting |
 | Standard UI | Help panel (separate entry from Now Support) | Opens on demand; role-aware greeting |
-| Operations Governance page | Embedded side panel | page_id = governance; opens to pending approvals directly |
-| Operations Studio page | Embedded side panel | page_id = studio; opens to creation guidance directly |
+| Operations Governance page | Embedded side panel | `page_id = governance`; opens to pending approvals summary directly |
+| Operations Studio page | Embedded side panel | `page_id = studio`; opens to creation guidance or in-progress spec resume directly |
 
 ---
 
