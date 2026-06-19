@@ -32,7 +32,7 @@
     }
 
     // ── CONFIGURATION ────────────────────────────────────────
-    var USERNAME = 'svc_claude_api';
+    var USERNAME = 'svc_ops_int_api';
 
     // Generate a strong random password (visible only in this output)
     var CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
@@ -81,9 +81,9 @@
         var newUser = new GlideRecord('sys_user');
         newUser.initialize();
         newUser.setValue('user_name',              USERNAME);
-        newUser.setValue('first_name',             'Claude');
+        newUser.setValue('first_name',             'OI');
         newUser.setValue('last_name',              'API');
-        newUser.setValue('email',                  'svc.claude.api@internal.invalid');
+        newUser.setValue('email',                  'svc.ops.int.api@internal.invalid');
         newUser.setValue('active',                 true);
         newUser.setValue('web_service_access_only', true);   // no browser login
         newUser.setValue('user_password',          PASSWORD);
@@ -184,7 +184,7 @@
     gs.print('');
     gs.print('  --- NEXT STEPS ---');
     gs.print('  STEP 1: Screenshot this entire output and share it.');
-    gs.print('          Claude will call the REST API directly to build');
+    gs.print('          The REST API will be called directly to build');
     gs.print('          the full Operations Intelligence solution.');
     gs.print('');
     gs.print('  STEP 2: After the build completes, run:');

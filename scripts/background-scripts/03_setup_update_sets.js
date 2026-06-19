@@ -166,7 +166,7 @@
     gs.print('    1. Apply the matching "OI — Environment Config" set manually');
     gs.print('    2. Retrain NLU model:');
     gs.print('       POST /api/sn_nlu/v1/model/{nlu_model_sys_id}/train');
-    gs.print('       Authorization: Basic {svc_claude_api on that instance}');
+    gs.print('       Authorization: Basic {svc_ops_int_api on that instance}');
     gs.print('    3. Run 02_verify_implementation.js — all checks must pass');
     gs.print('    4. (Production only) Activate Scheduled Jobs');
     gs.print('');
