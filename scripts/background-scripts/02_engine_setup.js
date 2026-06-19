@@ -65,37 +65,37 @@
 
     var errors = [];
 
-    gs.print('');
-    gs.print(SEP);
-    gs.print('  OPERATIONS INTELLIGENCE — ENGINE SETUP');
-    gs.print(SEP);
+    gs.info('');
+    gs.info(SEP);
+    gs.info('  OPERATIONS INTELLIGENCE — ENGINE SETUP');
+    gs.info(SEP);
 
     // ══════════════════════════════════════════════════════════
     //  GUARD — scope check
     // ══════════════════════════════════════════════════════════
     var currentScope = gs.getCurrentScopeName();
     if (!currentScope || currentScope === 'global') {
-        gs.print('');
-        gs.print('  ERROR: You are in GLOBAL scope.');
-        gs.print('  Switch to "Operations Intelligence" (' + APP_SCOPE + ')');
-        gs.print('  using the scope picker, then re-run.');
-        gs.print('');
+        gs.info('');
+        gs.info('  ERROR: You are in GLOBAL scope.');
+        gs.info('  Switch to "Operations Intelligence" (' + APP_SCOPE + ')');
+        gs.info('  using the scope picker, then re-run.');
+        gs.info('');
         return;
     }
     if (currentScope !== APP_SCOPE) {
-        gs.print('');
-        gs.print('  ERROR: Wrong scope — currently "' + currentScope + '".');
-        gs.print('  Switch to ' + APP_SCOPE + ' and re-run.');
-        gs.print('');
+        gs.info('');
+        gs.info('  ERROR: Wrong scope — currently "' + currentScope + '".');
+        gs.info('  Switch to ' + APP_SCOPE + ' and re-run.');
+        gs.info('');
         return;
     }
-    gs.print('  Scope : ' + currentScope);
+    gs.info('  Scope : ' + currentScope);
 
     // ══════════════════════════════════════════════════════════
     //  STEP 1 — Locate scoped application sys_id
     // ══════════════════════════════════════════════════════════
-    gs.print('');
-    gs.print('  [STEP 1] Locate scoped application');
+    gs.info('');
+    gs.info('  [STEP 1] Locate scoped application');
 
     var scopeSysId = null;
     try {
@@ -105,22 +105,22 @@
         appGr.query();
         if (appGr.next()) {
             scopeSysId = appGr.getUniqueValue();
-            gs.print('      App Name : ' + appGr.getValue('name'));
-            gs.print('      Sys ID   : ' + scopeSysId);
+            gs.info('      App Name : ' + appGr.getValue('name'));
+            gs.info('      Sys ID   : ' + scopeSysId);
         } else {
-            gs.print('      ERROR: Scoped app not found in sys_scope — cannot continue.');
+            gs.info('      ERROR: Scoped app not found in sys_scope — cannot continue.');
             return;
         }
     } catch (e) {
-        gs.print('      ERROR: ' + String(e));
+        gs.info('      ERROR: ' + String(e));
         return;
     }
 
     // ══════════════════════════════════════════════════════════
     //  STEP 2 — Verify / activate Scripted REST API plugin
     // ══════════════════════════════════════════════════════════
-    gs.print('');
-    gs.print('  [STEP 2] Verify Scripted REST API plugin (com.snc.scripted.rest.api)');
+    gs.info('');
+    gs.info('  [STEP 2] Verify Scripted REST API plugin (com.snc.scripted.rest.api)');
 
     var providerTableExists = false;
     try {
@@ -130,39 +130,39 @@
         tblChk.query();
         providerTableExists = tblChk.next();
     } catch (e) {
-        gs.print('      Table check threw: ' + String(e));
+        gs.info('      Table check threw: ' + String(e));
     }
 
     if (!providerTableExists) {
-        gs.print('      sys_ws_provider : NOT FOUND');
-        gs.print('      Attempting automatic plugin activation...');
+        gs.info('      sys_ws_provider : NOT FOUND');
+        gs.info('      Attempting automatic plugin activation...');
 
         var activated = false;
         try {
             var pm = new GlidePluginManager();
             pm.install('com.snc.scripted.rest.api');
             activated = true;
-            gs.print('      Activation request submitted.');
+            gs.info('      Activation request submitted.');
         } catch (pe) {
-            gs.print('      Auto-activation failed: ' + String(pe));
+            gs.info('      Auto-activation failed: ' + String(pe));
         }
 
-        gs.print('');
+        gs.info('');
         if (activated) {
-            gs.print('  Plugin activation was requested. It may take 1–3 minutes.');
-            gs.print('  Re-run this script once activation completes.');
+            gs.info('  Plugin activation was requested. It may take 1–3 minutes.');
+            gs.info('  Re-run this script once activation completes.');
         } else {
-            gs.print('  MANUAL ACTIVATION REQUIRED:');
-            gs.print('  1. All > System Definition > Plugins');
-            gs.print('  2. Search: "Scripted REST API"');
-            gs.print('  3. Click "Activate/Upgrade" on com.snc.scripted.rest.api');
-            gs.print('  4. Wait for activation to finish, then re-run this script.');
+            gs.info('  MANUAL ACTIVATION REQUIRED:');
+            gs.info('  1. All > System Definition > Plugins');
+            gs.info('  2. Search: "Scripted REST API"');
+            gs.info('  3. Click "Activate/Upgrade" on com.snc.scripted.rest.api');
+            gs.info('  4. Wait for activation to finish, then re-run this script.');
         }
-        gs.print('');
-        gs.print(SEP);
+        gs.info('');
+        gs.info(SEP);
         return;
     }
-    gs.print('      sys_ws_provider  : OK');
+    gs.info('      sys_ws_provider  : OK');
 
     var operTableExists = false;
     try {
@@ -172,24 +172,24 @@
         tblChk2.query();
         operTableExists = tblChk2.next();
     } catch (e) {}
-    gs.print('      sys_ws_operation : ' + (operTableExists ? 'OK' : 'MISSING'));
+    gs.info('      sys_ws_operation : ' + (operTableExists ? 'OK' : 'MISSING'));
     if (!operTableExists) {
-        gs.print('      ERROR: sys_ws_operation missing. Plugin may be partially installed.');
+        gs.info('      ERROR: sys_ws_operation missing. Plugin may be partially installed.');
         return;
     }
 
     // ══════════════════════════════════════════════════════════
     //  STEP 3 — Generate / retrieve engine API key
     // ══════════════════════════════════════════════════════════
-    gs.print('');
-    gs.print('  [STEP 3] Engine API key');
+    gs.info('');
+    gs.info('  [STEP 3] Engine API key');
 
     var engineKey = '';
     try {
         var existingKey = gs.getProperty(KEY_PROP, '');
         if (existingKey && existingKey.length >= 20) {
             engineKey = existingKey;
-            gs.print('      Reusing existing key from property ' + KEY_PROP);
+            gs.info('      Reusing existing key from property ' + KEY_PROP);
         } else {
             var CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
             for (var ki = 0; ki < 40; ki++) {
@@ -197,19 +197,19 @@
             }
             gs.setProperty(KEY_PROP, engineKey,
                 'Operations Intelligence Engine API key. Treat as a secret credential.');
-            gs.print('      Generated new 40-char key and stored in ' + KEY_PROP);
+            gs.info('      Generated new 40-char key and stored in ' + KEY_PROP);
         }
-        gs.print('      Key length : ' + engineKey.length);
+        gs.info('      Key length : ' + engineKey.length);
     } catch (e) {
-        gs.print('      ERROR: ' + String(e));
+        gs.info('      ERROR: ' + String(e));
         errors.push('Key step: ' + String(e));
     }
 
     // ══════════════════════════════════════════════════════════
     //  STEP 4 — Probe field availability on both tables
     // ══════════════════════════════════════════════════════════
-    gs.print('');
-    gs.print('  [STEP 4] Probe sys_ws_provider fields');
+    gs.info('');
+    gs.info('  [STEP 4] Probe sys_ws_provider fields');
 
     var pHasServiceId = false, pHasNoAuth = false, pHasAccess = false;
     try {
@@ -219,13 +219,13 @@
         try { provProbe.getValue('service_id');             pHasServiceId = true; } catch(e) {}
         try { provProbe.getValue('requires_authentication'); pHasNoAuth    = true; } catch(e) {}
         try { provProbe.getValue('access');                 pHasAccess    = true; } catch(e) {}
-    } catch (e) { gs.print('      Probe exception: ' + String(e)); }
-    gs.print('      service_id              : ' + (pHasServiceId ? 'yes' : 'no'));
-    gs.print('      requires_authentication : ' + (pHasNoAuth    ? 'yes' : 'no'));
-    gs.print('      access                  : ' + (pHasAccess    ? 'yes' : 'no'));
+    } catch (e) { gs.info('      Probe exception: ' + String(e)); }
+    gs.info('      service_id              : ' + (pHasServiceId ? 'yes' : 'no'));
+    gs.info('      requires_authentication : ' + (pHasNoAuth    ? 'yes' : 'no'));
+    gs.info('      access                  : ' + (pHasAccess    ? 'yes' : 'no'));
 
-    gs.print('');
-    gs.print('  [STEP 4b] Probe sys_ws_operation fields');
+    gs.info('');
+    gs.info('  [STEP 4b] Probe sys_ws_operation fields');
 
     var oHasOpUri = false, oHasMethod = false, oHasNoAuth = false, oHasAccess = false;
     try {
@@ -236,11 +236,11 @@
         try { operProbe.getValue('http_method');            oHasMethod = true; } catch(e) {}
         try { operProbe.getValue('requires_authentication'); oHasNoAuth = true; } catch(e) {}
         try { operProbe.getValue('access');                 oHasAccess = true; } catch(e) {}
-    } catch (e) { gs.print('      Probe exception: ' + String(e)); }
-    gs.print('      operation_uri           : ' + (oHasOpUri  ? 'yes' : 'no'));
-    gs.print('      http_method             : ' + (oHasMethod ? 'yes' : 'no'));
-    gs.print('      requires_authentication : ' + (oHasNoAuth ? 'yes' : 'no'));
-    gs.print('      access                  : ' + (oHasAccess ? 'yes' : 'no'));
+    } catch (e) { gs.info('      Probe exception: ' + String(e)); }
+    gs.info('      operation_uri           : ' + (oHasOpUri  ? 'yes' : 'no'));
+    gs.info('      http_method             : ' + (oHasMethod ? 'yes' : 'no'));
+    gs.info('      requires_authentication : ' + (oHasNoAuth ? 'yes' : 'no'));
+    gs.info('      access                  : ' + (oHasAccess ? 'yes' : 'no'));
 
     // ══════════════════════════════════════════════════════════
     //  STEP 5 — Assemble engine operation script
@@ -250,8 +250,8 @@
     //  Single quotes inside each array element are escaped as \'
     //  because the outer strings use single quotes.
     // ══════════════════════════════════════════════════════════
-    gs.print('');
-    gs.print('  [STEP 5] Assembling engine operation script');
+    gs.info('');
+    gs.info('  [STEP 5] Assembling engine operation script');
 
     var L = [
         '(function process(request, response) {',
@@ -453,13 +453,13 @@
     ];
 
     var engineScript = L.join('\n');
-    gs.print('      Lines assembled : ' + L.length);
+    gs.info('      Lines assembled : ' + L.length);
 
     // ══════════════════════════════════════════════════════════
     //  STEP 6 — Create / reset sys_ws_provider
     // ══════════════════════════════════════════════════════════
-    gs.print('');
-    gs.print('  [STEP 6] Create / reset Scripted REST API provider');
+    gs.info('');
+    gs.info('  [STEP 6] Create / reset Scripted REST API provider');
 
     var providerSysId = null;
     try {
@@ -474,7 +474,7 @@
             if (pHasNoAuth)    existingProv.setValue('requires_authentication', false);
             if (pHasAccess)    existingProv.setValue('access', 'public');
             existingProv.update();
-            gs.print('      Action   : Updated existing provider');
+            gs.info('      Action   : Updated existing provider');
         } else {
             var newProv = new GlideRecord('sys_ws_provider');
             newProv.initialize();
@@ -489,37 +489,37 @@
                 'Secured by X-Engine-Key header. Restrict network access to authorised clients only.');
             providerSysId = newProv.insert();
             if (providerSysId) {
-                gs.print('      Action   : Created new provider');
+                gs.info('      Action   : Created new provider');
             } else {
                 errors.push('sys_ws_provider insert returned null');
-                gs.print('      ERROR    : Insert returned null for sys_ws_provider');
+                gs.info('      ERROR    : Insert returned null for sys_ws_provider');
             }
         }
-        gs.print('      Sys ID   : ' + (providerSysId || 'N/A'));
+        gs.info('      Sys ID   : ' + (providerSysId || 'N/A'));
 
         if (providerSysId) {
             var rrProv = new GlideRecord('sys_ws_provider');
             rrProv.get(providerSysId);
-            if (pHasServiceId) gs.print('      service_id              : ' + rrProv.getValue('service_id'));
-            if (pHasNoAuth)    gs.print('      requires_authentication : ' + rrProv.getValue('requires_authentication'));
-            if (pHasAccess)    gs.print('      access                  : ' + rrProv.getValue('access'));
+            if (pHasServiceId) gs.info('      service_id              : ' + rrProv.getValue('service_id'));
+            if (pHasNoAuth)    gs.info('      requires_authentication : ' + rrProv.getValue('requires_authentication'));
+            if (pHasAccess)    gs.info('      access                  : ' + rrProv.getValue('access'));
         }
     } catch (e) {
-        gs.print('      ERROR: ' + String(e));
+        gs.info('      ERROR: ' + String(e));
         errors.push('Provider step: ' + String(e));
     }
 
     if (!providerSysId) {
-        gs.print('');
-        gs.print('  Cannot create operation without a provider. Exiting.');
+        gs.info('');
+        gs.info('  Cannot create operation without a provider. Exiting.');
         return;
     }
 
     // ══════════════════════════════════════════════════════════
     //  STEP 7 — Create / reset sys_ws_operation
     // ══════════════════════════════════════════════════════════
-    gs.print('');
-    gs.print('  [STEP 7] Create / reset Engine Router operation');
+    gs.info('');
+    gs.info('  [STEP 7] Create / reset Engine Router operation');
 
     var operSysId = null;
     try {
@@ -536,7 +536,7 @@
             if (oHasNoAuth) existingOp.setValue('requires_authentication', false);
             if (oHasAccess) existingOp.setValue('access', 'public');
             existingOp.update();
-            gs.print('      Action   : Updated — script refreshed');
+            gs.info('      Action   : Updated — script refreshed');
         } else {
             var newOp = new GlideRecord('sys_ws_operation');
             newOp.initialize();
@@ -553,24 +553,24 @@
                 'Routes all engine ops: ping, scope.info, table.exists, record.*, property.*, batch.');
             operSysId = newOp.insert();
             if (operSysId) {
-                gs.print('      Action   : Created new operation');
+                gs.info('      Action   : Created new operation');
             } else {
                 errors.push('sys_ws_operation insert returned null');
-                gs.print('      ERROR    : Insert returned null for sys_ws_operation');
+                gs.info('      ERROR    : Insert returned null for sys_ws_operation');
             }
         }
-        gs.print('      Sys ID   : ' + (operSysId || 'N/A'));
+        gs.info('      Sys ID   : ' + (operSysId || 'N/A'));
 
         if (operSysId) {
             var rrOp = new GlideRecord('sys_ws_operation');
             rrOp.get(operSysId);
-            if (oHasOpUri)  gs.print('      operation_uri           : ' + rrOp.getValue('operation_uri'));
-            if (oHasMethod) gs.print('      http_method             : ' + rrOp.getValue('http_method'));
-            if (oHasNoAuth) gs.print('      requires_authentication : ' + rrOp.getValue('requires_authentication'));
-            if (oHasAccess) gs.print('      access                  : ' + rrOp.getValue('access'));
+            if (oHasOpUri)  gs.info('      operation_uri           : ' + rrOp.getValue('operation_uri'));
+            if (oHasMethod) gs.info('      http_method             : ' + rrOp.getValue('http_method'));
+            if (oHasNoAuth) gs.info('      requires_authentication : ' + rrOp.getValue('requires_authentication'));
+            if (oHasAccess) gs.info('      access                  : ' + rrOp.getValue('access'));
         }
     } catch (e) {
-        gs.print('      ERROR: ' + String(e));
+        gs.info('      ERROR: ' + String(e));
         errors.push('Operation step: ' + String(e));
     }
 
@@ -591,50 +591,50 @@
     // ══════════════════════════════════════════════════════════
     //  FINAL OUTPUT
     // ══════════════════════════════════════════════════════════
-    gs.print('');
-    gs.print(SEP);
-    gs.print('  ENGINE SETUP ' + (errors.length === 0 ? 'COMPLETE' : 'COMPLETED WITH ERRORS'));
-    gs.print('  *** COPY THIS ENTIRE BLOCK AND SHARE IT ***');
-    gs.print(SEP);
-    gs.print('');
-    gs.print('  Status           : ' + (errors.length === 0 ? 'SUCCESS' : 'ERRORS — see above'));
-    gs.print('  Provider Sys ID  : ' + (providerSysId || 'N/A'));
-    gs.print('  Operation Sys ID : ' + (operSysId     || 'N/A'));
-    gs.print('  Endpoint URL     : ' + endpointUrl);
-    gs.print('  Engine Key       : ' + engineKey);
-    gs.print('  Key Property     : ' + KEY_PROP);
+    gs.info('');
+    gs.info(SEP);
+    gs.info('  ENGINE SETUP ' + (errors.length === 0 ? 'COMPLETE' : 'COMPLETED WITH ERRORS'));
+    gs.info('  *** COPY THIS ENTIRE BLOCK AND SHARE IT ***');
+    gs.info(SEP);
+    gs.info('');
+    gs.info('  Status           : ' + (errors.length === 0 ? 'SUCCESS' : 'ERRORS — see above'));
+    gs.info('  Provider Sys ID  : ' + (providerSysId || 'N/A'));
+    gs.info('  Operation Sys ID : ' + (operSysId     || 'N/A'));
+    gs.info('  Endpoint URL     : ' + endpointUrl);
+    gs.info('  Engine Key       : ' + engineKey);
+    gs.info('  Key Property     : ' + KEY_PROP);
 
     if (errors.length > 0) {
-        gs.print('');
-        gs.print('  Errors:');
-        errors.forEach(function (e) { gs.print('    ! ' + e); });
+        gs.info('');
+        gs.info('  Errors:');
+        errors.forEach(function (e) { gs.info('    ! ' + e); });
     }
 
-    gs.print('');
-    gs.print(SEP2);
-    gs.print('  TEST PING (run in terminal)');
-    gs.print(SEP2);
-    gs.print('  curl -s -X POST "' + endpointUrl + '" \\');
-    gs.print('    -H "Content-Type: application/json" \\');
-    gs.print('    -H "X-Engine-Key: ' + engineKey + '" \\');
-    gs.print('    -d \'{"op":"ping"}\'');
-    gs.print('');
-    gs.print('  Expected:');
-    gs.print('  {"ok":true,"op":"ping","message":"Operations Intelligence Engine is active",...}');
-    gs.print('');
-    gs.print(SEP2);
-    gs.print('  IF ENDPOINT RETURNS 302 (SSO redirect)');
-    gs.print(SEP2);
-    gs.print('  The requires_authentication flag was not persisted (scope restriction).');
-    gs.print('  One-time manual fix in the UI:');
-    gs.print('    All > System Web Services > Scripted REST APIs');
-    gs.print('    Open "' + PROVIDER_NAME + '"');
-    gs.print('      Uncheck "Requires authentication" > Save');
-    gs.print('    Resources tab > open "' + OPERATION_NAME + '"');
-    gs.print('      Uncheck "Requires authentication" > Save');
-    gs.print('  Then re-run the curl ping above.');
-    gs.print('');
-    gs.print(SEP);
-    gs.print('');
+    gs.info('');
+    gs.info(SEP2);
+    gs.info('  TEST PING (run in terminal)');
+    gs.info(SEP2);
+    gs.info('  curl -s -X POST "' + endpointUrl + '" \\');
+    gs.info('    -H "Content-Type: application/json" \\');
+    gs.info('    -H "X-Engine-Key: ' + engineKey + '" \\');
+    gs.info('    -d \'{"op":"ping"}\'');
+    gs.info('');
+    gs.info('  Expected:');
+    gs.info('  {"ok":true,"op":"ping","message":"Operations Intelligence Engine is active",...}');
+    gs.info('');
+    gs.info(SEP2);
+    gs.info('  IF ENDPOINT RETURNS 302 (SSO redirect)');
+    gs.info(SEP2);
+    gs.info('  The requires_authentication flag was not persisted (scope restriction).');
+    gs.info('  One-time manual fix in the UI:');
+    gs.info('    All > System Web Services > Scripted REST APIs');
+    gs.info('    Open "' + PROVIDER_NAME + '"');
+    gs.info('      Uncheck "Requires authentication" > Save');
+    gs.info('    Resources tab > open "' + OPERATION_NAME + '"');
+    gs.info('      Uncheck "Requires authentication" > Save');
+    gs.info('  Then re-run the curl ping above.');
+    gs.info('');
+    gs.info(SEP);
+    gs.info('');
 
 })();
