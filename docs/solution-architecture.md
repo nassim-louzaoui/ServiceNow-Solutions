@@ -10,13 +10,12 @@ with role-appropriate approval workflows and group-scoped governance.
 
 ### Scope Naming Note
 
-Throughout this document `{scope}` is a placeholder for the actual application
-scope prefix (e.g. `x_opsi_ops_int`). The exact value is printed by
-`01_bootstrap_api_access.js` as **Scope** in its output block. All custom
-table names are automatically prefixed with this value by ServiceNow (e.g.
-the `automation` table becomes `x_opsi_ops_int_automation`). Business Rule
-and Script Include code uses the full prefixed name; this document uses the
-unprefixed name for readability.
+The application scope prefix is `x_infte_ops_int`. Throughout this document
+`{scope}` is used as shorthand for this prefix for readability. All custom
+table names are automatically prefixed with it by ServiceNow (e.g. the
+`automation` table becomes `x_infte_ops_int_automation`). Business Rule and
+Script Include code uses the full prefixed name; this document uses the
+unprefixed name where it aids readability.
 
 ---
 
@@ -134,7 +133,7 @@ person
   copilot_enabled           boolean
   active                    boolean
   NOTE: system_role is NOT stored here — read from ServiceNow roles
-        via gs.hasRole(). person stores OI-specific data only.
+        via gs.hasRole(). person stores Operations Intelligence-specific data only.
 
 reporting_relationship
   leader                    person reference
@@ -314,7 +313,7 @@ execution
                             leadership/admin only)
   completed_at              datetime
   group                     group reference (denormalised for query performance;
-                            maintained by OI - Execution Group Sync BR on insert;
+                            maintained by Operations Intelligence - Execution Group Sync BR on insert;
                             when an automation belongs to multiple groups, set to
                             the first approved group_automation record (ordered by
                             approved_at asc) whose group the triggering user is
@@ -408,7 +407,7 @@ managed_artifact
   created_at                datetime
   updated_at                datetime
   NOTE: artifact_sys_ids is used internally by builder Script Includes.
-        All lifecycle management is performed through OI via ArtifactManager.
+        All lifecycle management is performed through Operations Intelligence via ArtifactManager.
 ```
 
 ### Security & Credential Tables
@@ -480,15 +479,15 @@ leadership approval gates creation, and how lifecycle management works.
 
 ### Governance Matrix
 
-| Deliverable Type | Who can create | Approval required | Copilot role | OI-managed lifecycle |
+| Deliverable Type | Who can create | Approval required | Copilot role | Operations Intelligence-managed lifecycle |
 |---|---|---|---|---|
-| `report` | All users (via VA) and creators | No (immediate) | Auto fills field selection, conditions, chart type if not specified | Creator (and user who requested it) manages via OI |
-| `pa_dashboard` | All users (via VA) and creators | No (immediate) | Auto fills widget layout, widget types, data sources if not specified | Creator manages via OI |
-| `notification_rule` | All users (via VA) and creators | No (immediate) | Auto fills trigger conditions, email template if not specified | Creator manages via OI |
-| `scheduled_data_job` | All users (via VA) and creators | No (immediate) | Auto fills schedule, target table, field selection if not specified | Creator manages via OI |
-| `flow` | Creators only | No (immediate); leadership notified (informational) | Auto fills trigger conditions, action logic if not specified | Creator manages via OI; leadership can deactivate |
-| `custom_table` | Creators only | Yes — leadership approval required | Full spec generation: field types, labels, mandatory flags, form layout | Creator manages via OI after approval |
-| `ui_page` | Creators only (optional complement to custom_table) | Yes — leadership approval required | Full UI spec from plain English: layout, fields, data binding to custom tables | Creator manages via OI after approval |
+| `report` | All users (via VA) and creators | No (immediate) | Auto fills field selection, conditions, chart type if not specified | Creator (and user who requested it) manages via Operations Intelligence |
+| `pa_dashboard` | All users (via VA) and creators | No (immediate) | Auto fills widget layout, widget types, data sources if not specified | Creator manages via Operations Intelligence |
+| `notification_rule` | All users (via VA) and creators | No (immediate) | Auto fills trigger conditions, email template if not specified | Creator manages via Operations Intelligence |
+| `scheduled_data_job` | All users (via VA) and creators | No (immediate) | Auto fills schedule, target table, field selection if not specified | Creator manages via Operations Intelligence |
+| `flow` | Creators only | No (immediate); leadership notified (informational) | Auto fills trigger conditions, action logic if not specified | Creator manages via Operations Intelligence; leadership can deactivate |
+| `custom_table` | Creators only | Yes — leadership approval required | Full spec generation: field types, labels, mandatory flags, form layout | Creator manages via Operations Intelligence after approval |
+| `ui_page` | Creators only (optional complement to custom_table) | Yes — leadership approval required | Full UI spec from plain English: layout, fields, data binding to custom tables | Creator manages via Operations Intelligence after approval |
 
 **Excluded types (security risk):**
 - `sysauto_script` (Scheduled Scripts) — global scope execution risk
@@ -510,7 +509,7 @@ leadership approval gates creation, and how lifecycle management works.
    permissions due to their system-level impact.
 
 4. **Leadership visibility of flows** — when a creator activates a flow, leadership
-   receives an informational notification (OI - Flow Activated). Leadership may
+   receives an informational notification (Operations Intelligence - Flow Activated). Leadership may
    deactivate a flow from Operations Governance without creator approval — this is
    an override capability, not a blocking approval gate.
 
@@ -519,7 +518,7 @@ leadership approval gates creation, and how lifecycle management works.
    request is filed simultaneously, shares the same approval workflow, and is listed
    alongside the table in managed_artifact.
 
-6. **Scope isolation** — all custom tables are created within the OI scoped
+6. **Scope isolation** — all custom tables are created within the Operations Intelligence scoped
    application; TableBuilder applies the scope prefix automatically.
 
 7. **Approval-gated script capability** — scheduled data delivery uses the
@@ -581,12 +580,12 @@ PHASE 4 — Create or Submit for Approval
     -> Underlying ServiceNow artifact created immediately
     -> managed_artifact.status = active
     -> Creator/user notified of successful creation with record reference
-    -> For flows: leadership informed via OI - Flow Activated (non-blocking)
+    -> For flows: leadership informed via Operations Intelligence - Flow Activated (non-blocking)
 
   Deliverables requiring approval (custom_table, ui_page):
     -> managed_artifact.status = pending_approval
     -> pending_action created (type: artifact_approval) for primary leader
-    -> Leader notified via OI - Custom Table Submitted or OI - UI Page Submitted
+    -> Leader notified via Operations Intelligence - Custom Table Submitted or Operations Intelligence - UI Page Submitted
     -> 72-hour response window (same escalation rules as automation approvals)
     -> On approval: ArtifactManager calls builder; artifact created; creator notified
     -> On rejection: managed_artifact.status = draft; creator notified with reason
@@ -631,22 +630,22 @@ PHASE 4 — Create or Submit for Approval
 - What should happen? (update a field, send a notification, assign to a user, etc.)
 - Should it be event-driven (fires automatically) or manually triggered?
 - Copilot translates plain-English action descriptions into Flow Designer action config
-- NOTE: FlowBuilder creates a `sys_hub_flow` record within the OI scoped app and
-  activates it immediately. Leadership receives OI - Flow Activated.
+- NOTE: FlowBuilder creates a `sys_hub_flow` record within the Operations Intelligence scoped app and
+  activates it immediately. Leadership receives Operations Intelligence - Flow Activated.
 
 **FlowBuilder security model** (creator flows activate immediately, with bounded capability):
 - **Run-as-creator** — the flow executes with the creating creator's own
   ServiceNow permissions. Operations are bounded by the creator's existing access.
 - **Safe action set only** — FlowBuilder accepts a curated list of action types:
   record create, record update, set field values, assign to a group/user,
-  send notification (via OI templates), and wait/timer. Actions requiring
+  send notification (via Operations Intelligence templates), and wait/timer. Actions requiring
   arbitrary script, unapproved external endpoints, or privilege elevation
   are outside the accepted set.
 - **No script steps** — FlowBuilder does not include Flow Designer "Run Script"
   action types in its accepted set.
 - **Action cap** — bounded by `{scope}.max_flow_actions` (default 20).
 - **Leadership override** — leadership sees every group flow in Operations
-  Governance and can deactivate any of them at any time (OI - Flow Activated
+  Governance and can deactivate any of them at any time (Operations Intelligence - Flow Activated
   gives them immediate awareness). This is an override, not a blocking gate.
 
 **custom_table**
@@ -754,9 +753,9 @@ Clicking any deliverable card opens it inside a GlideModal popup. No navigation.
 |---|---|
 | `report` | `report_viewer.do?sysparm_report={artifact_sys_id}` |
 | `pa_dashboard` | `$pa_dashboard.do?sys_id={artifact_sys_id}` |
-| `notification_rule` | OI info page: rule name, condition, recipients, status, last triggered |
-| `scheduled_data_job` | OI info page: schedule, target table, filters, last run, next run |
-| `flow` | OI info page: trigger, condition, action summary, recent activation log |
+| `notification_rule` | Operations Intelligence info page: rule name, condition, recipients, status, last triggered |
+| `scheduled_data_job` | Operations Intelligence info page: schedule, target table, filters, last run, next run |
+| `flow` | Operations Intelligence info page: trigger, condition, action summary, recent activation log |
 | `custom_table` | The group's UI page (`sys_ui_page`) for this table if one exists and is active; otherwise a standard scoped GlideList view of the custom table |
 | `ui_page` | The `sys_ui_page` record rendered directly inside the GlideModal frame |
 
@@ -783,7 +782,7 @@ DRAFT
     v confirmed (no approval required)       v submitted (approval required)
 ACTIVE                                   PENDING_APPROVAL
   Artifact live in ServiceNow              pending_action created for leader
-  Creator manages via OI only                |
+  Creator manages via Operations Intelligence only                |
     |                                        v approved
     +-- Edit request:                    ACTIVE (same as left path)
     |     Re-opens requirements            |
@@ -932,7 +931,7 @@ PUBLISHED
     v new version submitted -> old version transitions to DEPRECATION_QUEUED on new publish
 DEPRECATION_QUEUED
   Accepts no new executions
-  OI - Deprecation Guard BR monitors; auto-transitions to DEPRECATED once all
+  Operations Intelligence - Deprecation Guard BR monitors; auto-transitions to DEPRECATED once all
   in-flight executions complete
     |
     v all executions complete
@@ -985,7 +984,7 @@ Deprecation guard:
   If any execution.status IN (running, awaiting_approval) when deprecation
   is requested -> set status = deprecation_queued rather than deprecated
   Admin sees: "X execution(s) in progress — deprecation queued"
-  BR5 (OI - Deprecation Guard) monitors; completes automatically when all clear
+  BR5 (Operations Intelligence - Deprecation Guard) monitors; completes automatically when all clear
 ```
 
 ### Scheduled Execution vs. Deliverable `sysauto_script` Usage
@@ -1038,7 +1037,7 @@ PHASE 4 — Submit for Leadership Approval
   Null-leader check: if primary leader is deactivated or unset ->
     walk up the hierarchy; if no leader found at any level -> route to admin
   pending_action created (type: automation_approval) for the resolved approver
-  Approver notified via OI - Automation Submitted
+  Approver notified via Operations Intelligence - Automation Submitted
   72-hour response window; escalation updates assigned_to on existing record;
     NotificationService resolves escalation recipient by calling
     ApprovalRouter.getEscalationTarget()
@@ -1052,7 +1051,7 @@ PHASE 5 — On Approval
   NLU intent created from automation.trigger_phrases (JSON array)
   NLU model retraining triggered (see NLU Model Training section)
   group_automation record created with approval_status = approved
-  Creator and group members notified via OI - Automation Approved
+  Creator and group members notified via Operations Intelligence - Automation Approved
   automation.usage_count initialised to 0
 ```
 
@@ -1063,14 +1062,14 @@ PHASE 5 — On Approval
 ```
 sys_user.active set to false
     |
-    v OI - Deactivation Detector Business Rule fires immediately
+    v Operations Intelligence - Deactivation Detector Business Rule fires immediately
 DeactivationHandler determines:
   Is this person a LEADER?
     YES -> leader_deactivation sub-flow (see below)
   Does this person have executions with status = awaiting_approval?
     YES -> include in pending_action notes for leader awareness
 
-Primary leader notified via OI - User Deactivation Alert immediately
+Primary leader notified via Operations Intelligence - User Deactivation Alert immediately
 pending_action created (type: user_deactivation, deadline = 48h)
     |
     +-- Leader: APPROVE REMOVAL
@@ -1079,7 +1078,7 @@ pending_action created (type: user_deactivation, deadline = 48h)
     |     -> creator_credential.token_status = revoked, github_pat = ''
     |     -> reporting_relationship.status = inactive (DeactivationHandler)
     |     -> pending automation approvals reassigned to leader's leader
-    |     -> Leader notified via OI - Auto Removal Executed
+    |     -> Leader notified via Operations Intelligence - Auto Removal Executed
     |
     +-- Leader: NOTIFY USER / ACCOUNT TEAM
     |     -> Notification sent to deactivated user's email + IT contact
@@ -1091,10 +1090,10 @@ pending_action created (type: user_deactivation, deadline = 48h)
     |
     +-- Leader: NO ACTION within 48h
           -> Auto-removal executes
-          -> Leader notified via OI - Auto Removal Executed
+          -> Leader notified via Operations Intelligence - Auto Removal Executed
 
 LEADER DEACTIVATION SUB-FLOW
-  Their leader + admin notified via OI - Leader Reassignment Required
+  Their leader + admin notified via Operations Intelligence - Leader Reassignment Required
   pending_action created (type: leader_reassignment, deadline = 72h)
   All pending automation approvals in their queue:
     -> Reassigned to their leader immediately (not waiting for 72h)
@@ -1114,7 +1113,7 @@ LEADER DEACTIVATION SUB-FLOW
 Nominee already has a person record?
   YES -> Skip full invitation flow
          Create group_member record for new group directly
-         Notify nominee via OI - Added to Group
+         Notify nominee via Operations Intelligence - Added to Group
          Notify leader: "[Nominee] added (already onboarded)"
   NO  -> Proceed to full two-step onboarding below
 ```
@@ -1137,7 +1136,7 @@ Invitation expires (48h):
 Nominee declines:
   onboarding_request.status = declined
   nominee may provide decline_reason (optional)
-  Leader notified via OI - Invitation Declined
+  Leader notified via Operations Intelligence - Invitation Declined
   Leader can re-initiate if appropriate (creates new onboarding_request)
 ```
 
@@ -1181,8 +1180,8 @@ Dependency order determines build sequence in step 4.
 | `ArtifactManager` | Central registry: managed_artifact CRUD, lifecycle transitions, builder dispatch |
 | `ReportBuilder` | Creates/updates/deletes `sys_report` and `pa_dashboards` (+ PA widgets) — declarative only |
 | `NotificationBuilder` | Creates/updates sysevent_email_action (event email rules) and sysauto_report (scheduled report delivery) — declarative, no scripts |
-| `FlowBuilder` | Creates/activates/deactivates sys_hub_flow records within OI scope; enforces run-as-creator, safe action set, no script steps |
-| `TableBuilder` | Creates custom table definitions (sys_db_object + sys_dictionary fields) + default form/list views within OI scope |
+| `FlowBuilder` | Creates/activates/deactivates sys_hub_flow records within Operations Intelligence scope; enforces run-as-creator, safe action set, no script steps |
+| `TableBuilder` | Creates custom table definitions (sys_db_object + sys_dictionary fields) + default form/list views within Operations Intelligence scope |
 | `UIPageBuilder` | Creates full `sys_ui_page` records (ServiceNow UI Pages) — Jelly layout, GlideAjax, client-side JavaScript — all generated from the Copilot implementation plan; leadership-approved before creation |
 
 **Dependency note for new Script Includes:**
@@ -1202,17 +1201,17 @@ ServiceNow.
 
 | # | Name | Table | When | Condition |
 |---|---|---|---|---|
-| 1 | OI - Deactivation Detector | `sys_user` | After update | `current.active == false && previous.active == true` |
-| 2 | OI - Execution Group Sync | `{scope}_execution` | Before insert | `!current.automation.nil()` |
-| 3 | OI - Usage Count Increment | `{scope}_execution` | After update | `current.status == 'success' && previous.status != 'success' && current.is_test == false` |
-| 4 | OI - Automation Publish | `{scope}_automation` | After update | `current.status == 'published' && previous.status != 'published'` |
-| 5 | OI - Deprecation Guard | `{scope}_automation` | After update | `current.status == 'deprecation_queued'` |
+| 1 | Operations Intelligence - Deactivation Detector | `sys_user` | After update | `current.active == false && previous.active == true` |
+| 2 | Operations Intelligence - Execution Group Sync | `{scope}_execution` | Before insert | `!current.automation.nil()` |
+| 3 | Operations Intelligence - Usage Count Increment | `{scope}_execution` | After update | `current.status == 'success' && previous.status != 'success' && current.is_test == false` |
+| 4 | Operations Intelligence - Automation Publish | `{scope}_automation` | After update | `current.status == 'published' && previous.status != 'published'` |
+| 5 | Operations Intelligence - Deprecation Guard | `{scope}_automation` | After update | `current.status == 'deprecation_queued'` |
 
 Replace `{scope}` with the actual scope prefix when creating via REST API.
 
 ### Business Rule Scripts
 
-**BR1 — OI - Deactivation Detector**
+**BR1 — Operations Intelligence - Deactivation Detector**
 ```javascript
 (function executeRule() {
     var handler = new DeactivationHandler();
@@ -1220,7 +1219,7 @@ Replace `{scope}` with the actual scope prefix when creating via REST API.
 })();
 ```
 
-**BR2 — OI - Execution Group Sync**
+**BR2 — Operations Intelligence - Execution Group Sync**
 ```javascript
 (function executeRule() {
     if (current.automation.nil()) return;
@@ -1247,7 +1246,7 @@ Replace `{scope}` with the actual scope prefix when creating via REST API.
 })();
 ```
 
-**BR3 — OI - Usage Count Increment**
+**BR3 — Operations Intelligence - Usage Count Increment**
 ```javascript
 (function executeRule() {
     if (current.is_test) return;
@@ -1261,7 +1260,7 @@ Replace `{scope}` with the actual scope prefix when creating via REST API.
 })();
 ```
 
-**BR4 — OI - Automation Publish**
+**BR4 — Operations Intelligence - Automation Publish**
 ```javascript
 (function executeRule() {
     var svc = new CatalogService();
@@ -1269,7 +1268,7 @@ Replace `{scope}` with the actual scope prefix when creating via REST API.
 })();
 ```
 
-**BR5 — OI - Deprecation Guard**
+**BR5 — Operations Intelligence - Deprecation Guard**
 ```javascript
 (function executeRule() {
     var exec = new GlideRecord('{scope}_execution');
@@ -1380,7 +1379,7 @@ CatalogService triggers model retraining after creating or modifying NLU intents
 ```
 Trigger retraining:
   POST /api/sn_nlu/v1/model/{nlu_model_sys_id}/train
-  Authorization: Basic {svc_claude_api credentials}
+  Authorization: Basic {svc_operations_intelligence_api credentials}
   Content-Type: application/json
   Body: {}
 
@@ -1469,7 +1468,7 @@ Endpoint:   POST https://api.githubcopilot.com/chat/completions
 Headers:    Authorization: Bearer {decrypted_github_pat}
             Content-Type: application/json
             Copilot-Integration-Id: servicenow-oi
-            Editor-Version: ServiceNow/OI-1.0
+            Editor-Version: ServiceNow/Operations Intelligence-1.0
 
 Request body (OpenAI-compatible):
 {
@@ -1555,28 +1554,28 @@ All notifications sent via NotificationService. Templates defined in the scoped 
 
 | Template name | Trigger | Recipients |
 |---|---|---|
-| OI - Onboarding Invitation | onboarding_request created | Nominee |
-| OI - Onboarding Reminder | 24h before expiry_at | Nominee |
-| OI - Onboarding Expired | expiry_at passed | Initiating leader |
-| OI - Invitation Declined | status = declined | Initiating leader |
-| OI - Onboarding Complete | status = accepted | Initiating leader |
-| OI - Added to Group | Existing person added to new group | Nominee |
-| OI - Automation Submitted | pending_action automation_approval created | Primary approving leader |
-| OI - Cross-Group Approval Request | Cross-group pending_action created | group.owner (or admin if null/deactivated) |
-| OI - Approval Escalated | 72h no response; pending_action escalated | Resolved by ApprovalRouter.getEscalationTarget() |
-| OI - Automation Approved | group_automation.approval_status = approved | Creator + group members |
-| OI - Automation Rejected | automation.rejected_reason populated | Creator |
-| OI - User Deactivation Alert | pending_action user_deactivation created | Primary leader |
-| OI - Auto Removal Executed | auto-removal completes | Primary leader |
-| OI - Copilot Token Expired | weekly validation fails | Creator |
-| OI - Leader Reassignment Required | leader deactivated | Their leader + admin |
-| OI - Flow Activated | FlowBuilder activates a new flow | Group's leadership (informational only — not approval-blocking) |
-| OI - Custom Table Submitted | managed_artifact custom_table pending_approval | Creator's primary leader |
-| OI - Custom Table Approved | managed_artifact custom_table status = active | Creator |
-| OI - Custom Table Rejected | managed_artifact custom_table rejected_reason populated | Creator |
-| OI - UI Page Submitted | managed_artifact ui_page pending_approval | Creator's primary leader |
-| OI - UI Page Approved | managed_artifact ui_page status = active | Creator |
-| OI - UI Page Rejected | managed_artifact ui_page rejected_reason populated | Creator |
+| Operations Intelligence - Onboarding Invitation | onboarding_request created | Nominee |
+| Operations Intelligence - Onboarding Reminder | 24h before expiry_at | Nominee |
+| Operations Intelligence - Onboarding Expired | expiry_at passed | Initiating leader |
+| Operations Intelligence - Invitation Declined | status = declined | Initiating leader |
+| Operations Intelligence - Onboarding Complete | status = accepted | Initiating leader |
+| Operations Intelligence - Added to Group | Existing person added to new group | Nominee |
+| Operations Intelligence - Automation Submitted | pending_action automation_approval created | Primary approving leader |
+| Operations Intelligence - Cross-Group Approval Request | Cross-group pending_action created | group.owner (or admin if null/deactivated) |
+| Operations Intelligence - Approval Escalated | 72h no response; pending_action escalated | Resolved by ApprovalRouter.getEscalationTarget() |
+| Operations Intelligence - Automation Approved | group_automation.approval_status = approved | Creator + group members |
+| Operations Intelligence - Automation Rejected | automation.rejected_reason populated | Creator |
+| Operations Intelligence - User Deactivation Alert | pending_action user_deactivation created | Primary leader |
+| Operations Intelligence - Auto Removal Executed | auto-removal completes | Primary leader |
+| Operations Intelligence - Copilot Token Expired | weekly validation fails | Creator |
+| Operations Intelligence - Leader Reassignment Required | leader deactivated | Their leader + admin |
+| Operations Intelligence - Flow Activated | FlowBuilder activates a new flow | Group's leadership (informational only — not approval-blocking) |
+| Operations Intelligence - Custom Table Submitted | managed_artifact custom_table pending_approval | Creator's primary leader |
+| Operations Intelligence - Custom Table Approved | managed_artifact custom_table status = active | Creator |
+| Operations Intelligence - Custom Table Rejected | managed_artifact custom_table rejected_reason populated | Creator |
+| Operations Intelligence - UI Page Submitted | managed_artifact ui_page pending_approval | Creator's primary leader |
+| Operations Intelligence - UI Page Approved | managed_artifact ui_page status = active | Creator |
+| Operations Intelligence - UI Page Rejected | managed_artifact ui_page rejected_reason populated | Creator |
 
 ---
 
@@ -1699,7 +1698,7 @@ Panel 3 — Existing Deliverables (click → GlideModal popup)
 | Workspace Automation Panel | workspace | Automation cards — Trigger button (on-demand) or status + activity count (event-driven); GlideModal for flow detail view |
 | Deliverable Type Tiles | workspace | Role-filtered creation tiles; click sets `pre_intent` and opens VA panel |
 | Deliverable Cards | workspace, studio | `managed_artifact` cards; click → GlideModal viewer; creator edit/deactivate/archive controls on own artifacts |
-| GlideModal Viewer | workspace, studio | Opens artifact in popup: `report_viewer.do` for reports, `$pa_dashboard.do` for PA dashboards, OI info page for notifications/scheduled jobs/flows, `sys_ui_page` frame for custom UI pages |
+| GlideModal Viewer | workspace, studio | Opens artifact in popup: `report_viewer.do` for reports, `$pa_dashboard.do` for PA dashboards, Operations Intelligence info page for notifications/scheduled jobs/flows, `sys_ui_page` frame for custom UI pages |
 | Execution History | activity | Own execution cards; row-level ACL; click to expand step log detail inline |
 | Artifact History | activity | Own `managed_artifact` cards; status badges; click draft → resumes VA conversation |
 | Creator Studio Panel | studio | Quick-start cards, draft list, published artifact management, Copilot status banner |
@@ -1942,7 +1941,7 @@ by admin. Never hardcode secrets in configuration JSON.
 **send_notification**
 ```json
 {
-  "template": "OI - Automation Approved",
+  "template": "Operations Intelligence - Automation Approved",
   "recipients": ["{{context.user_email}}"],
   "body_vars": {
     "automation_name": "{{context.automation_name}}",
@@ -1956,7 +1955,7 @@ by admin. Never hardcode secrets in configuration JSON.
 {
   "approver_type": "person",
   "approver_ref": "{{context.primary_leader_sys_id}}",
-  "notification_template": "OI - Automation Submitted",
+  "notification_template": "Operations Intelligence - Automation Submitted",
   "timeout_hours": 72,
   "timeout_action": "escalate",
   "escalate_to": "{{context.leader_of_leader_sys_id}}"
@@ -1989,17 +1988,17 @@ log entry — no automation is silently abandoned.
 
 | Job | Frequency | Notes |
 |---|---|---|
-| OI - Validate Creator Copilot Tokens | Weekly | Pings Copilot API; marks expired; notifies creator. On API unreachable: logs warning, no status change. |
-| OI - Onboarding Expiry Check | Hourly | Expires requests past deadline; creates pending_action for leader. |
-| OI - Approval Escalation Check | Every 6 hours | Updates assigned_to on existing pending_action records past 72h (covers both automation and artifact approvals). |
-| OI - Deactivation Auto-Remove | Every 2 hours | Executes removal where deadline passed and no leader action taken. |
-| OI - Execution Cleanup | Daily | Hard-deletes execution_step_log + parent execution records older than retention threshold. EXCLUDES executions with status = awaiting_approval regardless of age. |
+| Operations Intelligence - Validate Creator Copilot Tokens | Weekly | Pings Copilot API; marks expired; notifies creator. On API unreachable: logs warning, no status change. |
+| Operations Intelligence - Onboarding Expiry Check | Hourly | Expires requests past deadline; creates pending_action for leader. |
+| Operations Intelligence - Approval Escalation Check | Every 6 hours | Updates assigned_to on existing pending_action records past 72h (covers both automation and artifact approvals). |
+| Operations Intelligence - Deactivation Auto-Remove | Every 2 hours | Executes removal where deadline passed and no leader action taken. |
+| Operations Intelligence - Execution Cleanup | Daily | Hard-deletes execution_step_log + parent execution records older than retention threshold. EXCLUDES executions with status = awaiting_approval regardless of age. |
 
 ---
 
 ## Key Configuration Properties
 
-`{scope}` = the value printed by `01_bootstrap_api_access.js` as **Scope**.
+`{scope}` = `x_infte_ops_int`.
 
 | Property | Default | Description |
 |---|---|---|
@@ -2042,15 +2041,14 @@ generates the `{scope}` prefix, and registers the app in the system.
 | Field | Value |
 |---|---|
 | Name | `Operations Intelligence` |
-| Scope | `x_opsi_ops_int` (suggested; type exactly as shown if this prefix is available on your instance) |
+| Scope | `x_infte_ops_int` |
 | Version | `1.0.0` |
 | Short description | Enterprise intelligent automation and deliverable platform |
 
-> **Note on scope prefix:** ServiceNow may auto-suggest a scope based on the
-> application name; the value can be overwritten. Whatever prefix is set here
-> becomes `{scope}` throughout the architecture. The `01_bootstrap_api_access.js`
-> script prints the resolved `{scope}` value — use that output as the authoritative
-> reference for all subsequent build steps.
+> **Note on scope prefix:** the application scope is `x_infte_ops_int`. This
+> prefix is `{scope}` throughout the architecture and is applied automatically
+> by ServiceNow to all tables, roles, Script Includes, and other artifacts
+> created while the application scope is active.
 
 ### Step 3 — Create Application Roles
 
@@ -2075,19 +2073,29 @@ subsequent configuration — tables, Script Includes, BRs, ACLs — must be crea
 while this scope is active. Artifacts created under the wrong scope cannot be
 easily moved.
 
-### Step 5 — Run the Bootstrap Scripts
+### Step 5 — Provision the Engine
 
-Run scripts in order from **System Definition → Scripts - Background**:
+The platform is built and maintained through the **Operations Intelligence
+Engine** — a scoped Scripted REST API that is the sole remote interface for
+creating and managing every platform artifact. Run these scripts in order from
+**System Definition → Scripts - Background**, in the application scope unless a
+script states otherwise:
 
-| Script | Purpose |
-|---|---|
-| `01_bootstrap_api_access.js` | Creates service account `svc_claude_api` with admin role; prints credentials, instance URL, and the resolved `{scope}` prefix. **Capture this output** — it is the prerequisite for all REST-based build tooling. |
-| `03_setup_update_sets.js` | Creates the single update set "Operations Intelligence v1.0.0" and activates it; also creates the per-environment config update sets. Run after capturing credentials from the above. |
+| Script | Scope | Purpose |
+|---|---|---|
+| `02_engine_setup.js` | Application | Creates the "Operations Intelligence Engine" Scripted REST API and its Engine Router resource. |
+| `02a_generate_engine_key.js` | Application | Generates the engine key and stores it in the `x_infte_ops_int.engine_key` property. |
+| `02b_engine_operation_script.js` | (paste) | The engine router logic — pasted into the Engine Router resource Script field in Studio. |
+| `02c_set_svc_account_password.js` | Global | Sets a local password for the `svc_operations_intelligence_api` service account (used for engine authentication and platform-level writes). |
+| `02d_grant_svc_account_roles.js` | Global | Grants the `admin` role to `svc_operations_intelligence_api`. |
+
+Once provisioned, set the `x_infte_ops_int.svc_password` property (via the
+engine's `property.set` op) to enable platform-level writes, then run the
+engine `selftest` op to confirm the full capability matrix.
 
 **Do not proceed to the main build until:**
-- `01_bootstrap_api_access.js` output has been captured (credentials + `{scope}` prefix)
-- The active update set shown in the top banner reads **Operations Intelligence v1.0.0**
-- The scope picker still shows **Operations Intelligence**
+- The engine `ping` and `selftest` ops both return `ok: true`
+- The scope picker shows **Operations Intelligence** for in-scope scripts
 
 ---
 
@@ -2115,7 +2123,7 @@ Import (on test or prod):
   1. Navigate to: System Applications > All Applications > Upload
   2. Upload the XML file
   3. ServiceNow installs the application and all its artifacts
-  4. Apply OI — Environment Config (see below)
+  4. Apply Operations Intelligence — Environment Config (see below)
   5. Trigger NLU model retraining (see NLU note below)
   6. Run 02_verify_implementation.js — all checks must pass
 ```
@@ -2144,7 +2152,7 @@ Import (on test or prod):
   2. Upload the XML file
   3. Preview — resolve any conflicts
   4. Apply
-  5. Apply OI — Environment Config (see below)
+  5. Apply Operations Intelligence — Environment Config (see below)
   6. Trigger NLU model retraining (see NLU note below)
   7. Run 02_verify_implementation.js — all checks must pass
 ```
@@ -2157,9 +2165,9 @@ This prevents dev credentials and debug flags from overwriting production values
 
 | Update set name | Contents |
 |---|---|
-| `OI — Environment Config (dev)` | `debug_mode`, `copilot_api_endpoint`, connection aliases, integration credentials |
-| `OI — Environment Config (test)` | Same properties with test-environment values |
-| `OI — Environment Config (prod)` | Same properties with production values |
+| `Operations Intelligence — Environment Config (dev)` | `debug_mode`, `copilot_api_endpoint`, connection aliases, integration credentials |
+| `Operations Intelligence — Environment Config (test)` | Same properties with test-environment values |
+| `Operations Intelligence — Environment Config (prod)` | Same properties with production values |
 
 Apply the matching config set manually on each instance after the main migration.
 Never include these in the Studio export or the main update set.
@@ -2174,7 +2182,7 @@ After applying to each environment, trigger a fresh NLU training run:
 
 ```
 POST /api/sn_nlu/v1/model/{nlu_model_sys_id}/train
-Authorization: Basic {svc_claude_api credentials on that instance}
+Authorization: Basic {svc_operations_intelligence_api credentials on that instance}
 ```
 
 Training runs against the same VA topics that migrated; results are equivalent.
@@ -2191,14 +2199,14 @@ DEV — build and verify
 
 TEST
   4. Import and apply the application XML
-  5. Apply OI — Environment Config (test)
+  5. Apply Operations Intelligence — Environment Config (test)
   6. Trigger NLU model retraining; wait for status = ready
   7. Run 02_verify_implementation.js — all checks must pass
   8. Execute End-to-End Test Checklist (items 1–15 minimum)
 
 PRODUCTION
   9.  Import and apply the same application XML
-  10. Apply OI — Environment Config (prod)
+  10. Apply Operations Intelligence — Environment Config (prod)
   11. Trigger NLU model retraining; wait for status = ready
   12. Run 02_verify_implementation.js — all checks must pass
   13. Activate Scheduled Jobs (Build Sequence step 14)
@@ -2211,17 +2219,17 @@ PRODUCTION
 
 ### Pre-Build
 1. Create the scoped application in Studio (see **Scoped Application Setup** section)
-2. Run `01_bootstrap_api_access.js` — capture credentials and `{scope}` prefix
-3. Run `03_setup_update_sets.js` — creates a single update set "Operations Intelligence v1.0.0" and activates it
-4. Confirm: scope picker = **Operations Intelligence**; active update set = **Operations Intelligence v1.0.0**
+2. Provision the Operations Intelligence Engine (see **Step 5 — Provision the Engine**)
+3. Set `x_infte_ops_int.svc_password` and confirm the engine `selftest` op returns `ok: true`
+4. Confirm the scope picker shows **Operations Intelligence** for in-scope scripts
 
 ### Custom Tables (19 total — created in step 1)
 
 | # | Table (unprefixed) | Purpose |
 |---|---|---|
-| 1 | `person` | OI-specific user profile |
+| 1 | `person` | Operations Intelligence-specific user profile |
 | 2 | `reporting_relationship` | Leader-to-user hierarchy |
-| 3 | `group` | OI groups (leadership + custom) |
+| 3 | `group` | Operations Intelligence groups (leadership + custom) |
 | 4 | `group_member` | Group membership with group role |
 | 5 | `onboarding_request` | Invitation lifecycle |
 | 6 | `automation_category` | Admin-managed taxonomy |
@@ -2237,7 +2245,7 @@ PRODUCTION
 | 16 | `use_case_request` | NLU requirements capture + Copilot spec |
 | 17 | `creator_credential` | Encrypted GitHub PAT storage |
 | 18 | `pending_action` | Leadership action queue |
-| 19 | `managed_artifact` | Registry of all OI-created deliverables |
+| 19 | `managed_artifact` | Registry of all Operations Intelligence-created deliverables |
 
 ### Build Sequence
 
@@ -2254,9 +2262,9 @@ PRODUCTION
    `CopilotBridge` -> `AuditService` -> `MaintenanceManager` -> `ArtifactManager` ->
    `ReportBuilder` -> `NotificationBuilder` -> `FlowBuilder` ->
    `TableBuilder` -> `UIPageBuilder`
-5. **Business Rules** — all 5 OI BRs in the order listed in the Business Rules section
+5. **Business Rules** — all 5 Operations Intelligence BRs in the order listed in the Business Rules section
 6. **Scheduled Jobs** — all 5 jobs, initially inactive
-7. **Notification Templates** — all 22 OI notification records
+7. **Notification Templates** — all 22 Operations Intelligence notification records
 8. **VA NLU Model** — create `Operations Intelligence NLU` model record
 9. **VA System Topics** — all 23 system topics linked to Operations Assistant channel
 10. **NLU Initial Training** — trigger first model train via REST; poll until status = ready
@@ -2275,7 +2283,7 @@ PRODUCTION
 
 | # | Test | Expected outcome |
 |---|---|---|
-| 1 | Admin onboards a leader via Operations Assistant | Leader receives OI - Onboarding Invitation; `onboarding_request` created with 48h expiry |
+| 1 | Admin onboards a leader via Operations Assistant | Leader receives Operations Intelligence - Onboarding Invitation; `onboarding_request` created with 48h expiry |
 | 2 | Leader completes onboarding | `person` record created; `leadership` role granted; Leadership Group auto-created |
 | 3 | Leader onboards a user (direct report) | User invited; `reporting_relationship` (type: primary) created on completion |
 | 4 | Leader appoints a creator (Appoint Creator topic) | `creator` system role granted; `group_member` with group_role = creator created |
@@ -2284,24 +2292,24 @@ PRODUCTION
 | 7 | Creator builds automation without Copilot | `use_case_request` fully populated; `copilot_enhanced = false`; submitted; `pending_action` created for leader |
 | 8 | Creator builds automation with Copilot | Copilot phrases appended (not replaced); creator reviews merged list; `copilot_phrases_applied = true` after confirm |
 | 9 | Simulate Copilot failure (revoke token before Phase 3) | Silent fallback; "AI enhancement unavailable" shown; original spec submitted unchanged |
-| 10 | Leader approves automation | `automation.status = published`; VA topic active; NLU intent active; NLU model retraining triggered; OI - Automation Approved sent |
-| 11 | Leader rejects automation | `automation.status = draft`; `rejected_reason` populated; OI - Automation Rejected sent to creator |
+| 10 | Leader approves automation | `automation.status = published`; VA topic active; NLU intent active; NLU model retraining triggered; Operations Intelligence - Automation Approved sent |
+| 11 | Leader rejects automation | `automation.status = draft`; `rejected_reason` populated; Operations Intelligence - Automation Rejected sent to creator |
 | 12 | User triggers automation via VA | Execution created (`is_test = false`); all steps logged; `usage_count` incremented; execution reference shown to user |
 | 13 | Creator runs test execution via Studio | Execution created (`is_test = true`); steps logged; `usage_count` NOT incremented |
-| 14 | User deactivated in ServiceNow | `OI - Deactivation Detector` fires; `pending_action` created for leader; 48h deadline; OI - User Deactivation Alert sent |
-| 15 | Leader deactivated | Their leader + admin notified via OI - Leader Reassignment Required; pending approvals reassigned immediately |
-| 16 | Cross-group publish | Primary group approved; additional group owner receives OI - Cross-Group Approval Request; partial publish confirmed |
+| 14 | User deactivated in ServiceNow | `Operations Intelligence - Deactivation Detector` fires; `pending_action` created for leader; 48h deadline; Operations Intelligence - User Deactivation Alert sent |
+| 15 | Leader deactivated | Their leader + admin notified via Operations Intelligence - Leader Reassignment Required; pending approvals reassigned immediately |
+| 16 | Cross-group publish | Primary group approved; additional group owner receives Operations Intelligence - Cross-Group Approval Request; partial publish confirmed |
 | 17 | Deprecation with running execution | `automation.status = deprecation_queued`; schedule deactivated; admin sees warning; auto-transitions to deprecated when execution completes |
 | 18 | Invitation expiry and re-invite | After 48h: status = expired; leader re-sends (max 2); third attempt blocked |
 | 19 | Self-approval guard | Creator whose primary leader IS themselves -> escalated immediately to leader's leader; no 72h wait |
 | 20 | Zero-groups login | Welcome topic fires; zero-groups message branch shown; no catalog rendered |
 | 21 | User requests a PA dashboard via VA | Requirements captured; Copilot fills technical gaps; `managed_artifact` created (type: pa_dashboard, status: active); underlying pa_dashboard record created immediately; no approval step |
 | 22 | User requests a notification rule via VA | Condition + recipients + email template captured; Copilot fills gaps; notification rule active immediately; `managed_artifact` created |
-| 23 | Creator builds a flow via VA | Trigger + condition + actions captured in plain English; Copilot translates to flow config; flow activated; `managed_artifact` created; OI - Flow Activated sent to leadership |
+| 23 | Creator builds a flow via VA | Trigger + condition + actions captured in plain English; Copilot translates to flow config; flow activated; `managed_artifact` created; Operations Intelligence - Flow Activated sent to leadership |
 | 24 | Leadership deactivates a creator's flow | Flow deactivated in ServiceNow; `managed_artifact.status = inactive`; creator notified |
-| 25 | Creator requests a custom table | Requirements captured; Copilot generates full field spec; creator reviews; `managed_artifact` (status: pending_approval) created; OI - Custom Table Submitted sent to leader |
-| 26 | Leader approves custom table | `managed_artifact.status = active`; TableBuilder creates scoped table; OI - Custom Table Approved sent to creator |
-| 27 | Leader rejects custom table | `managed_artifact.status = draft`; OI - Custom Table Rejected with reason sent to creator |
-| 28 | Creator archives a deliverable | `managed_artifact.status = archived`; underlying ServiceNow record deleted; archived record preserved in OI |
+| 25 | Creator requests a custom table | Requirements captured; Copilot generates full field spec; creator reviews; `managed_artifact` (status: pending_approval) created; Operations Intelligence - Custom Table Submitted sent to leader |
+| 26 | Leader approves custom table | `managed_artifact.status = active`; TableBuilder creates scoped table; Operations Intelligence - Custom Table Approved sent to creator |
+| 27 | Leader rejects custom table | `managed_artifact.status = draft`; Operations Intelligence - Custom Table Rejected with reason sent to creator |
+| 28 | Creator archives a deliverable | `managed_artifact.status = archived`; underlying ServiceNow record deleted; archived record preserved in Operations Intelligence |
 | 29 | Verify managed_artifact.artifact_sys_ids unreadable by non-admin | Field-level ACL blocks read for non-System/non-admin callers |
 | 30 | Copilot gap-fill for deliverable with no PAT | Manual clarifying questions only; no Copilot call attempted; creation still completes successfully |
