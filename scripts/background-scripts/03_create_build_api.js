@@ -33,7 +33,8 @@
     var APP_SCOPE  = 'x_infte_ops_int';
     var API_NAME   = 'Operations Intelligence Build API';
     var SERVICE_ID = 'ops_int_build';
-    var API_KEY    = 'OpsInt-BuildKey-2026-X9mK4pQv';
+    // Set a strong, unique key before running — share only in private chat
+    var API_KEY    = gs.getProperty('x_infte_ops_int.build_api_key') || 'REPLACE_WITH_STRONG_KEY';
     var OP_URI     = '/v1/execute';
 
     gs.print('');
