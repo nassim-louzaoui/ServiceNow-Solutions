@@ -32,7 +32,7 @@
     }
 
     // ── CONFIGURATION ────────────────────────────────────────
-    var USERNAME = 'svc_ops_int_api';
+    var USERNAME = 'svc_operations_intelligence_api';
 
     // Generate a strong random password (visible only in this output)
     var CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
@@ -81,9 +81,9 @@
         var newUser = new GlideRecord('sys_user');
         newUser.initialize();
         newUser.setValue('user_name',              USERNAME);
-        newUser.setValue('first_name',             'OI');
-        newUser.setValue('last_name',              'API');
-        newUser.setValue('email',                  'svc.ops.int.api@internal.invalid');
+        newUser.setValue('first_name', 'Operations Intelligence');
+        newUser.setValue('last_name', 'Service Account');
+        newUser.setValue('email',                  'svc.operations.intelligence.api@internal.invalid');
         newUser.setValue('active',                 true);
         newUser.setValue('web_service_access_only', true);   // no browser login
         newUser.setValue('user_password',          PASSWORD);
