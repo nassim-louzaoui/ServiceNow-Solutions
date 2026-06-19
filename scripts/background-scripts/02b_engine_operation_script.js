@@ -59,12 +59,28 @@
     }
 
     // ── Helper: GlideRecord row → plain object ─────────────────
-    function grToObj(gr) {
+    // getFields() is blocked in scoped context; use sys_dictionary
+    // to enumerate columns, with a per-table cache to avoid repeated queries.
+    var _fieldCache = {};
+    function grToObj(gr, fieldsArr) {
         var obj = {};
-        var fields = gr.getFields();
-        for (var i = 0; i < fields.size(); i++) {
-            var el = fields.get(i);
-            obj[el.getName()] = el.getValue();
+        var tbl = gr.getTableName();
+        var flds = (fieldsArr && fieldsArr.length) ? fieldsArr : null;
+        if (!flds) {
+            if (!_fieldCache[tbl]) {
+                _fieldCache[tbl] = [];
+                var dict = new GlideRecord('sys_dictionary');
+                dict.addQuery('name', tbl);
+                dict.addQuery('element', 'ISNOTEMPTY');
+                dict.query();
+                while (dict.next()) {
+                    _fieldCache[tbl].push(dict.getValue('element'));
+                }
+            }
+            flds = _fieldCache[tbl];
+        }
+        for (var i = 0; i < flds.length; i++) {
+            try { obj[flds[i]] = gr.getValue(flds[i]); } catch (e) { /* skip */ }
         }
         return obj;
     }
@@ -260,7 +276,7 @@
             getGr.query();
             if (getGr.next()) {
                 response.setStatus(200);
-                response.setBody({ ok: true, record: grToObj(getGr) });
+                response.setBody({ ok: true, record: grToObj(getGr, body.fields || null) });
             } else {
                 response.setStatus(404);
                 response.setBody({ ok: false, error: 'Not found' });
@@ -283,7 +299,7 @@
             qGr.query();
             var rows = [];
             while (qGr.next()) {
-                rows.push(grToObj(qGr));
+                rows.push(grToObj(qGr, body.fields || null));
             }
             response.setStatus(200);
             response.setBody({ ok: true, count: rows.length, records: rows });
