@@ -20,7 +20,7 @@
         response.setBody({ ok: false, error: 'Engine key not configured' });
         return;
     }
-    var incomingKey = request.headers ? request.headers.getHeader('X-Engine-Key') : '';
+    var incomingKey = request.getHeader('X-Engine-Key') || '';
     if (!incomingKey || incomingKey !== K) {
         response.setStatus(403);
         response.setBody({ ok: false, error: 'Forbidden' });
