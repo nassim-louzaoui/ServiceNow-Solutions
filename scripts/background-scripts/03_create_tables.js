@@ -1,6 +1,6 @@
 // ============================================================
 // OPERATIONS INTELLIGENCE — TABLE CREATION
-// Run in GLOBAL scope
+// Run in APPLICATION scope (x_infte_ops_int)
 // ============================================================
 // Creates all 19 custom tables for the Operations Intelligence
 // platform within the x_infte_ops_int scoped application.
@@ -21,11 +21,11 @@
     var skipped = [];
     var failed  = [];
 
-    gs.print('');
-    gs.print(SEP);
-    gs.print('  OPERATIONS INTELLIGENCE — TABLE CREATION');
-    gs.print(SEP);
-    gs.print('');
+    gs.info('');
+    gs.info(SEP);
+    gs.info('  OPERATIONS INTELLIGENCE — TABLE CREATION');
+    gs.info(SEP);
+    gs.info('');
 
     // ── Helper: create table ───────────────────────────────────
     function mkTable(name, label, nameField) {
@@ -35,13 +35,13 @@
         ex.setLimit(1);
         ex.query();
         if (ex.next()) {
-            gs.print('  [SKIP]  ' + fullName + ' — already exists');
+            gs.info('  [SKIP]  ' + fullName + ' — already exists');
             skipped.push(fullName);
             return ex.getUniqueValue();
         }
         var gr = new GlideRecord('sys_db_object');
         gr.initialize();
-        gr.setValue('name',          fullName);
+        gr.setValue('name',          name);      // short name — scope prefix applied automatically
         gr.setValue('label',         label);
         gr.setValue('sys_scope',     APP_SYS_ID);
         gr.setValue('is_extendable', false);
@@ -49,13 +49,14 @@
         gr.setValue('create_access', true);
         gr.setValue('read_access',   true);
         if (nameField) gr.setValue('name_field', nameField);
+        gr.setWorkflow(false);
         var id = gr.insert();
         if (id) {
-            gs.print('  [OK]    ' + fullName);
+            gs.info('  [OK]    ' + fullName);
             created.push(fullName);
             return id;
         }
-        gs.print('  [FAIL]  ' + fullName);
+        gs.info('  [FAIL]  ' + fullName);
         failed.push(fullName);
         return null;
     }
@@ -129,8 +130,8 @@
     // ════════════════════════════════════════════════════════════
     // TABLE 1 — person
     // ════════════════════════════════════════════════════════════
-    gs.print(SEP2);
-    gs.print('  [1/19] person');
+    gs.info(SEP2);
+    gs.info('  [1/19] person');
     mkTable('person', 'Person', 'user');
     mkField('person', 'user',              'User',              'reference', {ref: 'sys_user', mandatory: true});
     mkField('person', 'onboarded_by',      'Onboarded By',      'reference', {ref: SCOPE+'_person'});
@@ -147,8 +148,8 @@
     // ════════════════════════════════════════════════════════════
     // TABLE 2 — reporting_relationship
     // ════════════════════════════════════════════════════════════
-    gs.print(SEP2);
-    gs.print('  [2/19] reporting_relationship');
+    gs.info(SEP2);
+    gs.info('  [2/19] reporting_relationship');
     mkTable('reporting_relationship', 'Reporting Relationship');
     mkField('reporting_relationship', 'leader',            'Leader',            'reference', {ref: SCOPE+'_person', mandatory:true});
     mkField('reporting_relationship', 'direct_report',     'Direct Report',     'reference', {ref: SCOPE+'_person', mandatory:true});
@@ -164,8 +165,8 @@
     // ════════════════════════════════════════════════════════════
     // TABLE 3 — group
     // ════════════════════════════════════════════════════════════
-    gs.print(SEP2);
-    gs.print('  [3/19] group');
+    gs.info(SEP2);
+    gs.info('  [3/19] group');
     mkTable('group', 'Operations Group', 'name');
     mkField('group', 'name',         'Name',         'string',    {len:200, mandatory:true});
     mkField('group', 'description',  'Description',  'string',    {len:1000});
@@ -183,8 +184,8 @@
     // ════════════════════════════════════════════════════════════
     // TABLE 4 — group_member
     // ════════════════════════════════════════════════════════════
-    gs.print(SEP2);
-    gs.print('  [4/19] group_member');
+    gs.info(SEP2);
+    gs.info('  [4/19] group_member');
     mkTable('group_member', 'Group Member');
     mkField('group_member', 'group',      'Group',      'reference', {ref: SCOPE+'_group',  mandatory:true});
     mkField('group_member', 'member',     'Member',     'reference', {ref: SCOPE+'_person', mandatory:true});
@@ -200,8 +201,8 @@
     // ════════════════════════════════════════════════════════════
     // TABLE 5 — onboarding_request
     // ════════════════════════════════════════════════════════════
-    gs.print(SEP2);
-    gs.print('  [5/19] onboarding_request');
+    gs.info(SEP2);
+    gs.info('  [5/19] onboarding_request');
     mkTable('onboarding_request', 'Onboarding Request', 'number');
     mkField('onboarding_request', 'number',               'Number',               'string',    {len:20, readOnly:true});
     mkField('onboarding_request', 'nominee',              'Nominee',              'reference', {ref: SCOPE+'_person'});
@@ -229,8 +230,8 @@
     // ════════════════════════════════════════════════════════════
     // TABLE 6 — automation_category
     // ════════════════════════════════════════════════════════════
-    gs.print(SEP2);
-    gs.print('  [6/19] automation_category');
+    gs.info(SEP2);
+    gs.info('  [6/19] automation_category');
     mkTable('automation_category', 'Automation Category', 'name');
     mkField('automation_category', 'name',        'Name',        'string',    {len:200, mandatory:true});
     mkField('automation_category', 'description', 'Description', 'string',    {len:1000});
@@ -242,8 +243,8 @@
     // ════════════════════════════════════════════════════════════
     // TABLE 7 — approved_flow
     // ════════════════════════════════════════════════════════════
-    gs.print(SEP2);
-    gs.print('  [7/19] approved_flow');
+    gs.info(SEP2);
+    gs.info('  [7/19] approved_flow');
     mkTable('approved_flow', 'Approved Flow', 'display_name');
     mkField('approved_flow', 'flow_sys_id',      'Flow Sys ID',      'string',    {len:32, mandatory:true});
     mkField('approved_flow', 'display_name',     'Display Name',     'string',    {len:200, mandatory:true});
@@ -256,8 +257,8 @@
     // ════════════════════════════════════════════════════════════
     // TABLE 8 — automation
     // ════════════════════════════════════════════════════════════
-    gs.print(SEP2);
-    gs.print('  [8/19] automation');
+    gs.info(SEP2);
+    gs.info('  [8/19] automation');
     mkTable('automation', 'Automation', 'number');
     mkField('automation', 'number',               'Number',               'string',    {len:20, readOnly:true});
     mkField('automation', 'name',                 'Name',                 'string',    {len:200, mandatory:true});
@@ -292,8 +293,8 @@
     // ════════════════════════════════════════════════════════════
     // TABLE 9 — automation_version
     // ════════════════════════════════════════════════════════════
-    gs.print(SEP2);
-    gs.print('  [9/19] automation_version');
+    gs.info(SEP2);
+    gs.info('  [9/19] automation_version');
     mkTable('automation_version', 'Automation Version');
     mkField('automation_version', 'automation',              'Automation',           'reference',  {ref: SCOPE+'_automation', mandatory:true});
     mkField('automation_version', 'version_number',          'Version Number',       'integer',    {mandatory:true});
@@ -306,8 +307,8 @@
     // ════════════════════════════════════════════════════════════
     // TABLE 10 — automation_step
     // ════════════════════════════════════════════════════════════
-    gs.print(SEP2);
-    gs.print('  [10/19] automation_step');
+    gs.info(SEP2);
+    gs.info('  [10/19] automation_step');
     mkTable('automation_step', 'Automation Step');
     mkField('automation_step', 'automation',       'Automation',       'reference', {ref: SCOPE+'_automation', mandatory:true});
     mkField('automation_step', 'order',            'Order',            'integer',   {mandatory:true});
@@ -333,8 +334,8 @@
     // ════════════════════════════════════════════════════════════
     // TABLE 11 — automation_input
     // ════════════════════════════════════════════════════════════
-    gs.print(SEP2);
-    gs.print('  [11/19] automation_input');
+    gs.info(SEP2);
+    gs.info('  [11/19] automation_input');
     mkTable('automation_input', 'Automation Input');
     mkField('automation_input', 'automation',       'Automation',       'reference', {ref: SCOPE+'_automation', mandatory:true});
     mkField('automation_input', 'order',            'Order',            'integer',   {mandatory:true});
@@ -353,8 +354,8 @@
     // ════════════════════════════════════════════════════════════
     // TABLE 12 — group_automation
     // ════════════════════════════════════════════════════════════
-    gs.print(SEP2);
-    gs.print('  [12/19] group_automation');
+    gs.info(SEP2);
+    gs.info('  [12/19] group_automation');
     mkTable('group_automation', 'Group Automation');
     mkField('group_automation', 'group',           'Group',           'reference', {ref: SCOPE+'_group',      mandatory:true});
     mkField('group_automation', 'automation',      'Automation',      'reference', {ref: SCOPE+'_automation', mandatory:true});
@@ -371,8 +372,8 @@
     // ════════════════════════════════════════════════════════════
     // TABLE 13 — execution
     // ════════════════════════════════════════════════════════════
-    gs.print(SEP2);
-    gs.print('  [13/19] execution');
+    gs.info(SEP2);
+    gs.info('  [13/19] execution');
     mkTable('execution', 'Execution', 'number');
     mkField('execution', 'number',             'Number',             'string',    {len:20, readOnly:true});
     mkField('execution', 'automation',         'Automation',         'reference', {ref: SCOPE+'_automation', mandatory:true});
@@ -399,8 +400,8 @@
     // ════════════════════════════════════════════════════════════
     // TABLE 14 — execution_step_log
     // ════════════════════════════════════════════════════════════
-    gs.print(SEP2);
-    gs.print('  [14/19] execution_step_log');
+    gs.info(SEP2);
+    gs.info('  [14/19] execution_step_log');
     mkTable('execution_step_log', 'Execution Step Log');
     mkField('execution_step_log', 'execution',     'Execution',     'reference', {ref: SCOPE+'_execution', mandatory:true});
     mkField('execution_step_log', 'step_order',    'Step Order',    'integer',   {mandatory:true});
@@ -420,8 +421,8 @@
     // ════════════════════════════════════════════════════════════
     // TABLE 15 — automation_schedule
     // ════════════════════════════════════════════════════════════
-    gs.print(SEP2);
-    gs.print('  [15/19] automation_schedule');
+    gs.info(SEP2);
+    gs.info('  [15/19] automation_schedule');
     mkTable('automation_schedule', 'Automation Schedule');
     mkField('automation_schedule', 'automation',     'Automation',     'reference', {ref: SCOPE+'_automation', mandatory:true});
     mkField('automation_schedule', 'schedule_type',  'Schedule Type',  'string',    {len:20, choice:true, mandatory:true});
@@ -437,8 +438,8 @@
     // ════════════════════════════════════════════════════════════
     // TABLE 16 — use_case_request
     // ════════════════════════════════════════════════════════════
-    gs.print(SEP2);
-    gs.print('  [16/19] use_case_request');
+    gs.info(SEP2);
+    gs.info('  [16/19] use_case_request');
     mkTable('use_case_request', 'Use Case Request', 'number');
     mkField('use_case_request', 'number',                'Number',               'string',    {len:20, readOnly:true});
     mkField('use_case_request', 'title',                 'Title',                'string',    {len:500, mandatory:true});
@@ -466,8 +467,8 @@
     // ════════════════════════════════════════════════════════════
     // TABLE 17 — creator_credential
     // ════════════════════════════════════════════════════════════
-    gs.print(SEP2);
-    gs.print('  [17/19] creator_credential');
+    gs.info(SEP2);
+    gs.info('  [17/19] creator_credential');
     mkTable('creator_credential', 'Creator Credential');
     mkField('creator_credential', 'user',                   'User',                  'reference',  {ref: SCOPE+'_person', mandatory:true});
     mkField('creator_credential', 'github_pat',             'GitHub PAT',            'password2');
@@ -484,8 +485,8 @@
     // ════════════════════════════════════════════════════════════
     // TABLE 18 — pending_action
     // ════════════════════════════════════════════════════════════
-    gs.print(SEP2);
-    gs.print('  [18/19] pending_action');
+    gs.info(SEP2);
+    gs.info('  [18/19] pending_action');
     mkTable('pending_action', 'Pending Action', 'number');
     mkField('pending_action', 'number',            'Number',            'string',    {len:20, readOnly:true});
     mkField('pending_action', 'action_type',       'Action Type',       'string',    {len:40, choice:true, mandatory:true});
@@ -522,8 +523,8 @@
     // ════════════════════════════════════════════════════════════
     // TABLE 19 — managed_artifact
     // ════════════════════════════════════════════════════════════
-    gs.print(SEP2);
-    gs.print('  [19/19] managed_artifact');
+    gs.info(SEP2);
+    gs.info('  [19/19] managed_artifact');
     mkTable('managed_artifact', 'Managed Artifact', 'number');
     mkField('managed_artifact', 'number',              'Number',              'string',    {len:20, readOnly:true});
     mkField('managed_artifact', 'display_name',        'Display Name',        'string',    {len:500, mandatory:true});
@@ -557,24 +558,24 @@
     mkAutoNumber('managed_artifact', 'ART', 1001);
 
     // ── SUMMARY ───────────────────────────────────────────────
-    gs.print('');
-    gs.print(SEP);
-    gs.print('  TABLE CREATION — COMPLETE');
-    gs.print(SEP);
-    gs.print('  Created : ' + created.length + ' table(s)');
-    gs.print('  Skipped : ' + skipped.length + ' (already exist)');
-    gs.print('  Failed  : ' + failed.length);
+    gs.info('');
+    gs.info(SEP);
+    gs.info('  TABLE CREATION — COMPLETE');
+    gs.info(SEP);
+    gs.info('  Created : ' + created.length + ' table(s)');
+    gs.info('  Skipped : ' + skipped.length + ' (already exist)');
+    gs.info('  Failed  : ' + failed.length);
     if (failed.length > 0) {
-        gs.print('');
-        gs.print('  Failed tables:');
+        gs.info('');
+        gs.info('  Failed tables:');
         for (var i = 0; i < failed.length; i++) {
-            gs.print('    ! ' + failed[i]);
+            gs.info('    ! ' + failed[i]);
         }
     }
-    gs.print('');
-    gs.print('  NEXT STEP: Tell the assistant "tables done" to continue');
-    gs.print('  with Script Includes, Business Rules, and platform build.');
-    gs.print(SEP);
-    gs.print('');
+    gs.info('');
+    gs.info('  NEXT STEP: Tell the assistant "tables done" to continue');
+    gs.info('  with Script Includes, Business Rules, and platform build.');
+    gs.info(SEP);
+    gs.info('');
 
 })();
