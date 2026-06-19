@@ -14,8 +14,8 @@
 //   [5] Duplicate svc_operations_intelligence_api accounts
 //       — oldest record is KEPT; extras deleted
 //   [6] Stale REST Message definitions      (sys_rest_message)
-//   [7] Stale REST Message Functions        (sys_rest_message_fn)
-//   [8] Engine key system property          (x_infte_ops_int.engine_key)
+//       — child functions (sys_rest_message_fn) cascade-deleted automatically
+//   [7] Engine key system property          (x_infte_ops_int.engine_key)
 //       — removed so Script 2 generates a fresh one
 //
 //   PRESERVES:
@@ -217,22 +217,17 @@
     }
 
     // ── [6] Stale REST Message definitions ────────────────────
+    // Child functions (sys_rest_message_fn) are cascade-deleted by ServiceNow
+    // when the parent REST message is removed — no separate step needed.
     gs.print('');
     gs.print('  [6] Stale REST Message definitions (sys_rest_message)');
 
     removeWhere('REST Message: Operations Intelligence', 'sys_rest_message',
         function(gr) { gr.addQuery('name', 'CONTAINS', 'Operations Intelligence'); });
 
-    // ── [7] Stale REST Message Functions ──────────────────────
+    // ── [7] Engine key system property ────────────────────────
     gs.print('');
-    gs.print('  [7] Stale REST Message Functions (sys_rest_message_fn)');
-
-    removeWhere('REST Message Function: Operations Intelligence', 'sys_rest_message_fn',
-        function(gr) { gr.addQuery('name', 'CONTAINS', 'Operations Intelligence'); });
-
-    // ── [8] Engine key system property ────────────────────────
-    gs.print('');
-    gs.print('  [8] Engine key system property (x_infte_ops_int.engine_key)');
+    gs.print('  [7] Engine key system property (x_infte_ops_int.engine_key)');
 
     try {
         var propGr = new GlideRecord('sys_properties');
@@ -241,7 +236,7 @@
         propGr.query();
         if (propGr.next()) {
             propGr.deleteRecord();
-            report.removed.push('System property: x_infte_ops_int.engine_key');
+            report.removed.push('System property x_infte_ops_int.engine_key');
             gs.print('      [REMOVED] x_infte_ops_int.engine_key deleted — Script 2 will generate a fresh key');
         } else {
             report.skipped.push('x_infte_ops_int.engine_key (not found)');
