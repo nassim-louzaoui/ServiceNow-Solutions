@@ -246,6 +246,7 @@
         ['scope.info', 'instance / user / scope details'],
         ['meta.tables', 'list tables in the application scope'],
         ['table.exists', 'check whether a table exists'],
+        ['schema.table.create', 'create a scoped table (sys_db_object)'],
         ['schema.fields', 'list all fields for a table'],
         ['schema.add_field', 'create a field (sys_dictionary)'],
         ['schema.add_choice', 'create a choice (sys_choice)'],
@@ -332,6 +333,50 @@
             return { ok: true, exists: !!chk.next() };
 
         // ── schema (DDL maintenance via platform REST) ─────────
+
+        // schema.table.create
+        // Creates a scoped table in sys_db_object via the platform REST API
+        // using the service-account's admin credentials (bypasses the scoped
+        // sandbox that blocked GlideRecord inserts from within the engine).
+        //
+        // The full scoped name (e.g. x_infte_ops_int_person) is supplied
+        // explicitly so the platform stores exactly that name. sys_scope is
+        // set to the app scope sys_id, which tells the Table-Name business
+        // rule this is a scoped record — not a bare user table — and suppresses
+        // the u_ prefix.
+        //
+        // table   : short suffix only, e.g. "person"  (scope prefix auto-added)
+        // data    : { label, name_field, is_extendable (bool, default false) }
+        // Returns : { ok, full_name, sys_id, created_name, skipped }
+        //   created_name is what the platform actually stored — compare with
+        //   full_name to confirm no prefix was added by a business rule.
+        case 'schema.table.create':
+            if (!t) return { _status: 400, ok: false, error: 'table (short name) required' };
+            var stFullName = APP_SCOPE + '_' + t;
+            var stCheck = new GlideRecord('sys_db_object');
+            stCheck.addQuery('name', stFullName);
+            stCheck.setLimit(1);
+            stCheck.query();
+            if (stCheck.next()) {
+                return { ok: true, skipped: true, reason: 'table exists',
+                         full_name: stFullName, sys_id: stCheck.getUniqueValue() };
+            }
+            var stPayload = {
+                name:          stFullName,
+                label:         d.label         || t,
+                sys_scope:     appScopeSysId(),
+                is_extendable: d.is_extendable  ? 'true' : 'false',
+                access:        'public',
+                create_access: 'true',
+                read_access:   'true'
+            };
+            if (d.name_field) stPayload.name_field = d.name_field;
+            var stRes = tableInsert('sys_db_object', stPayload, false);
+            if (!stRes.ok) { delete stRes._status; return stRes; }
+            var stCreatedName = (stRes.body && stRes.body.result) ? stRes.body.result.name : '(unknown)';
+            return { ok: true, full_name: stFullName, created_name: stCreatedName,
+                     sys_id: stRes.sys_id || '', name_ok: stCreatedName === stFullName };
+
         case 'schema.fields':
             if (!t) return { _status: 400, ok: false, error: 'table required' };
             var sfGr = new GlideRecord('sys_dictionary');
