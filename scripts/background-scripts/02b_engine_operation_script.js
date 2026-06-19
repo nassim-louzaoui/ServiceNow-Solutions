@@ -142,8 +142,18 @@
             ins.initialize();
             for (var fi in data) {
                 if (data.hasOwnProperty(fi)) {
-                    ins.setValue(fi, data[fi]);
+                    try {
+                        if (body.use_display_value && body.use_display_value[fi]) {
+                            ins[fi].setDisplayValue(data[fi]);
+                        } else {
+                            ins.setValue(fi, data[fi]);
+                        }
+                    } catch (fex) { /* skip unwritable fields */ }
                 }
+            }
+            if (body.bypass_rules) {
+                ins.setWorkflow(false);
+                ins.autoSysFields(false);
             }
             var newId = ins.insert();
             if (newId) {
@@ -151,7 +161,11 @@
                 response.setBody({ ok: true, sys_id: String(newId) });
             } else {
                 response.setStatus(500);
-                response.setBody({ ok: false, error: 'Insert failed' });
+                response.setBody({
+                    ok: false,
+                    error: 'Insert failed',
+                    last_error: ins.getLastErrorMessage ? ins.getLastErrorMessage() : 'n/a'
+                });
             }
             return;
         }
