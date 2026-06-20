@@ -52,7 +52,8 @@
 //                artifact.sp_theme · artifact.app_menu · artifact.app_module ·
 //                artifact.catalog_item · artifact.catalog_variable ·
 //                artifact.ui_policy · artifact.ui_policy_action ·
-//                artifact.event_registry · artifact.report
+//                artifact.event_registry · artifact.report ·
+//                artifact.role · artifact.sp_portal
 //   FILES        attachment.write · attachment.read · attachment.list · attachment.delete
 //   POWER        script.run · rest.call · event.fire · sys.log · cache.flush · sys.id
 //   WORKFLOW     workflow.start · workflow.cancel
@@ -165,10 +166,12 @@
         return _typeCache[name];
     }
 
+    function isSysId(v) { return /^[0-9a-f]{32}$/i.test(String(v)); }
+
     function resolveUser(idOrName) {
         if (!idOrName) return null;
         var g = new GlideRecord('sys_user');
-        if (String(idOrName).length === 32 && g.get(idOrName)) return g.getUniqueValue();
+        if (isSysId(idOrName) && g.get(idOrName)) return g.getUniqueValue();
         g = new GlideRecord('sys_user');
         g.addQuery('user_name', idOrName);
         g.setLimit(1);
@@ -179,7 +182,7 @@
     function resolveRole(idOrName) {
         if (!idOrName) return null;
         var g = new GlideRecord('sys_user_role');
-        if (String(idOrName).length === 32 && g.get(idOrName)) return g.getUniqueValue();
+        if (isSysId(idOrName) && g.get(idOrName)) return g.getUniqueValue();
         g = new GlideRecord('sys_user_role');
         g.addQuery('name', idOrName);
         g.setLimit(1);
@@ -190,7 +193,7 @@
     function resolveGroup(idOrName) {
         if (!idOrName) return null;
         var g = new GlideRecord('sys_user_group');
-        if (String(idOrName).length === 32 && g.get(idOrName)) return g.getUniqueValue();
+        if (isSysId(idOrName) && g.get(idOrName)) return g.getUniqueValue();
         g = new GlideRecord('sys_user_group');
         g.addQuery('name', idOrName);
         g.setLimit(1);
@@ -455,6 +458,8 @@
         ['artifact.ui_policy_action','create or update a UI Policy Action (sys_ui_policy_action)'],
         ['artifact.event_registry',  'create or update a registered event (sysevent_register)'],
         ['artifact.report',          'create or update a Report (sys_report)'],
+        ['artifact.role',            'create or update a scoped Role (sys_user_role)'],
+        ['artifact.sp_portal',       'create or update a Service Portal portal (sp_portal)'],
         // FILES
         ['attachment.write',       'attach base64 content to a record'],
         ['attachment.read',        'read attachment content as base64'],
@@ -645,25 +650,25 @@
             var allAppId = appScopeSysId();
             var allResult = {};
             var allTypes = [
-                { key: 'tables',            tbl: 'sys_db_object',         fields: ['name','label'] },
-                { key: 'script_includes',   tbl: 'sys_script_include',    fields: ['name','api_name','active'] },
-                { key: 'business_rules',    tbl: 'sys_script',            fields: ['name','collection','active','when'] },
-                { key: 'client_scripts',    tbl: 'sys_script_client',     fields: ['name','table','type','active'] },
-                { key: 'ui_actions',        tbl: 'sys_ui_action',         fields: ['name','table','active'] },
-                { key: 'ui_policies',       tbl: 'sys_ui_policy',         fields: ['short_description','table','active'] },
-                { key: 'notifications',     tbl: 'sysevent_email_action', fields: ['name','active','event_name'] },
-                { key: 'scheduled_jobs',    tbl: 'sysauto_script',        fields: ['name','active','run_type'] },
-                { key: 'widgets',           tbl: 'sp_widget',             fields: ['name','id','active'] },
-                { key: 'ui_pages',          tbl: 'sys_ui_page',           fields: ['name','category'] },
-                { key: 'portal_pages',      tbl: 'sp_page',               fields: ['id','title','draft'] },
-                { key: 'portal_themes',     tbl: 'sp_theme',              fields: ['name'] },
-                { key: 'app_menus',         tbl: 'sys_app_application',   fields: ['title','active'] },
-                { key: 'app_modules',       tbl: 'sys_app_module',        fields: ['title','active','link_type'] },
-                { key: 'catalog_items',     tbl: 'sc_cat_item',           fields: ['name','active','short_description'] },
-                { key: 'event_registries',  tbl: 'sysevent_register',     fields: ['event_name','description','table'] },
-                { key: 'reports',           tbl: 'sys_report',            fields: ['title','table','type'] },
-                { key: 'acls',             tbl: 'sys_security_acl',      fields: ['name','operation','active'] },
-                { key: 'properties',        tbl: 'sys_properties',        fields: ['name','value'] }
+                { key: 'tables',            tbl: 'sys_db_object',         fields: ['name','label'],                        sort: 'name' },
+                { key: 'script_includes',   tbl: 'sys_script_include',    fields: ['name','api_name','active'],            sort: 'name' },
+                { key: 'business_rules',    tbl: 'sys_script',            fields: ['name','collection','active','when'],   sort: 'name' },
+                { key: 'client_scripts',    tbl: 'sys_script_client',     fields: ['name','table','type','active'],        sort: 'name' },
+                { key: 'ui_actions',        tbl: 'sys_ui_action',         fields: ['name','table','active'],               sort: 'name' },
+                { key: 'ui_policies',       tbl: 'sys_ui_policy',         fields: ['short_description','table','active'],  sort: 'short_description' },
+                { key: 'notifications',     tbl: 'sysevent_email_action', fields: ['name','active','event_name'],          sort: 'name' },
+                { key: 'scheduled_jobs',    tbl: 'sysauto_script',        fields: ['name','active','run_type'],            sort: 'name' },
+                { key: 'widgets',           tbl: 'sp_widget',             fields: ['name','id','active'],                  sort: 'name' },
+                { key: 'ui_pages',          tbl: 'sys_ui_page',           fields: ['name','category'],                     sort: 'name' },
+                { key: 'portal_pages',      tbl: 'sp_page',               fields: ['id','title','draft'],                  sort: 'id' },
+                { key: 'portal_themes',     tbl: 'sp_theme',              fields: ['name'],                                sort: 'name' },
+                { key: 'app_menus',         tbl: 'sys_app_application',   fields: ['title','active'],                      sort: 'title' },
+                { key: 'app_modules',       tbl: 'sys_app_module',        fields: ['title','active','link_type'],          sort: 'title' },
+                { key: 'catalog_items',     tbl: 'sc_cat_item',           fields: ['name','active','short_description'],   sort: 'name' },
+                { key: 'event_registries',  tbl: 'sysevent_register',     fields: ['event_name','description','table'],    sort: 'event_name' },
+                { key: 'reports',           tbl: 'sys_report',            fields: ['title','table','type'],                sort: 'title' },
+                { key: 'acls',              tbl: 'sys_security_acl',      fields: ['name','operation','active'],           sort: 'name' },
+                { key: 'properties',        tbl: 'sys_properties',        fields: ['name','value'],                        sort: 'name' }
             ];
             for (var ati = 0; ati < allTypes.length; ati++) {
                 var at = allTypes[ati];
@@ -673,7 +678,7 @@
                 } else {
                     atGr.addQuery('sys_scope', allAppId);
                 }
-                atGr.orderBy('name');
+                atGr.orderBy(at.sort);
                 atGr.query();
                 var atRows = [];
                 while (atGr.next()) {
@@ -991,18 +996,39 @@
         // ── PROPERTIES ─────────────────────────────────────────
 
         case 'property.set':
-            // supports single {key, value} or array [{key,value},...]
+            // supports single {key, value[, type, description]} or array [{key,value},...]
+            // type: 'string'(default)|'boolean'|'integer'|'password2' — typed writes use Table API
             if (Array.isArray(d)) {
                 var psBatch = [], psFail = 0;
                 for (var pbi = 0; pbi < d.length; pbi++) {
                     var pb = d[pbi];
                     if (!pb.key) { psBatch.push({ ok: false, error: 'missing key', index: pbi }); psFail++; continue; }
-                    gs.setProperty(pb.key, pb.value !== undefined ? String(pb.value) : '', pb.description || '');
+                    if (pb.type) {
+                        var pbPayload = { name: pb.key, value: pb.value !== undefined ? String(pb.value) : '', type: pb.type };
+                        if (pb.description) pbPayload.description = pb.description;
+                        var pbExist = platformQuery('sys_properties', 'name=' + pb.key, ['sys_id'], 1, '', '', false, 0);
+                        var pbRows = (pbExist.ok && pbExist.body && pbExist.body.result) ? pbExist.body.result : [];
+                        var pbR = pbRows.length ? platformUpdate('sys_properties', pbRows[0].sys_id, pbPayload, false)
+                                                 : platformInsert('sys_properties', pbPayload, false, false);
+                        if (!pbR.ok) { psBatch.push({ ok: false, error: 'typed set failed', key: pb.key }); psFail++; continue; }
+                    } else {
+                        gs.setProperty(pb.key, pb.value !== undefined ? String(pb.value) : '', pb.description || '');
+                    }
                     psBatch.push({ ok: true, key: pb.key });
                 }
                 return { ok: psFail === 0, set: psBatch.length - psFail, failed: psFail, results: psBatch };
             }
             if (!d.key) return { _status: 400, ok: false, error: 'data.key required' };
+            if (d.type) {
+                var psPayload = { name: d.key, value: d.value !== undefined ? String(d.value) : '', type: d.type };
+                if (d.description) psPayload.description = d.description;
+                var psExist = platformQuery('sys_properties', 'name=' + d.key, ['sys_id'], 1, '', '', false, 0);
+                var psRows = (psExist.ok && psExist.body && psExist.body.result) ? psExist.body.result : [];
+                var psR = psRows.length ? platformUpdate('sys_properties', psRows[0].sys_id, psPayload, false)
+                                        : platformInsert('sys_properties', psPayload, false, false);
+                if (!psR.ok) return { ok: false, error: 'Typed property set failed', status: psR.status, body: psR.body };
+                return { ok: true, key: d.key, type: d.type };
+            }
             gs.setProperty(d.key, d.value !== undefined ? String(d.value) : '', d.description || '');
             return { ok: true, key: d.key };
 
@@ -1175,6 +1201,9 @@
                 if (pui.ok) return { ok: true, action: 'inserted', sys_id: pui.sys_id, via: 'platform' };
                 return { _status: pui.status || 500, ok: false, error: 'Platform insert failed', status: pui.status, body: pui.body };
             }
+            if (!ctx.encoded_query && (!q || !Object.keys(q).length)) {
+                return { _status: 400, ok: false, error: 'Upsert requires query or encoded_query to match existing records; provide at least one filter field' };
+            }
             var ups = buildGr(t, q);
             if (ctx.encoded_query) ups.addEncodedQuery(ctx.encoded_query);
             ups.query();
@@ -1224,11 +1253,13 @@
             if (!ctx.encoded_query && (!q || !Object.keys(q).length)) {
                 return { _status: 400, ok: false, error: 'Refusing unbounded bulk_delete: provide query or encoded_query' };
             }
-            // Count first for safety
-            var bdGr = buildGr(t, q);
-            if (ctx.encoded_query) bdGr.addEncodedQuery(ctx.encoded_query);
-            bdGr.query();
-            var bdCount = bdGr.getRowCount();
+            // Count first for safety (GlideAggregate avoids loading all rows)
+            var bdAgg = new GlideAggregate(t);
+            for (var bdqf in q) { if (q.hasOwnProperty(bdqf)) bdAgg.addQuery(bdqf, q[bdqf]); }
+            if (ctx.encoded_query) bdAgg.addEncodedQuery(ctx.encoded_query);
+            bdAgg.addAggregate('COUNT');
+            bdAgg.query();
+            var bdCount = bdAgg.next() ? parseInt(bdAgg.getAggregate('COUNT'), 10) : 0;
             if (!ctx.confirm) {
                 return { ok: false, _status: 400,
                     error: 'Add "confirm": true to proceed. This will delete ' + bdCount + ' record(s) from ' + t + '.' };
@@ -1514,7 +1545,7 @@
             ucExist.query();
             if (ucExist.next()) return { ok: true, skipped: true, reason: 'user exists', sys_id: ucExist.getUniqueValue() };
             var ucPayload = { user_name: d.user_name };
-            var ucFields = ['first_name','last_name','email','title','department','active','password_needs_reset','locked_out'];
+            var ucFields = ['first_name','last_name','email','title','department','active','password_needs_reset','locked_out','phone','mobile_phone','time_zone'];
             for (var uci = 0; uci < ucFields.length; uci++) {
                 if (d[ucFields[uci]] !== undefined) ucPayload[ucFields[uci]] = String(d[ucFields[uci]]);
             }
@@ -1535,7 +1566,7 @@
             var uuId = resolveUser(d.user || d.user_name || d.sys_id);
             if (!uuId) return { _status: 404, ok: false, error: 'User not found' };
             var uuPayload = {};
-            var uuAllowed = ['first_name','last_name','email','title','department','active','locked_out','password_needs_reset'];
+            var uuAllowed = ['first_name','last_name','email','title','department','active','locked_out','password_needs_reset','phone','mobile_phone','time_zone'];
             for (var uui = 0; uui < uuAllowed.length; uui++) {
                 if (d[uuAllowed[uui]] !== undefined) uuPayload[uuAllowed[uui]] = String(d[uuAllowed[uui]]);
             }
@@ -1652,9 +1683,11 @@
         case 'artifact.script_include':
             if (!d.name) return { _status: 400, ok: false, error: 'data.name required' };
             if (!d.script) return { _status: 400, ok: false, error: 'data.script required' };
+            var siApiName = d.api_name || d.name;
+            if (siApiName.indexOf('.') < 0) siApiName = APP_SCOPE + '.' + siApiName;
             var siPayload2 = {
                 name:            d.name,
-                api_name:        d.api_name || d.name,
+                api_name:        siApiName,
                 script:          d.script,
                 active:          d.active !== false ? 'true' : 'false',
                 client_callable: d.client_callable ? 'true' : 'false',
@@ -1698,6 +1731,9 @@
             };
             if (d.subject)          notifPayload.subject          = d.subject;
             if (d.message_html)     notifPayload.message_html     = d.message_html;
+            if (d.message_text)     notifPayload.message_text     = d.message_text;
+            if (d.importance)       notifPayload.importance       = d.importance;
+            if (d.send_when)        notifPayload.send_when        = d.send_when;
             if (d.condition)        notifPayload.condition        = d.condition;
             if (d.recipient_groups) notifPayload.recipient_groups = d.recipient_groups;
             if (d.recipient_users)  notifPayload.recipient_users  = d.recipient_users;
@@ -1978,6 +2014,32 @@
             if (d.aggregation !== undefined) rptPayload.aggregation = d.aggregation;
             return artifactUpsert('sys_report', 'title=' + d.title + '^table=' + t, rptPayload, true);
 
+        case 'artifact.role':
+            if (!d.name) return { _status: 400, ok: false, error: 'data.name required' };
+            var arPayload = {
+                name:               d.name,
+                description:        d.description || '',
+                elevated_privilege: d.elevated_privilege ? 'true' : 'false',
+                grantable:          d.grantable !== false ? 'true' : 'false',
+                sys_scope:          appScopeSysId()
+            };
+            return artifactUpsert('sys_user_role', 'name=' + d.name, arPayload, true);
+
+        case 'artifact.sp_portal':
+            if (!d.title) return { _status: 400, ok: false, error: 'data.title required' };
+            var sppPayload = {
+                title:     d.title,
+                sys_scope: appScopeSysId()
+            };
+            if (d.url_suffix     !== undefined) sppPayload.url_suffix         = d.url_suffix;
+            if (d.theme          !== undefined) sppPayload.theme              = d.theme;
+            if (d.homepage       !== undefined) sppPayload.homepage           = d.homepage;
+            if (d.default_page   !== undefined) sppPayload.homepage           = d.default_page;
+            if (d.login_page     !== undefined) sppPayload.login_page         = d.login_page;
+            if (d.knowledge_base !== undefined) sppPayload.kb_knowledge_base  = d.knowledge_base;
+            if (d.css            !== undefined) sppPayload.css                = d.css;
+            return artifactUpsert('sp_portal', 'title=' + d.title, sppPayload, true);
+
         // ── FILES ──────────────────────────────────────────────
 
         case 'attachment.write':
@@ -2065,7 +2127,17 @@
                 'scheduled_job':   { tbl: 'sysauto_script',       field: 'name' },
                 'client_script':   { tbl: 'sys_script_client',    field: 'name' },
                 'ui_action':       { tbl: 'sys_ui_action',        field: 'name' },
+                'ui_policy':       { tbl: 'sys_ui_policy',        field: 'short_description' },
                 'widget':          { tbl: 'sp_widget',            field: 'id' },
+                'ui_page':         { tbl: 'sys_ui_page',          field: 'name' },
+                'sp_page':         { tbl: 'sp_page',              field: 'id' },
+                'sp_theme':        { tbl: 'sp_theme',             field: 'name' },
+                'sp_portal':       { tbl: 'sp_portal',            field: 'title' },
+                'app_menu':        { tbl: 'sys_app_application',  field: 'title' },
+                'app_module':      { tbl: 'sys_app_module',       field: 'title' },
+                'catalog_item':    { tbl: 'sc_cat_item',          field: 'name' },
+                'event_registry':  { tbl: 'sysevent_register',    field: 'event_name' },
+                'report':          { tbl: 'sys_report',           field: 'title' },
                 'table':           { tbl: 'sys_db_object',        field: 'name' },
                 'role':            { tbl: 'sys_user_role',        field: 'name' },
                 'group':           { tbl: 'sys_user_group',       field: 'name' },
@@ -2111,8 +2183,8 @@
                 em.setSubject(d.subject);
                 if (d.from) em.setFrom(d.from);
                 if (d.cc)   em.setCc(d.cc);
-                if (d.html) { em.setBody(d.body); em.setBodyText(d.body); }
-                else          em.setBody(d.body);
+                em.setBody(d.body);
+                if (d.text_body) em.setBodyText(d.text_body);
                 em.save();
                 return { ok: true, to: d.to, subject: d.subject };
             } catch (emErr) {
