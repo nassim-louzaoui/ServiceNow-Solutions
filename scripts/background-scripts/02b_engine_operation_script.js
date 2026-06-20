@@ -11,29 +11,32 @@
 // All configuration-creating operations automatically ensure a single update set
 // named "Operations Intelligence" is active before writing.
 // =============================================================================
-// OPERATIONS (117) — send { "op": "help" } for the live annotated list
+// OPERATIONS (137) — send { "op": "help" } for the live annotated list
 //   DIAGNOSTICS   ping · now · scope.info · engine.status · selftest · help · sys.version
 //   DISCOVERY     meta.tables · meta.script_includes · meta.business_rules ·
 //                 meta.notifications · meta.widgets · meta.jobs · meta.acls · meta.all ·
 //                 meta.ui_pages · meta.portal_pages · meta.catalog_items · meta.app_menus ·
 //                 meta.app_modules · meta.events · meta.roles · meta.portals ·
+//                 meta.client_scripts · meta.ui_actions · meta.ui_policies ·
 //                 table.exists · schema.fields · table.schema
 //   DDL           schema.table.create · schema.table.delete · schema.table.extend ·
 //                 schema.add_field · schema.field.update · schema.field.delete ·
 //                 schema.add_choice · schema.choice.update · schema.choice.delete ·
-//                 schema.set_autonumber · schema.index.create
+//                 schema.set_autonumber · schema.index.create ·
+//                 schema.field.get · schema.choice.list
 //   PROPERTIES    property.set · property.get · property.list · property.delete
 //   RECORDS       record.insert · record.insert_many · record.update · record.patch ·
 //                 record.upsert · record.delete · record.bulk_delete · record.get ·
 //                 record.find · record.query · record.clone · record.count ·
 //                 record.aggregate · record.history · record.exists · record.read_many ·
 //                 table.truncate
-//   ACL           acl.create · acl.delete · acl.list
+//   ACL           acl.create · acl.delete · acl.list · acl.get · acl.update
 //   ACCESS        role.grant · role.revoke · user.roles
-//   USERS         user.create · user.get · user.update · user.search
+//   USERS         user.create · user.get · user.update · user.search · user.list · user.delete
 //   GROUPS        group.create · group.add_member · group.remove_member · group.members ·
-//                 group.search
-//   UPDATE SETS   update_set.create · update_set.activate · update_set.list
+//                 group.search · group.get · group.delete · group.list · group.update
+//   UPDATE SETS   update_set.create · update_set.activate · update_set.list ·
+//                 update_set.get · update_set.complete
 //   ARTIFACTS     artifact.script_include · artifact.business_rule · artifact.notification ·
 //                 artifact.scheduled_job · artifact.client_script · artifact.ui_action ·
 //                 artifact.widget · artifact.ui_page · artifact.sp_page ·
@@ -41,13 +44,14 @@
 //                 artifact.sp_instance · artifact.sp_theme · artifact.app_menu ·
 //                 artifact.app_module · artifact.catalog_item · artifact.catalog_variable ·
 //                 artifact.ui_policy · artifact.ui_policy_action · artifact.event_registry ·
-//                 artifact.report · artifact.role · artifact.sp_portal
+//                 artifact.report · artifact.role · artifact.sp_portal ·
+//                 artifact.get · artifact.delete · artifact.list
 //   FILES         attachment.write · attachment.read · attachment.list · attachment.delete
 //   POWER         script.run · rest.call · event.fire · sys.log · cache.flush · sys.id ·
-//                 note.add
+//                 note.add · sys.guid
 //   WORKFLOW      workflow.start · workflow.cancel
 //   EMAIL         email.send
-//   ENGINE        engine.source · engine.selfupdate
+//   ENGINE        engine.source · engine.selfupdate · engine.validate
 //   BATCH         batch
 // =============================================================================
 
@@ -376,7 +380,10 @@
         'role.grant': 1,              'role.revoke': 1,
         'user.create': 1,
         'group.create': 1,            'group.add_member': 1,
-        'group.remove_member': 1
+        'group.remove_member': 1,
+        'acl.update': 1,
+        'group.delete': 1,            'group.update': 1,
+        'user.delete': 1,             'artifact.delete': 1
     };
 
     var OP_CATALOG = [
@@ -402,6 +409,9 @@
         ['meta.events',            'list registered platform events in scope (sysevent_register)'],
         ['meta.roles',             'list Roles defined in the application scope'],
         ['meta.portals',           'list Service Portal portals in scope (sp_portal)'],
+        ['meta.client_scripts',    'list Client Scripts in scope (sys_script_client)'],
+        ['meta.ui_actions',        'list UI Actions in scope (sys_ui_action)'],
+        ['meta.ui_policies',       'list UI Policies in scope (sys_ui_policy)'],
         ['sys.version',            'return platform build name, date, and instance info'],
         ['table.exists',           'check whether a table exists'],
         ['schema.fields',          'list all fields for a table with metadata'],
@@ -417,6 +427,8 @@
         ['schema.choice.delete',   'delete a choice value (sys_choice)'],
         ['schema.set_autonumber',  'configure auto-numbering (sys_number)'],
         ['schema.index.create',    'create a database index (sys_db_index)'],
+        ['schema.field.get',       'get a single field definition from sys_dictionary'],
+        ['schema.choice.list',     'list all choices for a table field (sys_choice)'],
         ['property.set',           'write a system property (or batch array)'],
         ['property.get',           'read a system property'],
         ['property.list',          'list properties by prefix'],
@@ -441,6 +453,8 @@
         ['acl.create',             'create an ACL rule (sys_security_acl)'],
         ['acl.delete',             'delete an ACL rule by sys_id'],
         ['acl.list',               'list ACLs for a table/operation'],
+        ['acl.get',                'get a single ACL record by sys_id'],
+        ['acl.update',             'update an existing ACL: script, condition, roles, or active flag'],
         ['role.grant',             'grant a role to a user (idempotent)'],
         ['role.revoke',            'revoke a role from a user'],
         ['user.roles',             'list a user\'s roles'],
@@ -448,14 +462,22 @@
         ['user.get',               'get user record by user_name or sys_id'],
         ['user.update',            'update a user account'],
         ['user.search',            'search users by query/email/first_name/last_name/department'],
+        ['user.list',              'list users with optional active/department/role filters'],
+        ['user.delete',            'permanently delete a user account (requires data.user or sys_id)'],
         ['group.create',           'create a sys_user_group'],
         ['group.add_member',       'add a user to a group (idempotent)'],
         ['group.remove_member',    'remove a user from a group'],
         ['group.members',          'list all members of a group'],
         ['group.search',           'search groups by name or query string'],
+        ['group.get',              'get a group record by name or sys_id'],
+        ['group.delete',           'permanently delete a group'],
+        ['group.list',             'list all groups with optional active/name filters'],
+        ['group.update',           'update group properties: name, description, email, manager'],
         ['update_set.create',      'create an update set'],
         ['update_set.activate',    'set an update set to in-progress state'],
         ['update_set.list',        'list update sets by state'],
+        ['update_set.get',         'get a single update set by name or sys_id'],
+        ['update_set.complete',    'mark an update set as complete'],
         ['artifact.script_include',  'create or update a Script Include'],
         ['artifact.business_rule',   'create or update a Business Rule'],
         ['artifact.notification',    'create or update a Notification'],
@@ -480,6 +502,9 @@
         ['artifact.report',          'create or update a Report (sys_report)'],
         ['artifact.role',            'create or update a scoped Role (sys_user_role)'],
         ['artifact.sp_portal',       'create or update a Service Portal portal (sp_portal)'],
+        ['artifact.get',             'read the current record of any scoped artifact by type and name'],
+        ['artifact.delete',          'permanently delete an artifact by table and sys_id'],
+        ['artifact.list',            'list all artifacts of a given type in the application scope'],
         ['attachment.write',       'attach base64 content to a record'],
         ['attachment.read',        'read attachment content as base64'],
         ['attachment.list',        'list a record\'s attachments'],
@@ -491,11 +516,13 @@
         ['cache.flush',            'flush all platform caches'],
         ['sys.id',                 'resolve artifact name → sys_id by type'],
         ['note.add',               'add a work note or comment to any record'],
+        ['sys.guid',               'generate a new unique sys_id via GlideSystem.generateGUID'],
         ['workflow.start',         'trigger a Flow Designer flow by name with inputs'],
         ['workflow.cancel',        'cancel a running flow instance by sys_id'],
         ['email.send',             'send an outbound email via GlideEmailOutbound'],
         ['engine.source',          'inspect the engine\'s stored script and size'],
         ['engine.selfupdate',      'replace the engine\'s own script (safety-checked)'],
+        ['engine.validate',        'validate engine: markers, op count, scope, and update set health'],
         ['batch',                  'run many ops in one HTTP call (stop_on_error flag)']
     ];
 
@@ -2337,6 +2364,302 @@
             if (!suRes.ok) return { _status: suRes.status || 500, ok: false, error: 'Self-update failed', status: suRes.status, body: suRes.body };
             return { ok: true, operation_sys_id: suId, bytes: d.script.length,
                      note: 'Engine script replaced. Re-run selftest to confirm.' };
+
+
+        case 'meta.client_scripts':
+            var mcsRows = metaList('sys_script_client', ['name', 'table', 'type', 'active', 'field_name'], 'name');
+            return { ok: true, count: mcsRows.length, client_scripts: mcsRows };
+
+        case 'meta.ui_actions':
+            var muaRows = metaList('sys_ui_action', ['name', 'table', 'active', 'type', 'action_name'], 'name');
+            return { ok: true, count: muaRows.length, ui_actions: muaRows };
+
+        case 'meta.ui_policies':
+            var mupRows = metaList('sys_ui_policy', ['short_description', 'table', 'active', 'on_load'], 'short_description');
+            return { ok: true, count: mupRows.length, ui_policies: mupRows };
+
+        case 'acl.get':
+            if (!d.sys_id) return { _status: 400, ok: false, error: 'data.sys_id required' };
+            var aclgRes = platformGet('sys_security_acl', d.sys_id,
+                ['name','operation','active','type','script','condition','roles','admin_overrides'], false);
+            if (!aclgRes.ok) return { _status: 404, ok: false, error: 'ACL not found', body: aclgRes.body };
+            return { ok: true, record: aclgRes.body.result };
+
+        case 'acl.update':
+            if (!d.sys_id) return { _status: 400, ok: false, error: 'data.sys_id required' };
+            var aclupd = {};
+            if (d.script    !== undefined) aclupd.script    = d.script;
+            if (d.condition !== undefined) aclupd.condition = d.condition;
+            if (d.roles     !== undefined) aclupd.roles     = d.roles;
+            if (d.active    !== undefined) aclupd.active    = d.active ? 'true' : 'false';
+            if (d.admin_overrides !== undefined) aclupd.admin_overrides = d.admin_overrides ? 'true' : 'false';
+            if (!Object.keys(aclupd).length) {
+                return { _status: 400, ok: false, error: 'No updatable fields: supply script, condition, roles, active, or admin_overrides' };
+            }
+            var aclUpdR = platformUpdate('sys_security_acl', d.sys_id, aclupd, false);
+            if (!aclUpdR.ok) return { ok: false, error: 'Update failed', status: aclUpdR.status, body: aclUpdR.body };
+            return { ok: true, sys_id: d.sys_id, updated: aclupd };
+
+        case 'user.list':
+            var ulGr = new GlideRecord('sys_user');
+            if (d.active !== undefined) ulGr.addQuery('active', d.active ? 'true' : 'false');
+            if (d.department) ulGr.addQuery('department.name', 'CONTAINS', d.department);
+            if (d.role) {
+                var ulRId = resolveRole(d.role);
+                if (ulRId) {
+                    var ulHasRole = new GlideRecord('sys_user_has_role');
+                    ulHasRole.addQuery('role', ulRId);
+                    ulHasRole.query();
+                    var ulUids = [];
+                    while (ulHasRole.next()) ulUids.push(ulHasRole.getValue('user'));
+                    if (ulUids.length) ulGr.addQuery('sys_id', 'IN', ulUids.join(','));
+                    else return { ok: true, count: 0, users: [] };
+                }
+            }
+            ulGr.setLimit(l);
+            ulGr.orderBy('user_name');
+            ulGr.query();
+            var ulRows = [];
+            while (ulGr.next()) {
+                ulRows.push({ sys_id: ulGr.getUniqueValue(), user_name: ulGr.getValue('user_name'),
+                    first_name: ulGr.getValue('first_name'), last_name: ulGr.getValue('last_name'),
+                    email: ulGr.getValue('email'), active: ulGr.getValue('active') });
+            }
+            return { ok: true, count: ulRows.length, users: ulRows };
+
+        case 'user.delete':
+            if (!d.user && !d.user_name && !d.sys_id) {
+                return { _status: 400, ok: false, error: 'data.user, data.user_name, or data.sys_id required' };
+            }
+            var udId = resolveUser(d.user || d.user_name || d.sys_id);
+            if (!udId) return { _status: 404, ok: false, error: 'User not found' };
+            var udRes = platformDelete('sys_user', udId);
+            if (!udRes.ok) return { ok: false, error: 'Delete failed', status: udRes.status, body: udRes.body };
+            return { ok: true, deleted_user: udId };
+
+        case 'group.get':
+            if (!d.group && !d.name && !d.sys_id) {
+                return { _status: 400, ok: false, error: 'data.group, data.name, or data.sys_id required' };
+            }
+            var ggId = resolveGroup(d.group || d.name || d.sys_id);
+            if (!ggId) return { _status: 404, ok: false, error: 'Group not found' };
+            var ggRes = platformGet('sys_user_group', ggId,
+                ['name','description','active','email','manager'], false);
+            if (!ggRes.ok) return { _status: 404, ok: false, error: 'Group not found', body: ggRes.body };
+            return { ok: true, record: ggRes.body.result };
+
+        case 'group.delete':
+            if (!d.group && !d.name && !d.sys_id) {
+                return { _status: 400, ok: false, error: 'data.group, data.name, or data.sys_id required' };
+            }
+            var gdId = resolveGroup(d.group || d.name || d.sys_id);
+            if (!gdId) return { _status: 404, ok: false, error: 'Group not found' };
+            var gdRes = platformDelete('sys_user_group', gdId);
+            if (!gdRes.ok) return { ok: false, error: 'Delete failed', status: gdRes.status, body: gdRes.body };
+            return { ok: true, deleted_group: gdId };
+
+        case 'group.list':
+            var glGr = new GlideRecord('sys_user_group');
+            if (d.active !== undefined) glGr.addQuery('active', d.active ? 'true' : 'false');
+            if (d.name)  glGr.addQuery('name', 'CONTAINS', d.name);
+            glGr.setLimit(l);
+            glGr.orderBy('name');
+            glGr.query();
+            var glRows = [];
+            while (glGr.next()) {
+                glRows.push({ sys_id: glGr.getUniqueValue(), name: glGr.getValue('name'),
+                    description: glGr.getValue('description'), active: glGr.getValue('active'),
+                    email: glGr.getValue('email') });
+            }
+            return { ok: true, count: glRows.length, groups: glRows };
+
+        case 'group.update':
+            if (!d.group && !d.name && !d.sys_id) {
+                return { _status: 400, ok: false, error: 'data.group, data.name, or data.sys_id required' };
+            }
+            var guId = resolveGroup(d.group || d.name || d.sys_id);
+            if (!guId) return { _status: 404, ok: false, error: 'Group not found' };
+            var guData = {};
+            var guFields = ['name', 'description', 'active', 'email'];
+            for (var gui = 0; gui < guFields.length; gui++) {
+                if (d[guFields[gui]] !== undefined) guData[guFields[gui]] = String(d[guFields[gui]]);
+            }
+            if (d.manager !== undefined) guData.manager = resolveUser(d.manager) || d.manager;
+            if (!Object.keys(guData).length) return { _status: 400, ok: false, error: 'No updatable fields supplied' };
+            var guRes = platformUpdate('sys_user_group', guId, guData, false);
+            if (!guRes.ok) return { ok: false, error: 'Update failed', status: guRes.status, body: guRes.body };
+            return { ok: true, sys_id: guId, updated: guData };
+
+        case 'update_set.get':
+            if (!d.name && !d.sys_id) return { _status: 400, ok: false, error: 'data.name or data.sys_id required' };
+            var usgGr = new GlideRecord('sys_update_set');
+            if (d.sys_id) {
+                if (!usgGr.get(d.sys_id)) return { _status: 404, ok: false, error: 'Update set not found' };
+            } else {
+                usgGr.addQuery('name', d.name);
+                usgGr.setLimit(1);
+                usgGr.query();
+                if (!usgGr.next()) return { _status: 404, ok: false, error: 'Update set not found: ' + d.name };
+            }
+            return { ok: true, sys_id: usgGr.getUniqueValue(), name: usgGr.getValue('name'),
+                state: usgGr.getValue('state'), description: usgGr.getValue('description'),
+                sys_updated_on: usgGr.getValue('sys_updated_on') };
+
+        case 'update_set.complete':
+            if (!d.name && !d.sys_id) return { _status: 400, ok: false, error: 'data.name or data.sys_id required' };
+            var uscGr = new GlideRecord('sys_update_set');
+            if (d.sys_id) {
+                if (!uscGr.get(d.sys_id)) return { _status: 404, ok: false, error: 'Update set not found' };
+            } else {
+                uscGr.addQuery('name', d.name);
+                uscGr.setLimit(1);
+                uscGr.query();
+                if (!uscGr.next()) return { _status: 404, ok: false, error: 'Update set not found: ' + d.name };
+            }
+            var uscId = uscGr.getUniqueValue();
+            var uscName = uscGr.getValue('name');
+            var uscRes = platformUpdate('sys_update_set', uscId, { state: 'complete' }, false);
+            if (!uscRes.ok) return { ok: false, error: 'Complete failed', status: uscRes.status, body: uscRes.body };
+            return { ok: true, sys_id: uscId, name: uscName, state: 'complete' };
+
+        case 'schema.field.get':
+            if (!t)         return { _status: 400, ok: false, error: 'table required' };
+            if (!d.element) return { _status: 400, ok: false, error: 'data.element required' };
+            var sfgetGr = new GlideRecord('sys_dictionary');
+            sfgetGr.addQuery('name', t);
+            sfgetGr.addQuery('element', d.element);
+            sfgetGr.setLimit(1);
+            sfgetGr.query();
+            if (!sfgetGr.next()) {
+                return { _status: 404, ok: false, error: 'Field not found: ' + t + '.' + d.element };
+            }
+            return { ok: true, table: t, sys_id: sfgetGr.getUniqueValue(),
+                element:       sfgetGr.getValue('element'),
+                column_label:  sfgetGr.getValue('column_label'),
+                internal_type: sfgetGr.getValue('internal_type'),
+                max_length:    sfgetGr.getValue('max_length'),
+                mandatory:     sfgetGr.getValue('mandatory'),
+                default_value: sfgetGr.getValue('default_value'),
+                reference:     sfgetGr.getValue('reference'),
+                read_only:     sfgetGr.getValue('read_only'),
+                choice:        sfgetGr.getValue('choice'),
+                active:        sfgetGr.getValue('active') };
+
+        case 'schema.choice.list':
+            if (!t)         return { _status: 400, ok: false, error: 'table required' };
+            if (!d.element) return { _status: 400, ok: false, error: 'data.element required' };
+            var sclGr = new GlideRecord('sys_choice');
+            sclGr.addQuery('name', t);
+            sclGr.addQuery('element', d.element);
+            if (d.language) sclGr.addQuery('language', d.language);
+            sclGr.orderBy('sequence');
+            sclGr.query();
+            var sclRows = [];
+            while (sclGr.next()) {
+                sclRows.push({ sys_id: sclGr.getUniqueValue(), value: sclGr.getValue('value'),
+                    label: sclGr.getValue('label'), sequence: sclGr.getValue('sequence'),
+                    inactive: sclGr.getValue('inactive') });
+            }
+            return { ok: true, table: t, element: d.element, count: sclRows.length, choices: sclRows };
+
+        case 'artifact.get':
+            if (!d.type) return { _status: 400, ok: false, error: 'data.type required (e.g. script_include, widget, business_rule)' };
+            if (!d.name) return { _status: 400, ok: false, error: 'data.name required' };
+            var artgMap = {
+                'script_include': { tbl: 'sys_script_include',    fld: 'name' },
+                'business_rule':  { tbl: 'sys_script',            fld: 'name' },
+                'notification':   { tbl: 'sysevent_email_action', fld: 'name' },
+                'scheduled_job':  { tbl: 'sysauto_script',        fld: 'name' },
+                'client_script':  { tbl: 'sys_script_client',     fld: 'name' },
+                'ui_action':      { tbl: 'sys_ui_action',         fld: 'name' },
+                'widget':         { tbl: 'sp_widget',             fld: 'id' },
+                'ui_page':        { tbl: 'sys_ui_page',           fld: 'name' },
+                'sp_page':        { tbl: 'sp_page',               fld: 'id' },
+                'sp_theme':       { tbl: 'sp_theme',              fld: 'name' },
+                'sp_portal':      { tbl: 'sp_portal',             fld: 'title' },
+                'app_menu':       { tbl: 'sys_app_application',   fld: 'title' },
+                'app_module':     { tbl: 'sys_app_module',        fld: 'title' },
+                'catalog_item':   { tbl: 'sc_cat_item',           fld: 'name' },
+                'event_registry': { tbl: 'sysevent_register',     fld: 'event_name' },
+                'report':         { tbl: 'sys_report',            fld: 'title' },
+                'role':           { tbl: 'sys_user_role',         fld: 'name' },
+                'acl':            { tbl: 'sys_security_acl',      fld: 'name' },
+                'ui_policy':      { tbl: 'sys_ui_policy',         fld: 'short_description' }
+            };
+            var artgDef = artgMap[d.type];
+            if (!artgDef) return { _status: 400, ok: false, error: 'Unknown artifact type: ' + d.type };
+            var artgGr = new GlideRecord(artgDef.tbl);
+            artgGr.addQuery(artgDef.fld, d.name);
+            artgGr.addQuery('sys_scope', appScopeSysId());
+            artgGr.setLimit(1);
+            artgGr.query();
+            if (!artgGr.next()) {
+                return { _status: 404, ok: false, error: 'Artifact not found: ' + d.type + '/' + d.name };
+            }
+            var artgSysId = artgGr.getUniqueValue();
+            var artgGet = platformGet(artgDef.tbl, artgSysId, ctx.fields || null, dv);
+            if (!artgGet.ok) return { _status: 404, ok: false, error: 'Could not read artifact', body: artgGet.body };
+            return { ok: true, type: d.type, name: d.name, sys_id: artgSysId, record: artgGet.body.result };
+
+        case 'artifact.delete':
+            if (!d.table)  return { _status: 400, ok: false, error: 'data.table required (e.g. sys_script_include)' };
+            if (!d.sys_id) return { _status: 400, ok: false, error: 'data.sys_id required' };
+            var artdRes = platformDelete(d.table, d.sys_id);
+            if (!artdRes.ok) return { ok: false, error: 'Delete failed', status: artdRes.status, body: artdRes.body };
+            return { ok: true, deleted: d.sys_id, table: d.table };
+
+        case 'artifact.list':
+            if (!d.type) return { _status: 400, ok: false, error: 'data.type required (e.g. script_include, widget)' };
+            var artlMap = {
+                'script_include': { tbl: 'sys_script_include',    flds: ['name','api_name','active','client_callable'] },
+                'business_rule':  { tbl: 'sys_script',            flds: ['name','collection','active','when','order'] },
+                'notification':   { tbl: 'sysevent_email_action', flds: ['name','active','event_name'] },
+                'scheduled_job':  { tbl: 'sysauto_script',        flds: ['name','active','run_type'] },
+                'client_script':  { tbl: 'sys_script_client',     flds: ['name','table','type','active'] },
+                'ui_action':      { tbl: 'sys_ui_action',         flds: ['name','table','active','type'] },
+                'widget':         { tbl: 'sp_widget',             flds: ['name','id','active'] },
+                'ui_page':        { tbl: 'sys_ui_page',           flds: ['name','category'] },
+                'sp_page':        { tbl: 'sp_page',               flds: ['id','title','draft'] },
+                'sp_theme':       { tbl: 'sp_theme',              flds: ['name'] },
+                'sp_portal':      { tbl: 'sp_portal',             flds: ['title','url_suffix'] },
+                'app_menu':       { tbl: 'sys_app_application',   flds: ['title','active','category'] },
+                'app_module':     { tbl: 'sys_app_module',        flds: ['title','active','link_type','order'] },
+                'catalog_item':   { tbl: 'sc_cat_item',           flds: ['name','active','short_description'] },
+                'event_registry': { tbl: 'sysevent_register',     flds: ['event_name','description','table'] },
+                'report':         { tbl: 'sys_report',            flds: ['title','table','type'] },
+                'role':           { tbl: 'sys_user_role',         flds: ['name','description','grantable'] },
+                'acl':            { tbl: 'sys_security_acl',      flds: ['name','operation','active','type'] },
+                'ui_policy':      { tbl: 'sys_ui_policy',         flds: ['short_description','table','active','on_load'] }
+            };
+            var artlDef = artlMap[d.type];
+            if (!artlDef) return { _status: 400, ok: false, error: 'Unknown artifact type: ' + d.type };
+            var artlRows = metaList(artlDef.tbl, artlDef.flds, artlDef.flds[0]);
+            return { ok: true, type: d.type, table: artlDef.tbl, count: artlRows.length, artifacts: artlRows };
+
+        case 'sys.guid':
+            return { ok: true, guid: gs.generateGUID() };
+
+        case 'engine.validate':
+            var evSrc = '';
+            var evOpId = engineOperationId(d.operation_sys_id);
+            if (evOpId) {
+                var evGet = platformGet('sys_ws_operation', evOpId, ['operation_script'], false);
+                if (evGet.ok && evGet.body && evGet.body.result) {
+                    evSrc = evGet.body.result.operation_script || '';
+                }
+            }
+            var evMarkersOk = evSrc.length > 0 &&
+                evSrc.indexOf('X-Engine-Key') >= 0 &&
+                evSrc.indexOf('function dispatch') >= 0;
+            return { ok: true,
+                engine_operation_found: !!evOpId,
+                markers_ok: evMarkersOk,
+                op_count_catalogued: OP_CATALOG.length,
+                scope: APP_SCOPE,
+                app_scope_resolved: !!appScopeSysId(),
+                engine_key_set: !!gs.getProperty(APP_SCOPE + '.engine_key', ''),
+                svc_password_set: !!gs.getProperty(APP_SCOPE + '.svc_password', ''),
+                summary: (!!evOpId && evMarkersOk) ? 'Engine is valid and healthy.' : 'Engine has issues — inspect engine_operation_found and markers_ok.' };
 
         default:
             return { _status: 400, ok: false, error: 'Unknown op: ' + o };
