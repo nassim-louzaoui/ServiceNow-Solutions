@@ -17,6 +17,8 @@ INSTANCE="${SNOW_INSTANCE:-https://everestdev.service-now.com}"
 API_PATH="/api/x_infte_ops_int/engine/v1"
 BASE_URL="${INSTANCE}${API_PATH}"
 KEY="${ENGINE_KEY:-}"
+SNOW_USER="${SNOW_USER:-}"
+SNOW_PASS="${SNOW_PASS:-}"
 VERBOSE="${1:-}"
 PASS=0; FAIL=0; SKIP=0
 
@@ -25,12 +27,18 @@ if [[ -z "$KEY" ]]; then
   echo "  → Add ENGINE_KEY=<value> to .env in the repo root, then re-run."
   exit 1
 fi
+if [[ -z "$SNOW_USER" || -z "$SNOW_PASS" ]]; then
+  echo "ERROR: SNOW_USER and SNOW_PASS must be set in .env"
+  echo "  → These are the ServiceNow login credentials used for Basic Auth."
+  exit 1
+fi
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 
 call() {
   local payload="$1"
   curl -s -X POST "$BASE_URL" \
+    -u "${SNOW_USER}:${SNOW_PASS}" \
     -H "Content-Type: application/json" \
     -H "X-Engine-Key: $KEY" \
     -d "$payload"
