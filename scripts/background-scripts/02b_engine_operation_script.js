@@ -2089,11 +2089,17 @@
             if (!d.script) return { _status: 400, ok: false, error: 'data.script required' };
             try {
                 var _gse = new GlideScopedEvaluator();
-                _gse.putVariable('_sr', null);
-                var _srScript = d.script + '\n;try{if(typeof result!=="undefined"){_sr=result;}}catch(_e){}';
+                _gse.putVariable('_sr', '');
+                // JSON.stringify bridges the object across the evaluator boundary
+                var _srScript = d.script + '\n;try{if(typeof result!=="undefined"){_sr=JSON.stringify(result);}}catch(_e){}';
                 _gse.evaluateScript(null, _srScript, null);
-                var _srVal = _gse.getVariable('_sr');
-                return { ok: true, result: (_srVal !== null && _srVal !== undefined) ? _srVal : null };
+                var _srRaw = _gse.getVariable('_sr');
+                var _srStr = String(_srRaw === null || _srRaw === undefined ? '' : _srRaw);
+                if (_srStr === '' || _srStr === 'null' || _srStr === 'undefined') {
+                    return { ok: true, result: null };
+                }
+                try { return { ok: true, result: JSON.parse(_srStr) }; }
+                catch (pe) { return { ok: true, result: _srStr }; }
             } catch (se) { return { ok: false, error: String(se) }; }
 
         case 'rest.call':
