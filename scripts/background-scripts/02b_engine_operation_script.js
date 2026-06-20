@@ -1,71 +1,78 @@
-// ============================================================
-// OPERATIONS INTELLIGENCE — ENGINE (Enhanced)
-// Paste into Studio → Scripted REST → Engine Router resource
-// Script field (replace entire content)
-// ============================================================
-// Resource settings:
-//   HTTP Method  : POST
-//   Relative Path: /v1   ← stable endpoint path, NOT a version.
-//                          This is the single, self-maintaining engine.
-//                          Enhance in place via engine.selfupdate.
-// ============================================================
-// AUTH
-//   Header  X-Engine-Key  must match property x_infte_ops_int.engine_key
-//
-// PLATFORM WRITES (the autonomy unlock)
-//   Set property x_infte_ops_int.svc_password (service-account password)
-//   once via property.set. The engine then makes authenticated internal
-//   REST calls that run at PLATFORM level, bypassing the scoped-code
-//   sandbox. Any record.* op with "platform": true is routed through the
-//   Table API as the service account — letting the engine create and
-//   maintain ANY artifact in ANY table: Script Includes, Business Rules,
-//   Scheduled Jobs, Notifications, ACLs, Portal, Widgets, UI Pages, etc.
-//   Created artifacts are auto-tagged to the app scope (opt out: scope:false).
-// ============================================================
-// OP CATALOG (call {"op":"help"} for the live list)
-//   DIAGNOSTICS  ping · help · now · scope.info · selftest · engine.status ·
-//                sys.version
-//   DISCOVERY    meta.tables · meta.script_includes · meta.business_rules ·
-//                meta.notifications · meta.widgets · meta.jobs · meta.acls ·
-//                meta.all · meta.ui_pages · meta.portal_pages · meta.catalog_items ·
-//                meta.app_menus · meta.app_modules · meta.events ·
-//                meta.roles · meta.portals ·
-//                table.exists · schema.fields · table.schema
-//   DDL          schema.table.create · schema.table.delete · schema.table.extend ·
-//                schema.add_field · schema.field.update · schema.field.delete ·
-//                schema.add_choice · schema.choice.update · schema.choice.delete ·
-//                schema.set_autonumber · schema.index.create
-//   PROPERTIES   property.set · property.get · property.list · property.delete
-//   RECORDS      record.insert · record.insert_many · record.update · record.patch ·
-//                record.upsert · record.delete · record.bulk_delete · record.get ·
-//                record.find · record.query · record.clone · record.count ·
-//                record.aggregate · record.history · table.truncate ·
-//                record.exists · record.read_many
-//                (add "platform":true to write to ANY table)
-//   ACL          acl.create · acl.delete · acl.list
-//   ACCESS       role.grant · role.revoke · user.roles
-//   USERS        user.create · user.get · user.update · user.search
-//   GROUPS       group.create · group.add_member · group.remove_member · group.members ·
-//                group.search
-//   UPDATE SETS  update_set.create · update_set.activate · update_set.list
-//   ARTIFACTS    artifact.script_include · artifact.business_rule ·
-//                artifact.notification · artifact.scheduled_job ·
-//                artifact.client_script · artifact.ui_action · artifact.widget ·
-//                artifact.ui_page · artifact.sp_page · artifact.sp_container ·
-//                artifact.sp_row · artifact.sp_column · artifact.sp_instance ·
-//                artifact.sp_theme · artifact.app_menu · artifact.app_module ·
-//                artifact.catalog_item · artifact.catalog_variable ·
-//                artifact.ui_policy · artifact.ui_policy_action ·
-//                artifact.event_registry · artifact.report ·
-//                artifact.role · artifact.sp_portal
-//   FILES        attachment.write · attachment.read · attachment.list · attachment.delete
-//   POWER        script.run · rest.call · event.fire · sys.log · cache.flush · sys.id ·
-//                note.add
-//   WORKFLOW     workflow.start · workflow.cancel
-//   EMAIL        email.send
-//   ENGINE       engine.source · engine.selfupdate
-//   BATCH        batch  (stop_on_error flag)
-// ============================================================
+// =============================================================================
+// OPERATIONS INTELLIGENCE — ENGINE
+// Application Scope : x_infte_ops_int
+// =============================================================================
+// DEPLOYMENT
+//   Location  : Studio → Scripted REST APIs → Operations Intelligence Engine
+//               → Resources → Engine Router → Script field
+//   Method    : POST
+//   Path      : /v1
+//   Replace the entire script field contents with this file.
+// =============================================================================
+// AUTHENTICATION
+//   Every request must supply the header:
+//     X-Engine-Key: <value of system property x_infte_ops_int.engine_key>
+//   Requests without a valid key receive HTTP 401.
+// =============================================================================
+// PLATFORM-LEVEL WRITES
+//   Set system property x_infte_ops_int.svc_password once via property.set.
+//   Operations that include "platform": true in the request body are routed
+//   through the Table API authenticated as svc_operations_intelligence_api,
+//   which executes outside the scoped-app sandbox and can read and write any
+//   table. All artifacts created via platform writes are tagged to scope
+//   x_infte_ops_int unless "scope": false is explicitly passed.
+// =============================================================================
+// REQUEST FORMAT
+//   Single operation : POST /v1  { "op": "<name>", "data": { ... } }
+//   Batch            : POST /v1  { "op": "batch", "ops": [ { "op": "...", "data": {} } ] }
+//   Batch supports   : "stop_on_error": true to halt on first failure,
+//                      "label": "<string>" per op for result correlation.
+//   Send {"op":"help"} to retrieve the live operation catalog from the instance.
+// =============================================================================
+// OPERATION CATALOG (117 operations)
+//   DIAGNOSTICS   ping · now · scope.info · engine.status · selftest · help ·
+//                 sys.version
+//   DISCOVERY     meta.tables · meta.script_includes · meta.business_rules ·
+//                 meta.notifications · meta.widgets · meta.jobs · meta.acls ·
+//                 meta.all · meta.ui_pages · meta.portal_pages · meta.catalog_items ·
+//                 meta.app_menus · meta.app_modules · meta.events ·
+//                 meta.roles · meta.portals ·
+//                 table.exists · schema.fields · table.schema
+//   DDL           schema.table.create · schema.table.delete · schema.table.extend ·
+//                 schema.add_field · schema.field.update · schema.field.delete ·
+//                 schema.add_choice · schema.choice.update · schema.choice.delete ·
+//                 schema.set_autonumber · schema.index.create
+//   PROPERTIES    property.set · property.get · property.list · property.delete
+//   RECORDS       record.insert · record.insert_many · record.update · record.patch ·
+//                 record.upsert · record.delete · record.bulk_delete · record.get ·
+//                 record.find · record.query · record.clone · record.count ·
+//                 record.aggregate · record.history · table.truncate ·
+//                 record.exists · record.read_many
+//                 (include "platform": true to bypass scoped sandbox)
+//   ACL           acl.create · acl.delete · acl.list
+//   ACCESS        role.grant · role.revoke · user.roles
+//   USERS         user.create · user.get · user.update · user.search
+//   GROUPS        group.create · group.add_member · group.remove_member ·
+//                 group.members · group.search
+//   UPDATE SETS   update_set.create · update_set.activate · update_set.list
+//   ARTIFACTS     artifact.script_include · artifact.business_rule ·
+//                 artifact.notification · artifact.scheduled_job ·
+//                 artifact.client_script · artifact.ui_action · artifact.widget ·
+//                 artifact.ui_page · artifact.sp_page · artifact.sp_container ·
+//                 artifact.sp_row · artifact.sp_column · artifact.sp_instance ·
+//                 artifact.sp_theme · artifact.app_menu · artifact.app_module ·
+//                 artifact.catalog_item · artifact.catalog_variable ·
+//                 artifact.ui_policy · artifact.ui_policy_action ·
+//                 artifact.event_registry · artifact.report ·
+//                 artifact.role · artifact.sp_portal
+//   FILES         attachment.write · attachment.read · attachment.list · attachment.delete
+//   POWER         script.run · rest.call · event.fire · sys.log · cache.flush ·
+//                 sys.id · note.add
+//   WORKFLOW      workflow.start · workflow.cancel
+//   EMAIL         email.send
+//   ENGINE        engine.source · engine.selfupdate
+//   BATCH         batch
+// =============================================================================
 
 (function process(request, response) {
     'use strict';
@@ -74,9 +81,6 @@
     var SVC_USER  = 'svc_operations_intelligence_api';
     var MAX_LIMIT = 10000;
 
-    // ══════════════════════════════════════════════════════════
-    // AUTHENTICATION
-    // ══════════════════════════════════════════════════════════
     var K = gs.getProperty(APP_SCOPE + '.engine_key', '');
     if (!K) {
         response.setStatus(503);
@@ -90,9 +94,6 @@
         return;
     }
 
-    // ══════════════════════════════════════════════════════════
-    // PARSE BODY
-    // ══════════════════════════════════════════════════════════
     var body = {};
     try {
         body = JSON.parse(request.body.dataString);
@@ -103,9 +104,6 @@
     }
     response.setContentType('application/json');
 
-    // ══════════════════════════════════════════════════════════
-    // SHARED HELPERS
-    // ══════════════════════════════════════════════════════════
 
     function buildGr(tbl, qry) {
         var gr = new GlideRecord(tbl);
@@ -117,8 +115,6 @@
         return gr;
     }
 
-    // getFields() is blocked in scoped context — enumerate via sys_dictionary
-    // with a per-request cache so repeated rows on a table cost one query.
     var _fieldCache = {};
     function tableFields(tbl) {
         if (!_fieldCache[tbl]) {
@@ -217,7 +213,6 @@
         return parts.join('^');
     }
 
-    // ── Internal authenticated REST call (PLATFORM level) ──────
     function internalRest(method, path, payload, qParams, extraHeaders) {
         var pwd = gs.getProperty(APP_SCOPE + '.svc_password', '');
         if (!pwd) {
@@ -266,7 +261,6 @@
         return out;
     }
 
-    // ── Platform Table-API primitives (admin, sandbox-free) ────
     function platformInsert(tbl, data, displayValues, autoScope) {
         var payload = {};
         for (var k in data) { if (data.hasOwnProperty(k)) payload[k] = data[k]; }
@@ -310,9 +304,6 @@
         return platformInsert(tbl, payload, displayValues, false);
     }
 
-    // ── Artifact upsert: find by encodedQuery, update or insert ─
-    // encodedQuery: full encoded query string e.g. 'name=Foo^table=incident'
-    // Returns { ok, action, sys_id }
     function artifactUpsert(tbl, encodedQuery, payload, scopeAuto) {
         var existing = platformQuery(tbl, encodedQuery, ['sys_id'], 1, '', '', false, 0);
         if (!existing.ok) return { ok: false, error: 'Query failed', body: existing.body };
@@ -329,7 +320,6 @@
         return { ok: true, action: 'inserted', sys_id: newId };
     }
 
-    // ── Locate the engine's own Scripted REST operation record ─
     function engineOperationId(override) {
         if (override) return override;
         var ws = new GlideRecord('sys_ws_operation');
@@ -337,7 +327,6 @@
         ws.setLimit(1);
         ws.query();
         if (ws.next()) return ws.getUniqueValue();
-        // Fallback: try name alone
         var ws2 = new GlideRecord('sys_ws_operation');
         ws2.addQuery('name', 'Engine Router');
         ws2.setLimit(1);
@@ -345,7 +334,6 @@
         return ws2.next() ? ws2.getUniqueValue() : '';
     }
 
-    // ── Collect all artifacts for a given table/scope ──────────
     function metaList(tbl, fields, labelField) {
         var appId = appScopeSysId();
         var gr = new GlideRecord(tbl);
@@ -363,18 +351,13 @@
         return rows;
     }
 
-    // ══════════════════════════════════════════════════════════
-    // OP CATALOG
-    // ══════════════════════════════════════════════════════════
     var OP_CATALOG = [
-        // DIAGNOSTICS
         ['ping',                   'health-check'],
         ['help',                   'list every op with description'],
         ['now',                    'server date-time (UTC + display)'],
         ['scope.info',             'instance / user / scope / capability details'],
         ['selftest',               'prove read + write + platform-write end-to-end'],
         ['engine.status',          'health, config, and artifact inventory summary'],
-        // DISCOVERY
         ['meta.tables',            'list tables in the application scope'],
         ['meta.script_includes',   'list Script Includes in scope'],
         ['meta.business_rules',    'list Business Rules in scope'],
@@ -395,7 +378,6 @@
         ['table.exists',           'check whether a table exists'],
         ['schema.fields',          'list all fields for a table with metadata'],
         ['table.schema',           'full schema dump: fields + choices + autonumber'],
-        // DDL
         ['schema.table.create',    'create a scoped table (sys_db_object)'],
         ['schema.table.delete',    'delete a table by name or sys_id'],
         ['schema.table.extend',    'set a table\'s parent (super_class) for inheritance'],
@@ -407,12 +389,10 @@
         ['schema.choice.delete',   'delete a choice value (sys_choice)'],
         ['schema.set_autonumber',  'configure auto-numbering (sys_number)'],
         ['schema.index.create',    'create a database index (sys_db_index)'],
-        // PROPERTIES
         ['property.set',           'write a system property (or batch array)'],
         ['property.get',           'read a system property'],
         ['property.list',          'list properties by prefix'],
         ['property.delete',        'delete a system property'],
-        // RECORDS
         ['record.insert',          'create one record (+platform)'],
         ['record.insert_many',     'create many records in one call (+platform)'],
         ['record.update',          'update by sys_id or query (+platform)'],
@@ -430,30 +410,24 @@
         ['table.truncate',         'delete every row in a table (requires confirm:true)'],
         ['record.exists',          'check whether a record matching a query exists'],
         ['record.read_many',       'fetch multiple records by sys_ids array in one call (+platform)'],
-        // ACL
         ['acl.create',             'create an ACL rule (sys_security_acl)'],
         ['acl.delete',             'delete an ACL rule by sys_id'],
         ['acl.list',               'list ACLs for a table/operation'],
-        // ACCESS
         ['role.grant',             'grant a role to a user (idempotent)'],
         ['role.revoke',            'revoke a role from a user'],
         ['user.roles',             'list a user\'s roles'],
-        // USERS
         ['user.create',            'create a sys_user account'],
         ['user.get',               'get user record by user_name or sys_id'],
         ['user.update',            'update a user account'],
         ['user.search',            'search users by query/email/first_name/last_name/department'],
-        // GROUPS
         ['group.create',           'create a sys_user_group'],
         ['group.add_member',       'add a user to a group (idempotent)'],
         ['group.remove_member',    'remove a user from a group'],
         ['group.members',          'list all members of a group'],
         ['group.search',           'search groups by name or query string'],
-        // UPDATE SETS
         ['update_set.create',      'create an update set'],
         ['update_set.activate',    'set an update set to in-progress state'],
         ['update_set.list',        'list update sets by state'],
-        // ARTIFACTS
         ['artifact.script_include',  'create or update a Script Include'],
         ['artifact.business_rule',   'create or update a Business Rule'],
         ['artifact.notification',    'create or update a Notification'],
@@ -478,12 +452,10 @@
         ['artifact.report',          'create or update a Report (sys_report)'],
         ['artifact.role',            'create or update a scoped Role (sys_user_role)'],
         ['artifact.sp_portal',       'create or update a Service Portal portal (sp_portal)'],
-        // FILES
         ['attachment.write',       'attach base64 content to a record'],
         ['attachment.read',        'read attachment content as base64'],
         ['attachment.list',        'list a record\'s attachments'],
         ['attachment.delete',      'delete an attachment by sys_id'],
-        // POWER
         ['script.run',             'execute JS in scope context; set var result to return data'],
         ['rest.call',              'authenticated internal REST call (any method/path)'],
         ['event.fire',             'fire a platform event via gs.eventQueue'],
@@ -491,21 +463,14 @@
         ['cache.flush',            'flush all platform caches'],
         ['sys.id',                 'resolve artifact name → sys_id by type'],
         ['note.add',               'add a work note or comment to any record'],
-        // WORKFLOW
         ['workflow.start',         'trigger a Flow Designer flow by name with inputs'],
         ['workflow.cancel',        'cancel a running flow instance by sys_id'],
-        // EMAIL
         ['email.send',             'send an outbound email via GlideEmailOutbound'],
-        // ENGINE
         ['engine.source',          'inspect the engine\'s stored script and size'],
         ['engine.selfupdate',      'replace the engine\'s own script (safety-checked)'],
-        // BATCH
         ['batch',                  'run many ops in one HTTP call (stop_on_error flag)']
     ];
 
-    // ══════════════════════════════════════════════════════════
-    // OP DISPATCHER
-    // ══════════════════════════════════════════════════════════
     function dispatch(ctx) {
         var o  = ctx.op    || '';
         var t  = ctx.table || '';
@@ -519,7 +484,6 @@
 
         switch (o) {
 
-        // ── DIAGNOSTICS ────────────────────────────────────────
 
         case 'ping':
             return { ok: true, pong: true, scope: gs.getCurrentScopeName(),
@@ -638,7 +602,6 @@
                 instance:    gs.getProperty('instance_name', 'unknown'),
                 base_url:    instanceBase() };
 
-        // ── DISCOVERY ──────────────────────────────────────────
 
         case 'meta.tables':
             var mtRows = metaList('sys_db_object', ['name', 'label'], 'name');
@@ -791,7 +754,6 @@
 
         case 'table.schema':
             if (!t) return { _status: 400, ok: false, error: 'table required' };
-            // fields
             var tsFieldGr = new GlideRecord('sys_dictionary');
             tsFieldGr.addQuery('name', t);
             tsFieldGr.addQuery('element', 'ISNOTEMPTY');
@@ -811,7 +773,6 @@
                     choice: tsFieldGr.getValue('choice')
                 });
             }
-            // choices
             var tsChoiceGr = new GlideRecord('sys_choice');
             tsChoiceGr.addQuery('name', t);
             tsChoiceGr.orderBy('element');
@@ -827,7 +788,6 @@
                     sequence: tsChoiceGr.getValue('sequence')
                 });
             }
-            // autonumber
             var tsNumGr = new GlideRecord('sys_number');
             tsNumGr.addQuery('category', t);
             tsNumGr.setLimit(1);
@@ -837,7 +797,6 @@
             return { ok: true, table: t, field_count: tsFields.length,
                      fields: tsFields, choices: tsChoices, autonumber: tsNum };
 
-        // ── DDL ────────────────────────────────────────────────
 
         case 'schema.table.create':
             if (!t) return { _status: 400, ok: false, error: 'table (short name) required' };
@@ -979,7 +938,6 @@
             return siRes;
 
         case 'schema.table.extend':
-            // Set a table's super_class (parent) for inheritance
             if (!t)          return { _status: 400, ok: false, error: 'table (child table name) required' };
             if (!d.parent)   return { _status: 400, ok: false, error: 'data.parent (parent table name) required' };
             var steChild = new GlideRecord('sys_db_object');
@@ -999,7 +957,6 @@
             return { ok: true, table: t, extends: d.parent, child_sys_id: steChildId, parent_sys_id: steParentId };
 
         case 'schema.choice.update':
-            // Update label and/or sequence of an existing choice
             if (!t)         return { _status: 400, ok: false, error: 'table required' };
             if (!d.element) return { _status: 400, ok: false, error: 'data.element required' };
             if (!d.value)   return { _status: 400, ok: false, error: 'data.value required' };
@@ -1035,11 +992,8 @@
             if (!scdDel.ok) return { ok: false, error: 'Delete failed', status: scdDel.status, body: scdDel.body };
             return { ok: true, deleted_choice: d.value, element: d.element, table: t, sys_id: scdId };
 
-        // ── PROPERTIES ─────────────────────────────────────────
 
         case 'property.set':
-            // supports single {key, value[, type, description]} or array [{key,value},...]
-            // type: 'string'(default)|'boolean'|'integer'|'password2' — typed writes use Table API
             if (Array.isArray(d)) {
                 var psBatch = [], psFail = 0;
                 for (var pbi = 0; pbi < d.length; pbi++) {
@@ -1101,7 +1055,6 @@
             pdGr.deleteRecord();
             return { ok: true, deleted_key: d.key };
 
-        // ── RECORDS ────────────────────────────────────────────
 
         case 'record.insert':
             if (!t) return { _status: 400, ok: false, error: 'table required' };
@@ -1190,8 +1143,6 @@
             return { ok: true, updated: updCount };
 
         case 'record.patch':
-            // Same as update but intent is explicit: only supplied fields change.
-            // Identical implementation — the distinction is semantic for the caller.
             if (!t) return { _status: 400, ok: false, error: 'table required' };
             if (!d.sys_id && !ctx.encoded_query && (!q || !Object.keys(q).length)) {
                 return { _status: 400, ok: false, error: 'data.sys_id, query, or encoded_query required to scope the patch' };
@@ -1295,7 +1246,6 @@
             if (!ctx.encoded_query && (!q || !Object.keys(q).length)) {
                 return { _status: 400, ok: false, error: 'Refusing unbounded bulk_delete: provide query or encoded_query' };
             }
-            // Count first for safety (GlideAggregate avoids loading all rows)
             var bdAgg = new GlideAggregate(t);
             for (var bdqf in q) { if (q.hasOwnProperty(bdqf)) bdAgg.addQuery(bdqf, q[bdqf]); }
             if (ctx.encoded_query) bdAgg.addEncodedQuery(ctx.encoded_query);
@@ -1342,7 +1292,6 @@
             return { ok: true, record: grToObj(getGr, ctx.fields || null, dv) };
 
         case 'record.find':
-            // Search a table for a record by display value (value field or name field)
             if (!t) return { _status: 400, ok: false, error: 'table required' };
             if (!d.value) return { _status: 400, ok: false, error: 'data.value required' };
             var rfField = d.field || 'name';
@@ -1397,7 +1346,6 @@
                     clf === 'sys_updated_by' || clf === 'sys_updated_on') continue;
                 try { clNew.setValue(clf, clSrc.getValue(clf)); } catch (e) {}
             }
-            // Apply any override fields from data (except sys_id)
             if (d.override && typeof d.override === 'object') {
                 for (var clo in d.override) {
                     if (d.override.hasOwnProperty(clo) && clo !== 'sys_id') {
@@ -1426,7 +1374,7 @@
             if (ctx.encoded_query) agg.addEncodedQuery(ctx.encoded_query);
             var aggType  = (d.type || 'COUNT').toUpperCase();
             var aggField = d.field || '';
-            var aggGroupBy = ctx.group_by;   // string or array
+            var aggGroupBy = ctx.group_by;
             if (aggField) agg.addAggregate(aggType, aggField); else agg.addAggregate('COUNT');
             if (Array.isArray(aggGroupBy)) {
                 for (var aggi = 0; aggi < aggGroupBy.length; aggi++) agg.groupBy(aggGroupBy[aggi]);
@@ -1451,7 +1399,6 @@
             return { ok: true, type: aggType, field: aggField, count: aggRows.length, rows: aggRows };
 
         case 'record.history':
-            // Returns audit log (sys_audit) + journal entries (sys_journal_field) for a record
             if (!t)        return { _status: 400, ok: false, error: 'table required' };
             if (!d.sys_id) return { _status: 400, ok: false, error: 'data.sys_id required' };
             var rhAuditGr = new GlideRecord('sys_audit');
@@ -1492,7 +1439,6 @@
 
         case 'table.truncate':
             if (!t) return { _status: 400, ok: false, error: 'table required' };
-            // Count first using GlideAggregate (efficient)
             var ttAgg = new GlideAggregate(t);
             ttAgg.addAggregate('COUNT');
             ttAgg.query();
@@ -1507,7 +1453,6 @@
             while (ttGr.next()) { ttGr.deleteRecord(); ttDeleted++; }
             return { ok: true, table: t, deleted: ttDeleted };
 
-        // ── ACL ────────────────────────────────────────────────
 
         case 'acl.create':
             if (!t)          return { _status: 400, ok: false, error: 'table required' };
@@ -1548,7 +1493,6 @@
             }
             return { ok: true, table: t, count: aclList.length, acls: aclList };
 
-        // ── ACCESS (roles) ─────────────────────────────────────
 
         case 'role.grant':
             var gUid = resolveUser(d.user), gRid = resolveRole(d.role);
@@ -1586,7 +1530,6 @@
             while (urGr.next()) roles.push(urGr.getDisplayValue('role'));
             return { ok: true, user: d.user, count: roles.length, roles: roles };
 
-        // ── USERS ──────────────────────────────────────────────
 
         case 'user.create':
             if (!d.user_name) return { _status: 400, ok: false, error: 'data.user_name required' };
@@ -1626,7 +1569,6 @@
             if (!uuRes.ok) return { ok: false, error: 'Update failed', status: uuRes.status, body: uuRes.body };
             return { ok: true, sys_id: uuId, updated: uuPayload };
 
-        // ── GROUPS ─────────────────────────────────────────────
 
         case 'group.create':
             if (!d.name) return { _status: 400, ok: false, error: 'data.name required' };
@@ -1683,7 +1625,6 @@
             }
             return { ok: true, group: d.group, count: members.length, members: members };
 
-        // ── UPDATE SETS ────────────────────────────────────────
 
         case 'update_set.create':
             if (!d.name) return { _status: 400, ok: false, error: 'data.name required' };
@@ -1729,7 +1670,6 @@
             }
             return { ok: true, count: uslRows.length, update_sets: uslRows };
 
-        // ── ARTIFACTS ──────────────────────────────────────────
 
         case 'artifact.script_include':
             if (!d.name) return { _status: 400, ok: false, error: 'data.name required' };
@@ -1884,7 +1824,6 @@
             return artifactUpsert('sp_page', 'id=' + d.id, sppPayload, true);
 
         case 'artifact.sp_container':
-            // Containers are always inserted (no upsert — a page can have multiple)
             if (!d.page_sys_id) return { _status: 400, ok: false, error: 'data.page_sys_id required' };
             var spcPayload = {
                 sp_page:       d.page_sys_id,
@@ -2009,7 +1948,6 @@
             return artifactUpsert('item_option_new', 'name=' + d.name + '^cat_item=' + d.cat_item_sys_id, cvPayload, true);
 
         case 'artifact.ui_policy':
-            // name field on sys_ui_policy is short_description
             if (!d.short_description) return { _status: 400, ok: false, error: 'data.short_description required' };
             if (!d.table)             return { _status: 400, ok: false, error: 'data.table required' };
             var uipolicPayload = {
@@ -2091,7 +2029,6 @@
             if (d.css            !== undefined) spportalPayload.css                = d.css;
             return artifactUpsert('sp_portal', 'title=' + d.title, spportalPayload, true);
 
-        // ── USERS (extended) ──────────────────────────────────
 
         case 'user.search':
             var usGr = new GlideRecord('sys_user');
@@ -2115,7 +2052,6 @@
             }
             return { ok: true, count: usRows.length, users: usRows };
 
-        // ── GROUPS (extended) ─────────────────────────────────
 
         case 'group.search':
             var gsGr = new GlideRecord('sys_user_group');
@@ -2173,7 +2109,6 @@
             noteGr.update();
             return { ok: true, table: t, sys_id: d.sys_id, type: d.type || 'work_note', field_used: noteField };
 
-        // ── FILES ──────────────────────────────────────────────
 
         case 'attachment.write':
             if (!d.table || !d.sys_id || !d.file_name || !d.base64) {
@@ -2216,12 +2151,10 @@
             adGr.deleteRecord();
             return { ok: true, deleted_attachment: d.attachment_sys_id };
 
-        // ── POWER ──────────────────────────────────────────────
 
         case 'script.run':
             if (!d.script) return { _status: 400, ok: false, error: 'data.script required' };
             try {
-                // GlideScopedEvaluator requires a non-null GlideRecord; the engine record is loaded in-memory and its script field overridden without persisting.
                 var _srOpId = engineOperationId(d.operation_sys_id);
                 if (!_srOpId) return { _status: 500, ok: false, error: 'Engine operation record not found; pass data.operation_sys_id to override' };
                 var _srGR = new GlideRecord('sys_ws_operation');
@@ -2263,7 +2196,6 @@
             return { ok: true, flushed: true };
 
         case 'sys.id':
-            // Resolve artifact name → sys_id by type
             if (!d.name) return { _status: 400, ok: false, error: 'data.name required' };
             var sidType = d.type || 'sys_script_include';
             var sidField = d.field || 'name';
@@ -2305,10 +2237,8 @@
             if (!sidGr.next()) return { _status: 404, ok: false, error: 'Not found: ' + d.name + ' in ' + sidTbl };
             return { ok: true, type: sidType, name: d.name, sys_id: sidGr.getUniqueValue(), table: sidTbl };
 
-        // ── WORKFLOW ───────────────────────────────────────────
 
         case 'workflow.start':
-            // Trigger a Flow Designer flow by sys_name (internal name) or sys_id
             if (!d.flow) return { _status: 400, ok: false, error: 'data.flow (flow sys_name or sys_id) required' };
             var wfPath = '/api/sn_fd/flow/' + encodeURIComponent(d.flow) + '/execute';
             var wfRes = internalRest('POST', wfPath, { inputs: d.inputs || {} }, null, null);
@@ -2321,7 +2251,6 @@
             if (!wcRes.ok) return { ok: false, error: 'Flow cancel failed', status: wcRes.status, body: wcRes.body };
             return { ok: true, cancelled_instance: d.instance_sys_id };
 
-        // ── EMAIL ──────────────────────────────────────────────
 
         case 'email.send':
             if (!d.to)      return { _status: 400, ok: false, error: 'data.to required' };
@@ -2344,7 +2273,6 @@
                 return { ok: false, error: 'Email send failed: ' + String(emErr) };
             }
 
-        // ── ENGINE ─────────────────────────────────────────────
 
         case 'engine.source':
             var esId = engineOperationId(d.operation_sys_id);
@@ -2376,9 +2304,6 @@
         }
     }
 
-    // ══════════════════════════════════════════════════════════
-    // MAIN — single op or batch
-    // ══════════════════════════════════════════════════════════
     function normalize(src) {
         return {
             op:                src.op                 || '',
