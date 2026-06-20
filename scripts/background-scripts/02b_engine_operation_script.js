@@ -2221,19 +2221,26 @@
         case 'script.run':
             if (!d.script) return { _status: 400, ok: false, error: 'data.script required' };
             try {
-                var _gse = new GlideScopedEvaluator();
-                _gse.putVariable('_sr', '');
-                // JSON.stringify bridges the object across the evaluator boundary
-                var _srScript = d.script + '\n;try{if(typeof result!=="undefined"){_sr=JSON.stringify(result);}}catch(_e){}';
-                _gse.evaluateScript(null, _srScript, null);
-                var _srRaw = _gse.getVariable('_sr');
-                var _srStr = String(_srRaw === null || _srRaw === undefined ? '' : _srRaw);
-                if (_srStr === '' || _srStr === 'null' || _srStr === 'undefined') {
+                // evaluateScript requires a real GlideRecord context to wire up putVariable/getVariable.
+                // We load the engine's own operation record in-memory, swap its script field to
+                // the user script + result-capture code (without saving), then evaluate.
+                var _srOpId = engineOperationId(d.operation_sys_id);
+                if (!_srOpId) return { _status: 500, ok: false, error: 'Engine operation record not found; pass data.operation_sys_id to override' };
+                var _srGR = new GlideRecord('sys_ws_operation');
+                if (!_srGR.get(_srOpId)) return { _status: 500, ok: false, error: 'Could not load engine operation record' };
+                var _srEval = new GlideScopedEvaluator();
+                _srEval.putVariable('_result_str', '');
+                var _srWrapped = 'var result; try { ' + d.script + ' } catch (_srEx) {} if (typeof result !== "undefined") { _result_str = JSON.stringify(result); }';
+                _srGR.setValue('operation_script', _srWrapped);
+                _srEval.evaluateScript(_srGR, 'operation_script', null);
+                var _srRawStr = _srEval.getVariable('_result_str');
+                var _srResultStr = String(_srRawStr === null || _srRawStr === undefined ? '' : _srRawStr);
+                if (_srResultStr === '' || _srResultStr === 'null' || _srResultStr === 'undefined') {
                     return { ok: true, result: null };
                 }
-                try { return { ok: true, result: JSON.parse(_srStr) }; }
-                catch (pe) { return { ok: true, result: _srStr }; }
-            } catch (se) { return { ok: false, error: String(se) }; }
+                try { return { ok: true, result: JSON.parse(_srResultStr) }; }
+                catch (_srPe) { return { ok: true, result: _srResultStr }; }
+            } catch (_srSe) { return { ok: false, error: String(_srSe) }; }
 
         case 'rest.call':
             if (!d.path) return { _status: 400, ok: false, error: 'data.path required' };
