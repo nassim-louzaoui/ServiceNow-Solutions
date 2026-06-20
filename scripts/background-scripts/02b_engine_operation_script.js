@@ -1,42 +1,20 @@
 // =============================================================================
 // OPERATIONS INTELLIGENCE — ENGINE
-// Application Scope : x_infte_ops_int
+// Scope    : x_infte_ops_int
+// Endpoint : POST /api/x_infte_ops_int/ops_int_engine/v1
+// Auth     : Header X-Engine-Key must match system property x_infte_ops_int.engine_key
 // =============================================================================
-// DEPLOYMENT
-//   Location  : Studio → Scripted REST APIs → Operations Intelligence Engine
-//               → Resources → Engine Router → Script field
-//   Method    : POST
-//   Path      : /v1
-//   Replace the entire script field contents with this file.
+// All requests are JSON. Single op: { "op": "<name>", "data": { ... } }
+// Batch: { "op": "batch", "ops": [ { "op": "...", "data": {} } ] }
+// Add "platform": true to any record operation to execute as the service account,
+// bypassing the scoped sandbox. All artifacts are scoped to x_infte_ops_int.
 // =============================================================================
-// AUTHENTICATION
-//   Every request must supply the header:
-//     X-Engine-Key: <value of system property x_infte_ops_int.engine_key>
-//   Requests without a valid key receive HTTP 401.
-// =============================================================================
-// PLATFORM-LEVEL WRITES
-//   Set system property x_infte_ops_int.svc_password once via property.set.
-//   Operations that include "platform": true in the request body are routed
-//   through the Table API authenticated as svc_operations_intelligence_api,
-//   which executes outside the scoped-app sandbox and can read and write any
-//   table. All artifacts created via platform writes are tagged to scope
-//   x_infte_ops_int unless "scope": false is explicitly passed.
-// =============================================================================
-// REQUEST FORMAT
-//   Single operation : POST /v1  { "op": "<name>", "data": { ... } }
-//   Batch            : POST /v1  { "op": "batch", "ops": [ { "op": "...", "data": {} } ] }
-//   Batch supports   : "stop_on_error": true to halt on first failure,
-//                      "label": "<string>" per op for result correlation.
-//   Send {"op":"help"} to retrieve the live operation catalog from the instance.
-// =============================================================================
-// OPERATION CATALOG (117 operations)
-//   DIAGNOSTICS   ping · now · scope.info · engine.status · selftest · help ·
-//                 sys.version
+// OPERATIONS (117) — send { "op": "help" } for the live annotated list
+//   DIAGNOSTICS   ping · now · scope.info · engine.status · selftest · help · sys.version
 //   DISCOVERY     meta.tables · meta.script_includes · meta.business_rules ·
-//                 meta.notifications · meta.widgets · meta.jobs · meta.acls ·
-//                 meta.all · meta.ui_pages · meta.portal_pages · meta.catalog_items ·
-//                 meta.app_menus · meta.app_modules · meta.events ·
-//                 meta.roles · meta.portals ·
+//                 meta.notifications · meta.widgets · meta.jobs · meta.acls · meta.all ·
+//                 meta.ui_pages · meta.portal_pages · meta.catalog_items · meta.app_menus ·
+//                 meta.app_modules · meta.events · meta.roles · meta.portals ·
 //                 table.exists · schema.fields · table.schema
 //   DDL           schema.table.create · schema.table.delete · schema.table.extend ·
 //                 schema.add_field · schema.field.update · schema.field.delete ·
@@ -46,28 +24,25 @@
 //   RECORDS       record.insert · record.insert_many · record.update · record.patch ·
 //                 record.upsert · record.delete · record.bulk_delete · record.get ·
 //                 record.find · record.query · record.clone · record.count ·
-//                 record.aggregate · record.history · table.truncate ·
-//                 record.exists · record.read_many
-//                 (include "platform": true to bypass scoped sandbox)
+//                 record.aggregate · record.history · record.exists · record.read_many ·
+//                 table.truncate
 //   ACL           acl.create · acl.delete · acl.list
 //   ACCESS        role.grant · role.revoke · user.roles
 //   USERS         user.create · user.get · user.update · user.search
-//   GROUPS        group.create · group.add_member · group.remove_member ·
-//                 group.members · group.search
+//   GROUPS        group.create · group.add_member · group.remove_member · group.members ·
+//                 group.search
 //   UPDATE SETS   update_set.create · update_set.activate · update_set.list
-//   ARTIFACTS     artifact.script_include · artifact.business_rule ·
-//                 artifact.notification · artifact.scheduled_job ·
-//                 artifact.client_script · artifact.ui_action · artifact.widget ·
-//                 artifact.ui_page · artifact.sp_page · artifact.sp_container ·
-//                 artifact.sp_row · artifact.sp_column · artifact.sp_instance ·
-//                 artifact.sp_theme · artifact.app_menu · artifact.app_module ·
-//                 artifact.catalog_item · artifact.catalog_variable ·
-//                 artifact.ui_policy · artifact.ui_policy_action ·
-//                 artifact.event_registry · artifact.report ·
-//                 artifact.role · artifact.sp_portal
+//   ARTIFACTS     artifact.script_include · artifact.business_rule · artifact.notification ·
+//                 artifact.scheduled_job · artifact.client_script · artifact.ui_action ·
+//                 artifact.widget · artifact.ui_page · artifact.sp_page ·
+//                 artifact.sp_container · artifact.sp_row · artifact.sp_column ·
+//                 artifact.sp_instance · artifact.sp_theme · artifact.app_menu ·
+//                 artifact.app_module · artifact.catalog_item · artifact.catalog_variable ·
+//                 artifact.ui_policy · artifact.ui_policy_action · artifact.event_registry ·
+//                 artifact.report · artifact.role · artifact.sp_portal
 //   FILES         attachment.write · attachment.read · attachment.list · attachment.delete
-//   POWER         script.run · rest.call · event.fire · sys.log · cache.flush ·
-//                 sys.id · note.add
+//   POWER         script.run · rest.call · event.fire · sys.log · cache.flush · sys.id ·
+//                 note.add
 //   WORKFLOW      workflow.start · workflow.cancel
 //   EMAIL         email.send
 //   ENGINE        engine.source · engine.selfupdate
