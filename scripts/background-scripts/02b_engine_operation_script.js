@@ -23,11 +23,13 @@
 //   Created artifacts are auto-tagged to the app scope (opt out: scope:false).
 // ============================================================
 // OP CATALOG (call {"op":"help"} for the live list)
-//   DIAGNOSTICS  ping · help · now · scope.info · selftest · engine.status
+//   DIAGNOSTICS  ping · help · now · scope.info · selftest · engine.status ·
+//                sys.version
 //   DISCOVERY    meta.tables · meta.script_includes · meta.business_rules ·
 //                meta.notifications · meta.widgets · meta.jobs · meta.acls ·
 //                meta.all · meta.ui_pages · meta.portal_pages · meta.catalog_items ·
 //                meta.app_menus · meta.app_modules · meta.events ·
+//                meta.roles · meta.portals ·
 //                table.exists · schema.fields · table.schema
 //   DDL          schema.table.create · schema.table.delete · schema.table.extend ·
 //                schema.add_field · schema.field.update · schema.field.delete ·
@@ -37,12 +39,14 @@
 //   RECORDS      record.insert · record.insert_many · record.update · record.patch ·
 //                record.upsert · record.delete · record.bulk_delete · record.get ·
 //                record.find · record.query · record.clone · record.count ·
-//                record.aggregate · record.history · table.truncate
+//                record.aggregate · record.history · table.truncate ·
+//                record.exists · record.read_many
 //                (add "platform":true to write to ANY table)
 //   ACL          acl.create · acl.delete · acl.list
 //   ACCESS       role.grant · role.revoke · user.roles
-//   USERS        user.create · user.get · user.update
-//   GROUPS       group.create · group.add_member · group.remove_member · group.members
+//   USERS        user.create · user.get · user.update · user.search
+//   GROUPS       group.create · group.add_member · group.remove_member · group.members ·
+//                group.search
 //   UPDATE SETS  update_set.create · update_set.activate · update_set.list
 //   ARTIFACTS    artifact.script_include · artifact.business_rule ·
 //                artifact.notification · artifact.scheduled_job ·
@@ -55,7 +59,8 @@
 //                artifact.event_registry · artifact.report ·
 //                artifact.role · artifact.sp_portal
 //   FILES        attachment.write · attachment.read · attachment.list · attachment.delete
-//   POWER        script.run · rest.call · event.fire · sys.log · cache.flush · sys.id
+//   POWER        script.run · rest.call · event.fire · sys.log · cache.flush · sys.id ·
+//                note.add
 //   WORKFLOW     workflow.start · workflow.cancel
 //   EMAIL        email.send
 //   ENGINE       engine.source · engine.selfupdate
@@ -328,10 +333,16 @@
     function engineOperationId(override) {
         if (override) return override;
         var ws = new GlideRecord('sys_ws_operation');
-        ws.addQuery('name', 'Engine Router');
+        ws.addEncodedQuery('sys_scope.scope=' + APP_SCOPE + '^web_service_definition.name=Operations Intelligence Engine');
         ws.setLimit(1);
         ws.query();
-        return ws.next() ? ws.getUniqueValue() : '';
+        if (ws.next()) return ws.getUniqueValue();
+        // Fallback: try name alone
+        var ws2 = new GlideRecord('sys_ws_operation');
+        ws2.addQuery('name', 'Engine Router');
+        ws2.setLimit(1);
+        ws2.query();
+        return ws2.next() ? ws2.getUniqueValue() : '';
     }
 
     // ── Collect all artifacts for a given table/scope ──────────
@@ -378,6 +389,9 @@
         ['meta.app_menus',         'list Application Menus in scope (sys_app_application)'],
         ['meta.app_modules',       'list Application Modules in scope (sys_app_module)'],
         ['meta.events',            'list registered platform events in scope (sysevent_register)'],
+        ['meta.roles',             'list Roles defined in the application scope'],
+        ['meta.portals',           'list Service Portal portals in scope (sp_portal)'],
+        ['sys.version',            'return platform build name, date, and instance info'],
         ['table.exists',           'check whether a table exists'],
         ['schema.fields',          'list all fields for a table with metadata'],
         ['table.schema',           'full schema dump: fields + choices + autonumber'],
@@ -414,6 +428,8 @@
         ['record.aggregate',       'COUNT / SUM / AVG / MIN / MAX with multi group_by'],
         ['record.history',         'audit trail: sys_audit + sys_journal_field for a record'],
         ['table.truncate',         'delete every row in a table (requires confirm:true)'],
+        ['record.exists',          'check whether a record matching a query exists'],
+        ['record.read_many',       'fetch multiple records by sys_ids array in one call (+platform)'],
         // ACL
         ['acl.create',             'create an ACL rule (sys_security_acl)'],
         ['acl.delete',             'delete an ACL rule by sys_id'],
@@ -426,11 +442,13 @@
         ['user.create',            'create a sys_user account'],
         ['user.get',               'get user record by user_name or sys_id'],
         ['user.update',            'update a user account'],
+        ['user.search',            'search users by query/email/first_name/last_name/department'],
         // GROUPS
         ['group.create',           'create a sys_user_group'],
         ['group.add_member',       'add a user to a group (idempotent)'],
         ['group.remove_member',    'remove a user from a group'],
         ['group.members',          'list all members of a group'],
+        ['group.search',           'search groups by name or query string'],
         // UPDATE SETS
         ['update_set.create',      'create an update set'],
         ['update_set.activate',    'set an update set to in-progress state'],
@@ -472,6 +490,7 @@
         ['sys.log',                'write to the application system log'],
         ['cache.flush',            'flush all platform caches'],
         ['sys.id',                 'resolve artifact name → sys_id by type'],
+        ['note.add',               'add a work note or comment to any record'],
         // WORKFLOW
         ['workflow.start',         'trigger a Flow Designer flow by name with inputs'],
         ['workflow.cancel',        'cancel a running flow instance by sys_id'],
@@ -540,6 +559,10 @@
                 var stKey = APP_SCOPE + '.__selftest';
                 gs.setProperty(stKey, 'ok-' + new GlideDateTime().getNumericValue());
                 matrix.scoped_write = (gs.getProperty(stKey, '').indexOf('ok-') === 0);
+                var stClean = new GlideRecord('sys_properties');
+                stClean.addQuery('name', stKey);
+                stClean.query();
+                if (stClean.next()) stClean.deleteRecord();
             } catch (e) { matrix.scoped_write = false; matrix.scoped_write_err = String(e); }
             if (matrix.svc_password_set) {
                 try {
@@ -606,6 +629,15 @@
                 }
             };
 
+        case 'sys.version':
+            return { ok: true,
+                build_name:  gs.getProperty('glide.buildname', 'unknown'),
+                build_date:  gs.getProperty('glide.builddate', 'unknown'),
+                build_tag:   gs.getProperty('glide.build.tag', 'unknown'),
+                patch:       gs.getProperty('glide.build.patch', 'unknown'),
+                instance:    gs.getProperty('instance_name', 'unknown'),
+                base_url:    instanceBase() };
+
         // ── DISCOVERY ──────────────────────────────────────────
 
         case 'meta.tables':
@@ -668,7 +700,9 @@
                 { key: 'event_registries',  tbl: 'sysevent_register',     fields: ['event_name','description','table'],    sort: 'event_name' },
                 { key: 'reports',           tbl: 'sys_report',            fields: ['title','table','type'],                sort: 'title' },
                 { key: 'acls',              tbl: 'sys_security_acl',      fields: ['name','operation','active'],           sort: 'name' },
-                { key: 'properties',        tbl: 'sys_properties',        fields: ['name','value'],                        sort: 'name' }
+                { key: 'properties',        tbl: 'sys_properties',        fields: ['name','value'],                        sort: 'name' },
+                { key: 'roles',             tbl: 'sys_user_role',         fields: ['name','description','grantable'],       sort: 'name' },
+                { key: 'portals',           tbl: 'sp_portal',             fields: ['title','url_suffix'],                   sort: 'title' }
             ];
             for (var ati = 0; ati < allTypes.length; ati++) {
                 var at = allTypes[ati];
@@ -715,6 +749,14 @@
         case 'meta.events':
             var mevRows = metaList('sysevent_register', ['event_name', 'description', 'table', 'fired_by'], 'event_name');
             return { ok: true, count: mevRows.length, events: mevRows };
+
+        case 'meta.roles':
+            var mroRows = metaList('sys_user_role', ['name', 'description', 'grantable', 'elevated_privilege'], 'name');
+            return { ok: true, count: mroRows.length, roles: mroRows };
+
+        case 'meta.portals':
+            var mporRows = metaList('sp_portal', ['title', 'url_suffix'], 'title');
+            return { ok: true, count: mporRows.length, portals: mporRows };
 
         case 'table.exists':
             var chk = new GlideRecord('sys_db_object');
@@ -1330,7 +1372,16 @@
             qGr.query();
             var qRows = [];
             while (qGr.next()) qRows.push(grToObj(qGr, ctx.fields || null, dv));
-            return { ok: true, count: qRows.length, records: qRows, offset: off };
+            var qTotal = null;
+            if (ctx.include_total) {
+                var qtAgg = new GlideAggregate(t);
+                for (var qtf in q) { if (q.hasOwnProperty(qtf)) qtAgg.addQuery(qtf, q[qtf]); }
+                if (ctx.encoded_query) qtAgg.addEncodedQuery(ctx.encoded_query);
+                qtAgg.addAggregate('COUNT');
+                qtAgg.query();
+                qTotal = qtAgg.next() ? parseInt(qtAgg.getAggregate('COUNT'), 10) : 0;
+            }
+            return { ok: true, count: qRows.length, records: qRows, offset: off, total: qTotal };
 
         case 'record.clone':
             if (!t) return { _status: 400, ok: false, error: 'table required' };
@@ -2027,18 +2078,100 @@
 
         case 'artifact.sp_portal':
             if (!d.title) return { _status: 400, ok: false, error: 'data.title required' };
-            var sppPayload = {
+            var spportalPayload = {
                 title:     d.title,
                 sys_scope: appScopeSysId()
             };
-            if (d.url_suffix     !== undefined) sppPayload.url_suffix         = d.url_suffix;
-            if (d.theme          !== undefined) sppPayload.theme              = d.theme;
-            if (d.homepage       !== undefined) sppPayload.homepage           = d.homepage;
-            if (d.default_page   !== undefined) sppPayload.homepage           = d.default_page;
-            if (d.login_page     !== undefined) sppPayload.login_page         = d.login_page;
-            if (d.knowledge_base !== undefined) sppPayload.kb_knowledge_base  = d.knowledge_base;
-            if (d.css            !== undefined) sppPayload.css                = d.css;
-            return artifactUpsert('sp_portal', 'title=' + d.title, sppPayload, true);
+            if (d.url_suffix     !== undefined) spportalPayload.url_suffix         = d.url_suffix;
+            if (d.theme          !== undefined) spportalPayload.theme              = d.theme;
+            if (d.homepage       !== undefined) spportalPayload.homepage           = d.homepage;
+            if (d.default_page   !== undefined) spportalPayload.homepage           = d.default_page;
+            if (d.login_page     !== undefined) spportalPayload.login_page         = d.login_page;
+            if (d.knowledge_base !== undefined) spportalPayload.kb_knowledge_base  = d.knowledge_base;
+            if (d.css            !== undefined) spportalPayload.css                = d.css;
+            return artifactUpsert('sp_portal', 'title=' + d.title, spportalPayload, true);
+
+        // ── USERS (extended) ──────────────────────────────────
+
+        case 'user.search':
+            var usGr = new GlideRecord('sys_user');
+            if (d.query) {
+                usGr.addEncodedQuery('user_nameCONTAINS' + d.query + '^ORfirst_nameCONTAINS' + d.query + '^ORlast_nameCONTAINS' + d.query + '^ORemailCONTAINS' + d.query);
+            }
+            if (d.email)      usGr.addQuery('email',      'CONTAINS',    d.email);
+            if (d.first_name) usGr.addQuery('first_name', 'STARTSWITH',  d.first_name);
+            if (d.last_name)  usGr.addQuery('last_name',  'STARTSWITH',  d.last_name);
+            if (d.department) usGr.addQuery('department.name', 'CONTAINS', d.department);
+            if (d.active !== undefined) usGr.addQuery('active', d.active ? 'true' : 'false');
+            usGr.setLimit(l);
+            usGr.orderBy('user_name');
+            usGr.query();
+            var usRows = [];
+            while (usGr.next()) {
+                usRows.push({ sys_id: usGr.getUniqueValue(), user_name: usGr.getValue('user_name'),
+                    first_name: usGr.getValue('first_name'), last_name: usGr.getValue('last_name'),
+                    email: usGr.getValue('email'), active: usGr.getValue('active'),
+                    title: usGr.getValue('title') });
+            }
+            return { ok: true, count: usRows.length, users: usRows };
+
+        // ── GROUPS (extended) ─────────────────────────────────
+
+        case 'group.search':
+            var gsGr = new GlideRecord('sys_user_group');
+            if (d.query) gsGr.addEncodedQuery('nameCONTAINS' + d.query + '^ORdescriptionCONTAINS' + d.query);
+            if (d.name)  gsGr.addQuery('name', 'CONTAINS', d.name);
+            if (d.active !== undefined) gsGr.addQuery('active', d.active ? 'true' : 'false');
+            gsGr.setLimit(l);
+            gsGr.orderBy('name');
+            gsGr.query();
+            var gsRows = [];
+            while (gsGr.next()) {
+                gsRows.push({ sys_id: gsGr.getUniqueValue(), name: gsGr.getValue('name'),
+                    description: gsGr.getValue('description'), active: gsGr.getValue('active'),
+                    email: gsGr.getValue('email') });
+            }
+            return { ok: true, count: gsRows.length, groups: gsRows };
+
+        case 'record.exists':
+            if (!t) return { _status: 400, ok: false, error: 'table required' };
+            var reGr = buildGr(t, q);
+            if (d.sys_id) reGr.addQuery('sys_id', d.sys_id);
+            if (ctx.encoded_query) reGr.addEncodedQuery(ctx.encoded_query);
+            reGr.setLimit(1);
+            reGr.query();
+            var reExists = reGr.next();
+            return { ok: true, table: t, exists: reExists, sys_id: reExists ? reGr.getUniqueValue() : null };
+
+        case 'record.read_many':
+            if (!t) return { _status: 400, ok: false, error: 'table required' };
+            var rmmIds = d.sys_ids || [];
+            if (!rmmIds.length) return { _status: 400, ok: false, error: 'data.sys_ids (array of sys_ids) required' };
+            var rmmRows = [];
+            if (pf) {
+                var rmmQ = platformQuery(t, 'sys_idIN' + rmmIds.join(','), ctx.fields || null, rmmIds.length + 1, '', '', dv, 0);
+                if (!rmmQ.ok) return { _status: rmmQ.status || 500, ok: false, error: 'Platform query failed', body: rmmQ.body };
+                rmmRows = (rmmQ.body && rmmQ.body.result) ? rmmQ.body.result : [];
+                return { ok: true, count: rmmRows.length, records: rmmRows, via: 'platform' };
+            }
+            var rmmGr = new GlideRecord(t);
+            rmmGr.addQuery('sys_id', 'IN', rmmIds.join(','));
+            rmmGr.setLimit(rmmIds.length + 1);
+            rmmGr.query();
+            while (rmmGr.next()) rmmRows.push(grToObj(rmmGr, ctx.fields || null, dv));
+            return { ok: true, count: rmmRows.length, records: rmmRows };
+
+        case 'note.add':
+            if (!t)        return { _status: 400, ok: false, error: 'table required' };
+            if (!d.sys_id) return { _status: 400, ok: false, error: 'data.sys_id required' };
+            if (!d.value)  return { _status: 400, ok: false, error: 'data.value (note text) required' };
+            var noteGr = new GlideRecord(t);
+            if (!noteGr.get(d.sys_id)) return { _status: 404, ok: false, error: 'Record not found' };
+            var noteField = (d.type === 'comment') ? 'comments' : 'work_notes';
+            noteGr.setValue(noteField, d.value);
+            noteGr.setWorkflow(false);
+            noteGr.update();
+            return { ok: true, table: t, sys_id: d.sys_id, type: d.type || 'work_note', field_used: noteField };
 
         // ── FILES ──────────────────────────────────────────────
 
@@ -2141,7 +2274,7 @@
                 'ui_page':         { tbl: 'sys_ui_page',          field: 'name' },
                 'sp_page':         { tbl: 'sp_page',              field: 'id' },
                 'sp_theme':        { tbl: 'sp_theme',             field: 'name' },
-                'sp_portal':       { tbl: 'sp_portal',            field: 'title' },
+                'sp_portal':       { tbl: 'sp_portal',            field: 'url_suffix' },
                 'app_menu':        { tbl: 'sys_app_application',  field: 'title' },
                 'app_module':      { tbl: 'sys_app_module',       field: 'title' },
                 'catalog_item':    { tbl: 'sc_cat_item',          field: 'name' },
@@ -2152,7 +2285,10 @@
                 'group':           { tbl: 'sys_user_group',       field: 'name' },
                 'user':            { tbl: 'sys_user',             field: 'user_name' },
                 'update_set':      { tbl: 'sys_update_set',       field: 'name' },
-                'acl':             { tbl: 'sys_security_acl',     field: 'name' }
+                'acl':             { tbl: 'sys_security_acl',     field: 'name' },
+                'catalog_variable':{ tbl: 'item_option_new',      field: 'name' },
+                'attachment':      { tbl: 'sys_attachment',       field: 'file_name' },
+                'property':        { tbl: 'sys_properties',       field: 'name' }
             };
             var sidDef = sidMap[sidType];
             var sidTbl = sidDef ? sidDef.tbl : sidType;
@@ -2185,15 +2321,18 @@
         case 'email.send':
             if (!d.to)      return { _status: 400, ok: false, error: 'data.to required' };
             if (!d.subject) return { _status: 400, ok: false, error: 'data.subject required' };
-            if (!d.body)    return { _status: 400, ok: false, error: 'data.body required' };
+            var emHtml = d.html || d.body || '';
+            var emText = d.text_body || '';
+            if (!emHtml && !emText) return { _status: 400, ok: false, error: 'data.body (HTML) or data.text_body (plain) required' };
             try {
                 var em = new GlideEmailOutbound();
                 em.setTo(d.to);
                 em.setSubject(d.subject);
                 if (d.from) em.setFrom(d.from);
                 if (d.cc)   em.setCc(d.cc);
-                em.setBody(d.body);
-                if (d.text_body) em.setBodyText(d.text_body);
+                if (d.bcc)  em.addAddress('bcc', d.bcc);
+                if (emHtml) em.setBody(emHtml);
+                if (emText) em.setBodyText(emText);
                 em.save();
                 return { ok: true, to: d.to, subject: d.subject };
             } catch (emErr) {
@@ -2253,7 +2392,8 @@
             platform:          src.platform           || false,
             scope:             (src.scope !== undefined ? src.scope : true),
             use_display_value: src.use_display_value  || null,
-            confirm:           src.confirm            || false
+            confirm:           src.confirm            || false,
+            include_total:     src.include_total      || false
         };
     }
 
@@ -2276,7 +2416,9 @@
                 if (!bRes.ok) hadError = true;
                 var bHttp = bRes._status || 200;
                 delete bRes._status;
-                bResults.push({ op: bCtx.op || '', status: bHttp, result: bRes });
+                var bEntry = { op: bCtx.op || '', status: bHttp, result: bRes };
+                if (bCtx.label) bEntry.label = bCtx.label;
+                bResults.push(bEntry);
             }
             response.setStatus(200);
             response.setBody({ ok: !hadError, count: bResults.length, results: bResults });
