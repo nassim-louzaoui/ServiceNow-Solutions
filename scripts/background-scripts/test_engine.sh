@@ -95,7 +95,7 @@ check "now"                        '{"op":"now"}'
 chkf  "scope.info → scope"        '{"op":"scope.info"}'       ".scope"
 chkf  "engine.status → op_count"  '{"op":"engine.status"}'    ".op_count"
 check "selftest"                   '{"op":"selftest"}'
-chkf  "help → op count"           '{"op":"help"}'             ".operations | length"
+chkf  "help → op count"           '{"op":"help"}'             ".ops | length"
 
 # ── DISCOVERY ─────────────────────────────────────────────────────────
 section "DISCOVERY"
@@ -180,8 +180,13 @@ check "user.roles"                 '{"op":"user.roles","data":{"user":"admin"}}'
 
 # ── GROUPS ────────────────────────────────────────────────────────────
 section "GROUPS"
-# Use a group that exists on a dev instance
-check "group.members" '{"op":"group.members","data":{"group":"Service Desk"}}'
+# Resolve the name of any existing group before testing
+_GRP=$(call '{"op":"record.query","table":"sys_user_group","limit":1}' | jq -r '.records[0].name // empty' 2>/dev/null || echo "")
+if [[ -n "$_GRP" ]]; then
+  check "group.members" "{\"op\":\"group.members\",\"data\":{\"group\":\"$_GRP\"}}"
+else
+  echo -e "${YELLOW}[SKIP]${NC} group.members (no groups found on instance)"
+fi
 
 # ── UPDATE SETS ───────────────────────────────────────────────────────
 section "UPDATE SETS"
@@ -258,7 +263,7 @@ chkf  "engine.source marker_ok" '{"op":"engine.source"}' ".marker_ok"
 # ── BATCH ─────────────────────────────────────────────────────────────
 section "BATCH"
 chkf "batch (ping+now) → 2 results" \
-  '{"op":"batch","data":{"ops":[{"op":"ping"},{"op":"now"}]}}' \
+  '{"op":"batch","ops":[{"op":"ping"},{"op":"now"}]}' \
   ".results | length"
 
 # ── CLEANUP ───────────────────────────────────────────────────────────
