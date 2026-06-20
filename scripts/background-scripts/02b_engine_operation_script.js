@@ -26,15 +26,19 @@
 //   DIAGNOSTICS  ping · help · now · scope.info · selftest · engine.status
 //   DISCOVERY    meta.tables · meta.script_includes · meta.business_rules ·
 //                meta.notifications · meta.widgets · meta.jobs · meta.acls ·
-//                meta.all · table.exists · schema.fields · table.schema
-//   DDL          schema.table.create · schema.table.delete ·
+//                meta.all · meta.ui_pages · meta.portal_pages · meta.catalog_items ·
+//                meta.app_menus · meta.app_modules · meta.events ·
+//                table.exists · schema.fields · table.schema
+//   DDL          schema.table.create · schema.table.delete · schema.table.extend ·
 //                schema.add_field · schema.field.update · schema.field.delete ·
-//                schema.add_choice · schema.set_autonumber · schema.index.create
+//                schema.add_choice · schema.choice.update · schema.choice.delete ·
+//                schema.set_autonumber · schema.index.create
 //   PROPERTIES   property.set · property.get · property.list · property.delete
 //   RECORDS      record.insert · record.insert_many · record.update · record.patch ·
 //                record.upsert · record.delete · record.bulk_delete · record.get ·
 //                record.find · record.query · record.clone · record.count ·
-//                record.aggregate  (add "platform":true to write to ANY table)
+//                record.aggregate · record.history · table.truncate
+//                (add "platform":true to write to ANY table)
 //   ACL          acl.create · acl.delete · acl.list
 //   ACCESS       role.grant · role.revoke · user.roles
 //   USERS        user.create · user.get · user.update
@@ -42,9 +46,17 @@
 //   UPDATE SETS  update_set.create · update_set.activate · update_set.list
 //   ARTIFACTS    artifact.script_include · artifact.business_rule ·
 //                artifact.notification · artifact.scheduled_job ·
-//                artifact.client_script · artifact.ui_action · artifact.widget
+//                artifact.client_script · artifact.ui_action · artifact.widget ·
+//                artifact.ui_page · artifact.sp_page · artifact.sp_container ·
+//                artifact.sp_row · artifact.sp_column · artifact.sp_instance ·
+//                artifact.sp_theme · artifact.app_menu · artifact.app_module ·
+//                artifact.catalog_item · artifact.catalog_variable ·
+//                artifact.ui_policy · artifact.ui_policy_action ·
+//                artifact.event_registry · artifact.report
 //   FILES        attachment.write · attachment.read · attachment.list · attachment.delete
 //   POWER        script.run · rest.call · event.fire · sys.log · cache.flush · sys.id
+//   WORKFLOW     workflow.start · workflow.cancel
+//   EMAIL        email.send
 //   ENGINE       engine.source · engine.selfupdate
 //   BATCH        batch  (stop_on_error flag)
 // ============================================================
@@ -290,11 +302,11 @@
         return platformInsert(tbl, payload, displayValues, false);
     }
 
-    // ── Artifact upsert: find by name/key, update or insert ───
-    // matchField: the field to search on (e.g. 'name', 'api_name')
+    // ── Artifact upsert: find by encodedQuery, update or insert ─
+    // encodedQuery: full encoded query string e.g. 'name=Foo^table=incident'
     // Returns { ok, action, sys_id }
-    function artifactUpsert(tbl, matchField, matchValue, payload, scopeAuto) {
-        var existing = platformQuery(tbl, matchField + '=' + matchValue, ['sys_id'], 1, '', '', false, 0);
+    function artifactUpsert(tbl, encodedQuery, payload, scopeAuto) {
+        var existing = platformQuery(tbl, encodedQuery, ['sys_id'], 1, '', '', false, 0);
         if (!existing.ok) return { ok: false, error: 'Query failed', body: existing.body };
         var rows = (existing.body && existing.body.result) ? existing.body.result : [];
         if (rows.length) {
@@ -357,16 +369,25 @@
         ['meta.jobs',              'list Scheduled Jobs in scope'],
         ['meta.acls',              'list ACLs for a table (table required)'],
         ['meta.all',               'full artifact inventory across all types'],
+        ['meta.ui_pages',          'list UI Pages in scope (sys_ui_page)'],
+        ['meta.portal_pages',      'list Service Portal pages in scope (sp_page)'],
+        ['meta.catalog_items',     'list Service Catalog items in scope (sc_cat_item)'],
+        ['meta.app_menus',         'list Application Menus in scope (sys_app_application)'],
+        ['meta.app_modules',       'list Application Modules in scope (sys_app_module)'],
+        ['meta.events',            'list registered platform events in scope (sysevent_register)'],
         ['table.exists',           'check whether a table exists'],
         ['schema.fields',          'list all fields for a table with metadata'],
         ['table.schema',           'full schema dump: fields + choices + autonumber'],
         // DDL
         ['schema.table.create',    'create a scoped table (sys_db_object)'],
         ['schema.table.delete',    'delete a table by name or sys_id'],
+        ['schema.table.extend',    'set a table\'s parent (super_class) for inheritance'],
         ['schema.add_field',       'add a field to a table (sys_dictionary)'],
         ['schema.field.update',    'update an existing field\'s properties'],
         ['schema.field.delete',    'remove a field from a table'],
         ['schema.add_choice',      'add a choice value (sys_choice)'],
+        ['schema.choice.update',   'update label/sequence of an existing choice (sys_choice)'],
+        ['schema.choice.delete',   'delete a choice value (sys_choice)'],
         ['schema.set_autonumber',  'configure auto-numbering (sys_number)'],
         ['schema.index.create',    'create a database index (sys_db_index)'],
         // PROPERTIES
@@ -386,8 +407,10 @@
         ['record.find',            'find by display value / name field'],
         ['record.query',           'fetch many records with pagination (+platform)'],
         ['record.clone',           'duplicate a record (optionally override fields)'],
-        ['record.count',           'count records matching query'],
+        ['record.count',           'count records matching query (GlideAggregate)'],
         ['record.aggregate',       'COUNT / SUM / AVG / MIN / MAX with multi group_by'],
+        ['record.history',         'audit trail: sys_audit + sys_journal_field for a record'],
+        ['table.truncate',         'delete every row in a table (requires confirm:true)'],
         // ACL
         ['acl.create',             'create an ACL rule (sys_security_acl)'],
         ['acl.delete',             'delete an ACL rule by sys_id'],
@@ -410,13 +433,28 @@
         ['update_set.activate',    'set an update set to in-progress state'],
         ['update_set.list',        'list update sets by state'],
         // ARTIFACTS
-        ['artifact.script_include','create or update a Script Include'],
-        ['artifact.business_rule', 'create or update a Business Rule'],
-        ['artifact.notification',  'create or update a Notification'],
-        ['artifact.scheduled_job', 'create or update a Scheduled Script Execution'],
-        ['artifact.client_script', 'create or update a Client Script'],
-        ['artifact.ui_action',     'create or update a UI Action'],
-        ['artifact.widget',        'create or update a Service Portal widget'],
+        ['artifact.script_include',  'create or update a Script Include'],
+        ['artifact.business_rule',   'create or update a Business Rule'],
+        ['artifact.notification',    'create or update a Notification'],
+        ['artifact.scheduled_job',   'create or update a Scheduled Script Execution'],
+        ['artifact.client_script',   'create or update a Client Script'],
+        ['artifact.ui_action',       'create or update a UI Action'],
+        ['artifact.widget',          'create or update a Service Portal widget'],
+        ['artifact.ui_page',         'create or update a UI Page (sys_ui_page)'],
+        ['artifact.sp_page',         'create or update a Service Portal page (sp_page)'],
+        ['artifact.sp_container',    'insert a Service Portal container into a page'],
+        ['artifact.sp_row',          'insert a Service Portal row into a container'],
+        ['artifact.sp_column',       'insert a Service Portal column into a row'],
+        ['artifact.sp_instance',     'insert a widget instance into a column'],
+        ['artifact.sp_theme',        'create or update a Service Portal theme'],
+        ['artifact.app_menu',        'create or update an Application Menu (sys_app_application)'],
+        ['artifact.app_module',      'create or update an Application Module (sys_app_module)'],
+        ['artifact.catalog_item',    'create or update a Service Catalog item (sc_cat_item)'],
+        ['artifact.catalog_variable','create or update a catalog item variable (item_option_new)'],
+        ['artifact.ui_policy',       'create or update a UI Policy (sys_ui_policy)'],
+        ['artifact.ui_policy_action','create or update a UI Policy Action (sys_ui_policy_action)'],
+        ['artifact.event_registry',  'create or update a registered event (sysevent_register)'],
+        ['artifact.report',          'create or update a Report (sys_report)'],
         // FILES
         ['attachment.write',       'attach base64 content to a record'],
         ['attachment.read',        'read attachment content as base64'],
@@ -429,6 +467,11 @@
         ['sys.log',                'write to the application system log'],
         ['cache.flush',            'flush all platform caches'],
         ['sys.id',                 'resolve artifact name → sys_id by type'],
+        // WORKFLOW
+        ['workflow.start',         'trigger a Flow Designer flow by name with inputs'],
+        ['workflow.cancel',        'cancel a running flow instance by sys_id'],
+        // EMAIL
+        ['email.send',             'send an outbound email via GlideEmailOutbound'],
         // ENGINE
         ['engine.source',          'inspect the engine\'s stored script and size'],
         ['engine.selfupdate',      'replace the engine\'s own script (safety-checked)'],
@@ -520,12 +563,18 @@
                                     : 'One or more capabilities unavailable — see capability matrix.' };
 
         case 'engine.status':
-            var estables = metaList('sys_db_object', ['name', 'label'], 'name');
-            var esis     = metaList('sys_script_include', ['name', 'api_name', 'active'], 'name');
-            var esbr     = metaList('sys_script', ['name', 'collection', 'active'], 'name');
-            var esnotif  = metaList('sysevent_email_action', ['name', 'active'], 'name');
-            var eswidget = metaList('sp_widget', ['name', 'id', 'active'], 'name');
-            var esjobs   = metaList('sysauto_script', ['name', 'active'], 'name');
+            var estables  = metaList('sys_db_object',        ['name','label'],                   'name');
+            var esis      = metaList('sys_script_include',   ['name','api_name','active'],        'name');
+            var esbr      = metaList('sys_script',           ['name','collection','active'],      'name');
+            var escs      = metaList('sys_script_client',    ['name','table','type','active'],    'name');
+            var esua      = metaList('sys_ui_action',        ['name','table','active'],           'name');
+            var esnotif   = metaList('sysevent_email_action',['name','active','event_name'],      'name');
+            var esjobs    = metaList('sysauto_script',       ['name','active','run_type'],        'name');
+            var eswidget  = metaList('sp_widget',            ['name','id','active'],              'name');
+            var esuipg    = metaList('sys_ui_page',          ['name','category'],                 'name');
+            var esrpt     = metaList('sys_report',           ['title','table','type'],            'title');
+            var escat     = metaList('sc_cat_item',          ['name','active'],                   'name');
+            var esacl     = metaList('sys_security_acl',     ['name','operation','active'],       'name');
             return {
                 ok: true,
                 scope: APP_SCOPE,
@@ -534,15 +583,21 @@
                 user: gs.getUserName(),
                 is_admin: gs.hasRole('admin'),
                 platform_writes_enabled: !!gs.getProperty(APP_SCOPE + '.svc_password', ''),
-                engine_key_configured: !!gs.getProperty(APP_SCOPE + '.engine_key', ''),
+                engine_key_configured:   !!gs.getProperty(APP_SCOPE + '.engine_key', ''),
                 op_count: OP_CATALOG.length,
                 inventory: {
                     tables:          { count: estables.length },
-                    script_includes: { count: esis.length,    items: esis },
-                    business_rules:  { count: esbr.length,    items: esbr },
-                    notifications:   { count: esnotif.length, items: esnotif },
-                    widgets:         { count: eswidget.length,items: eswidget },
-                    scheduled_jobs:  { count: esjobs.length,  items: esjobs }
+                    script_includes: { count: esis.length,     items: esis },
+                    business_rules:  { count: esbr.length,     items: esbr },
+                    client_scripts:  { count: escs.length,     items: escs },
+                    ui_actions:      { count: esua.length,     items: esua },
+                    notifications:   { count: esnotif.length,  items: esnotif },
+                    scheduled_jobs:  { count: esjobs.length,   items: esjobs },
+                    widgets:         { count: eswidget.length, items: eswidget },
+                    ui_pages:        { count: esuipg.length,   items: esuipg },
+                    reports:         { count: esrpt.length,    items: esrpt },
+                    catalog_items:   { count: escat.length,    items: escat },
+                    acls:            { count: esacl.length,    items: esacl }
                 }
             };
 
@@ -590,15 +645,25 @@
             var allAppId = appScopeSysId();
             var allResult = {};
             var allTypes = [
-                { key: 'tables',          tbl: 'sys_db_object',       fields: ['name','label'] },
-                { key: 'script_includes', tbl: 'sys_script_include',  fields: ['name','api_name','active'] },
-                { key: 'business_rules',  tbl: 'sys_script',          fields: ['name','collection','active','when'] },
-                { key: 'client_scripts',  tbl: 'sys_script_client',   fields: ['name','table','type','active'] },
-                { key: 'ui_actions',      tbl: 'sys_ui_action',       fields: ['name','table','active'] },
-                { key: 'notifications',   tbl: 'sysevent_email_action',fields: ['name','active','event_name'] },
-                { key: 'scheduled_jobs',  tbl: 'sysauto_script',      fields: ['name','active','run_type'] },
-                { key: 'widgets',         tbl: 'sp_widget',           fields: ['name','id','active'] },
-                { key: 'properties',      tbl: 'sys_properties',      fields: ['name','value'] }
+                { key: 'tables',            tbl: 'sys_db_object',         fields: ['name','label'] },
+                { key: 'script_includes',   tbl: 'sys_script_include',    fields: ['name','api_name','active'] },
+                { key: 'business_rules',    tbl: 'sys_script',            fields: ['name','collection','active','when'] },
+                { key: 'client_scripts',    tbl: 'sys_script_client',     fields: ['name','table','type','active'] },
+                { key: 'ui_actions',        tbl: 'sys_ui_action',         fields: ['name','table','active'] },
+                { key: 'ui_policies',       tbl: 'sys_ui_policy',         fields: ['short_description','table','active'] },
+                { key: 'notifications',     tbl: 'sysevent_email_action', fields: ['name','active','event_name'] },
+                { key: 'scheduled_jobs',    tbl: 'sysauto_script',        fields: ['name','active','run_type'] },
+                { key: 'widgets',           tbl: 'sp_widget',             fields: ['name','id','active'] },
+                { key: 'ui_pages',          tbl: 'sys_ui_page',           fields: ['name','category'] },
+                { key: 'portal_pages',      tbl: 'sp_page',               fields: ['id','title','draft'] },
+                { key: 'portal_themes',     tbl: 'sp_theme',              fields: ['name'] },
+                { key: 'app_menus',         tbl: 'sys_app_application',   fields: ['title','active'] },
+                { key: 'app_modules',       tbl: 'sys_app_module',        fields: ['title','active','link_type'] },
+                { key: 'catalog_items',     tbl: 'sc_cat_item',           fields: ['name','active','short_description'] },
+                { key: 'event_registries',  tbl: 'sysevent_register',     fields: ['event_name','description','table'] },
+                { key: 'reports',           tbl: 'sys_report',            fields: ['title','table','type'] },
+                { key: 'acls',             tbl: 'sys_security_acl',      fields: ['name','operation','active'] },
+                { key: 'properties',        tbl: 'sys_properties',        fields: ['name','value'] }
             ];
             for (var ati = 0; ati < allTypes.length; ati++) {
                 var at = allTypes[ati];
@@ -621,6 +686,30 @@
                 allResult[at.key] = { count: atRows.length, items: atRows };
             }
             return { ok: true, scope: APP_SCOPE, inventory: allResult };
+
+        case 'meta.ui_pages':
+            var muipRows = metaList('sys_ui_page', ['name', 'category', 'direct'], 'name');
+            return { ok: true, count: muipRows.length, ui_pages: muipRows };
+
+        case 'meta.portal_pages':
+            var mppRows = metaList('sp_page', ['id', 'title', 'draft', 'internal'], 'id');
+            return { ok: true, count: mppRows.length, portal_pages: mppRows };
+
+        case 'meta.catalog_items':
+            var mciRows = metaList('sc_cat_item', ['name', 'short_description', 'active', 'category'], 'name');
+            return { ok: true, count: mciRows.length, catalog_items: mciRows };
+
+        case 'meta.app_menus':
+            var mamRows = metaList('sys_app_application', ['title', 'active', 'category'], 'title');
+            return { ok: true, count: mamRows.length, app_menus: mamRows };
+
+        case 'meta.app_modules':
+            var mamodRows = metaList('sys_app_module', ['title', 'active', 'application', 'link_type', 'order'], 'title');
+            return { ok: true, count: mamodRows.length, app_modules: mamodRows };
+
+        case 'meta.events':
+            var mevRows = metaList('sysevent_register', ['event_name', 'description', 'table', 'fired_by'], 'event_name');
+            return { ok: true, count: mevRows.length, events: mevRows };
 
         case 'table.exists':
             var chk = new GlideRecord('sys_db_object');
@@ -842,6 +931,63 @@
             delete siRes._status;
             return siRes;
 
+        case 'schema.table.extend':
+            // Set a table's super_class (parent) for inheritance
+            if (!t)          return { _status: 400, ok: false, error: 'table (child table name) required' };
+            if (!d.parent)   return { _status: 400, ok: false, error: 'data.parent (parent table name) required' };
+            var steChild = new GlideRecord('sys_db_object');
+            steChild.addQuery('name', t);
+            steChild.setLimit(1);
+            steChild.query();
+            if (!steChild.next()) return { _status: 404, ok: false, error: 'Child table not found: ' + t };
+            var steChildId = steChild.getUniqueValue();
+            var steParent = new GlideRecord('sys_db_object');
+            steParent.addQuery('name', d.parent);
+            steParent.setLimit(1);
+            steParent.query();
+            if (!steParent.next()) return { _status: 404, ok: false, error: 'Parent table not found: ' + d.parent };
+            var steParentId = steParent.getUniqueValue();
+            var steRes = platformUpdate('sys_db_object', steChildId, { super_class: steParentId }, false);
+            if (!steRes.ok) return { ok: false, error: 'Extend failed', status: steRes.status, body: steRes.body };
+            return { ok: true, table: t, extends: d.parent, child_sys_id: steChildId, parent_sys_id: steParentId };
+
+        case 'schema.choice.update':
+            // Update label and/or sequence of an existing choice
+            if (!t)         return { _status: 400, ok: false, error: 'table required' };
+            if (!d.element) return { _status: 400, ok: false, error: 'data.element required' };
+            if (!d.value)   return { _status: 400, ok: false, error: 'data.value required' };
+            var scuGr = new GlideRecord('sys_choice');
+            scuGr.addQuery('name', t);
+            scuGr.addQuery('element', d.element);
+            scuGr.addQuery('value', d.value);
+            scuGr.setLimit(1);
+            scuGr.query();
+            if (!scuGr.next()) return { _status: 404, ok: false, error: 'Choice not found: ' + t + '.' + d.element + '=' + d.value };
+            var scuId = scuGr.getUniqueValue();
+            var scuPayload = {};
+            if (d.label    !== undefined) scuPayload.label    = String(d.label);
+            if (d.sequence !== undefined) scuPayload.sequence = String(d.sequence);
+            if (!Object.keys(scuPayload).length) return { _status: 400, ok: false, error: 'No updatable fields: supply data.label or data.sequence' };
+            var scuRes = platformUpdate('sys_choice', scuId, scuPayload, false);
+            if (!scuRes.ok) return { ok: false, error: 'Update failed', status: scuRes.status, body: scuRes.body };
+            return { ok: true, sys_id: scuId, table: t, element: d.element, value: d.value, updated: scuPayload };
+
+        case 'schema.choice.delete':
+            if (!t)         return { _status: 400, ok: false, error: 'table required' };
+            if (!d.element) return { _status: 400, ok: false, error: 'data.element required' };
+            if (!d.value)   return { _status: 400, ok: false, error: 'data.value required' };
+            var scdGr = new GlideRecord('sys_choice');
+            scdGr.addQuery('name', t);
+            scdGr.addQuery('element', d.element);
+            scdGr.addQuery('value', d.value);
+            scdGr.setLimit(1);
+            scdGr.query();
+            if (!scdGr.next()) return { _status: 404, ok: false, error: 'Choice not found: ' + t + '.' + d.element + '=' + d.value };
+            var scdId = scdGr.getUniqueValue();
+            var scdDel = platformDelete('sys_choice', scdId);
+            if (!scdDel.ok) return { ok: false, error: 'Delete failed', status: scdDel.status, body: scdDel.body };
+            return { ok: true, deleted_choice: d.value, element: d.element, table: t, sys_id: scdId };
+
         // ── PROPERTIES ─────────────────────────────────────────
 
         case 'property.set':
@@ -1040,7 +1186,9 @@
             var ins2 = new GlideRecord(t);
             ins2.initialize();
             for (var if3 in d) { if (d.hasOwnProperty(if3)) ins2.setValue(if3, d[if3]); }
-            return { ok: true, action: 'inserted', sys_id: String(ins2.insert()) };
+            var ins2Id = ins2.insert();
+            if (!ins2Id) return { _status: 500, ok: false, error: 'Upsert insert failed', last_error: ins2.getLastErrorMessage ? String(ins2.getLastErrorMessage()) : 'n/a' };
+            return { ok: true, action: 'inserted', sys_id: String(ins2Id) };
 
         case 'record.delete':
             if (!t) return { _status: 400, ok: false, error: 'table required' };
@@ -1147,8 +1295,7 @@
             if (ctx.encoded_query) qGr.addEncodedQuery(ctx.encoded_query);
             if (ctx.order_by)      qGr.orderBy(ctx.order_by);
             if (ctx.order_by_desc) qGr.orderByDesc(ctx.order_by_desc);
-            if (off > 0)           qGr.chooseWindow(off, off + l);
-            qGr.setLimit(l);
+            if (off > 0) { qGr.chooseWindow(off, off + l); } else { qGr.setLimit(l); }
             qGr.query();
             var qRows = [];
             while (qGr.next()) qRows.push(grToObj(qGr, ctx.fields || null, dv));
@@ -1182,10 +1329,13 @@
 
         case 'record.count':
             if (!t) return { _status: 400, ok: false, error: 'table required' };
-            var cGr = buildGr(t, q);
-            if (ctx.encoded_query) cGr.addEncodedQuery(ctx.encoded_query);
-            cGr.query();
-            return { ok: true, table: t, count: cGr.getRowCount() };
+            var cAgg = new GlideAggregate(t);
+            for (var cqf in q) { if (q.hasOwnProperty(cqf)) cAgg.addQuery(cqf, q[cqf]); }
+            if (ctx.encoded_query) cAgg.addEncodedQuery(ctx.encoded_query);
+            cAgg.addAggregate('COUNT');
+            cAgg.query();
+            var cTotal = cAgg.next() ? parseInt(cAgg.getAggregate('COUNT'), 10) : 0;
+            return { ok: true, table: t, count: cTotal };
 
         case 'record.aggregate':
             if (!t) return { _status: 400, ok: false, error: 'table required' };
@@ -1218,6 +1368,63 @@
             }
             return { ok: true, type: aggType, field: aggField, count: aggRows.length, rows: aggRows };
 
+        case 'record.history':
+            // Returns audit log (sys_audit) + journal entries (sys_journal_field) for a record
+            if (!t)        return { _status: 400, ok: false, error: 'table required' };
+            if (!d.sys_id) return { _status: 400, ok: false, error: 'data.sys_id required' };
+            var rhAuditGr = new GlideRecord('sys_audit');
+            rhAuditGr.addQuery('tablename', t);
+            rhAuditGr.addQuery('documentkey', d.sys_id);
+            rhAuditGr.orderByDesc('sys_created_on');
+            rhAuditGr.setLimit(l);
+            rhAuditGr.query();
+            var rhAudit = [];
+            while (rhAuditGr.next()) {
+                rhAudit.push({
+                    sys_id:       rhAuditGr.getUniqueValue(),
+                    fieldname:    rhAuditGr.getValue('fieldname'),
+                    oldvalue:     rhAuditGr.getValue('oldvalue'),
+                    newvalue:     rhAuditGr.getValue('newvalue'),
+                    sys_created_by: rhAuditGr.getValue('sys_created_by'),
+                    sys_created_on: rhAuditGr.getValue('sys_created_on')
+                });
+            }
+            var rhJrnGr = new GlideRecord('sys_journal_field');
+            rhJrnGr.addQuery('name', t);
+            rhJrnGr.addQuery('element_id', d.sys_id);
+            rhJrnGr.orderByDesc('sys_created_on');
+            rhJrnGr.setLimit(l);
+            rhJrnGr.query();
+            var rhJournal = [];
+            while (rhJrnGr.next()) {
+                rhJournal.push({
+                    sys_id:       rhJrnGr.getUniqueValue(),
+                    element:      rhJrnGr.getValue('element'),
+                    value:        rhJrnGr.getValue('value'),
+                    sys_created_by: rhJrnGr.getValue('sys_created_by'),
+                    sys_created_on: rhJrnGr.getValue('sys_created_on')
+                });
+            }
+            return { ok: true, table: t, sys_id: d.sys_id,
+                     audit: rhAudit, journal: rhJournal };
+
+        case 'table.truncate':
+            if (!t) return { _status: 400, ok: false, error: 'table required' };
+            // Count first using GlideAggregate (efficient)
+            var ttAgg = new GlideAggregate(t);
+            ttAgg.addAggregate('COUNT');
+            ttAgg.query();
+            var ttTotal = ttAgg.next() ? parseInt(ttAgg.getAggregate('COUNT'), 10) : 0;
+            if (!ctx.confirm) {
+                return { ok: false, _status: 400,
+                    error: 'Add "confirm": true to proceed. This will delete all ' + ttTotal + ' record(s) from ' + t + '.' };
+            }
+            var ttDeleted = 0;
+            var ttGr = new GlideRecord(t);
+            ttGr.query();
+            while (ttGr.next()) { ttGr.deleteRecord(); ttDeleted++; }
+            return { ok: true, table: t, deleted: ttDeleted };
+
         // ── ACL ────────────────────────────────────────────────
 
         case 'acl.create':
@@ -1234,7 +1441,7 @@
             if (d.script)    aclPayload.script    = d.script;
             if (d.condition) aclPayload.condition = d.condition;
             if (d.roles)     aclPayload.roles      = d.roles;
-            var aclRes = artifactUpsert('sys_security_acl', 'name^operation', t + '^' + d.operation, aclPayload, true);
+            var aclRes = artifactUpsert('sys_security_acl', 'name=' + t + '^operation=' + d.operation, aclPayload, true);
             return aclRes;
 
         case 'acl.delete':
@@ -1454,7 +1661,7 @@
                 access:          d.access || 'package_private',
                 sys_scope:       appScopeSysId()
             };
-            var siRes2 = artifactUpsert('sys_script_include', 'name', d.name, siPayload2, true);
+            var siRes2 = artifactUpsert('sys_script_include', 'name=' + d.name, siPayload2, true);
             return siRes2;
 
         case 'artifact.business_rule':
@@ -1477,7 +1684,7 @@
             };
             if (d.condition)        brPayload.condition        = d.condition;
             if (d.filter_condition) brPayload.filter_condition = d.filter_condition;
-            var brRes = artifactUpsert('sys_script', 'name^collection', d.name + '^' + d.collection, brPayload, true);
+            var brRes = artifactUpsert('sys_script', 'name=' + d.name + '^collection=' + d.collection, brPayload, true);
             return brRes;
 
         case 'artifact.notification':
@@ -1494,7 +1701,7 @@
             if (d.condition)        notifPayload.condition        = d.condition;
             if (d.recipient_groups) notifPayload.recipient_groups = d.recipient_groups;
             if (d.recipient_users)  notifPayload.recipient_users  = d.recipient_users;
-            var notifRes = artifactUpsert('sysevent_email_action', 'name', d.name, notifPayload, true);
+            var notifRes = artifactUpsert('sysevent_email_action', 'name=' + d.name, notifPayload, true);
             return notifRes;
 
         case 'artifact.scheduled_job':
@@ -1511,7 +1718,7 @@
             if (d.run_period)     sjPayload.run_period      = d.run_period;
             if (d.run_dayofweek)  sjPayload.run_dayofweek   = d.run_dayofweek;
             if (d.run_dayofmonth) sjPayload.run_dayofmonth  = d.run_dayofmonth;
-            var sjRes = artifactUpsert('sysauto_script', 'name', d.name, sjPayload, true);
+            var sjRes = artifactUpsert('sysauto_script', 'name=' + d.name, sjPayload, true);
             return sjRes;
 
         case 'artifact.client_script':
@@ -1529,7 +1736,7 @@
             if (d.field_name) csPayload.field_name = d.field_name;
             if (d.view)       csPayload.view       = d.view;
             if (d.condition)  csPayload.condition  = d.condition;
-            var csRes = artifactUpsert('sys_script_client', 'name^table^type', d.name + '^' + d.table + '^' + d.type, csPayload, true);
+            var csRes = artifactUpsert('sys_script_client', 'name=' + d.name + '^table=' + d.table + '^type=' + d.type, csPayload, true);
             return csRes;
 
         case 'artifact.ui_action':
@@ -1548,7 +1755,7 @@
             if (d.hint)         uaPayload.hint         = d.hint;
             if (d.list_action !== undefined) uaPayload.list_action = d.list_action ? 'true' : 'false';
             if (d.form_button !== undefined) uaPayload.form_button = d.form_button ? 'true' : 'false';
-            var uaRes = artifactUpsert('sys_ui_action', 'name^table', d.name + '^' + d.table, uaPayload, true);
+            var uaRes = artifactUpsert('sys_ui_action', 'name=' + d.name + '^table=' + d.table, uaPayload, true);
             return uaRes;
 
         case 'artifact.widget':
@@ -1568,8 +1775,208 @@
                 ? d.option_schema : JSON.stringify(d.option_schema);
             if (d.demo_data     !== undefined) wPayload.demo_data     = typeof d.demo_data === 'string'
                 ? d.demo_data : JSON.stringify(d.demo_data);
-            var wRes = artifactUpsert('sp_widget', 'id', d.id, wPayload, true);
+            var wRes = artifactUpsert('sp_widget', 'id=' + d.id, wPayload, true);
             return wRes;
+
+        case 'artifact.ui_page':
+            if (!d.name) return { _status: 400, ok: false, error: 'data.name required' };
+            var uipPayload = { name: d.name, sys_scope: appScopeSysId() };
+            if (d.category         !== undefined) uipPayload.category          = d.category;
+            if (d.html             !== undefined) uipPayload.html              = d.html;
+            if (d.client           !== undefined) uipPayload.client            = d.client;
+            if (d.server           !== undefined) uipPayload.server            = d.server;
+            if (d.processing_script!== undefined) uipPayload.processing_script = d.processing_script;
+            return artifactUpsert('sys_ui_page', 'name=' + d.name, uipPayload, true);
+
+        case 'artifact.sp_page':
+            if (!d.id) return { _status: 400, ok: false, error: 'data.id (page slug) required' };
+            var sppPayload = { id: d.id, sys_scope: appScopeSysId() };
+            if (d.title    !== undefined) sppPayload.title    = d.title;
+            if (d.draft    !== undefined) sppPayload.draft    = d.draft ? 'true' : 'false';
+            if (d.internal !== undefined) sppPayload.internal = d.internal ? 'true' : 'false';
+            return artifactUpsert('sp_page', 'id=' + d.id, sppPayload, true);
+
+        case 'artifact.sp_container':
+            // Containers are always inserted (no upsert — a page can have multiple)
+            if (!d.page_sys_id) return { _status: 400, ok: false, error: 'data.page_sys_id required' };
+            var spcPayload = {
+                sp_page:       d.page_sys_id,
+                order:         String(d.order || 100),
+                bootstrap_alt: d.bootstrap_alt ? 'true' : 'false',
+                width:         d.width || 'container',
+                sys_scope:     appScopeSysId()
+            };
+            var spcRes = platformInsert('sp_container', spcPayload, false, true);
+            if (!spcRes.ok) return { ok: false, error: 'sp_container insert failed', status: spcRes.status, body: spcRes.body };
+            return { ok: true, action: 'inserted', sys_id: spcRes.sys_id };
+
+        case 'artifact.sp_row':
+            if (!d.container_sys_id) return { _status: 400, ok: false, error: 'data.container_sys_id required' };
+            var sprPayload = {
+                sp_container: d.container_sys_id,
+                order:        String(d.order || 100),
+                sys_scope:    appScopeSysId()
+            };
+            var sprRes = platformInsert('sp_row', sprPayload, false, true);
+            if (!sprRes.ok) return { ok: false, error: 'sp_row insert failed', status: sprRes.status, body: sprRes.body };
+            return { ok: true, action: 'inserted', sys_id: sprRes.sys_id };
+
+        case 'artifact.sp_column':
+            if (!d.row_sys_id) return { _status: 400, ok: false, error: 'data.row_sys_id required' };
+            var spcolPayload = {
+                sp_row:   d.row_sys_id,
+                order:    String(d.order || 100),
+                sys_scope: appScopeSysId()
+            };
+            if (d.size_md !== undefined) spcolPayload.size_md = String(d.size_md);
+            if (d.size_sm !== undefined) spcolPayload.size_sm = String(d.size_sm);
+            if (d.size_xs !== undefined) spcolPayload.size_xs = String(d.size_xs);
+            if (d.size_lg !== undefined) spcolPayload.size_lg = String(d.size_lg);
+            var spcolRes = platformInsert('sp_column', spcolPayload, false, true);
+            if (!spcolRes.ok) return { ok: false, error: 'sp_column insert failed', status: spcolRes.status, body: spcolRes.body };
+            return { ok: true, action: 'inserted', sys_id: spcolRes.sys_id };
+
+        case 'artifact.sp_instance':
+            if (!d.column_sys_id) return { _status: 400, ok: false, error: 'data.column_sys_id required' };
+            if (!d.widget_sys_id) return { _status: 400, ok: false, error: 'data.widget_sys_id required' };
+            var spinPayload = {
+                sp_column:  d.column_sys_id,
+                widget:     d.widget_sys_id,
+                order:      String(d.order || 100),
+                sys_scope:  appScopeSysId()
+            };
+            if (d.title      !== undefined) spinPayload.title      = d.title;
+            if (d.hide_title !== undefined) spinPayload.hide_title = d.hide_title ? 'true' : 'false';
+            if (d.css_class  !== undefined) spinPayload.css_class  = d.css_class;
+            if (d.options    !== undefined) spinPayload.options     = typeof d.options === 'string'
+                ? d.options : JSON.stringify(d.options);
+            var spinRes = platformInsert('sp_instance', spinPayload, false, true);
+            if (!spinRes.ok) return { ok: false, error: 'sp_instance insert failed', status: spinRes.status, body: spinRes.body };
+            return { ok: true, action: 'inserted', sys_id: spinRes.sys_id };
+
+        case 'artifact.sp_theme':
+            if (!d.name) return { _status: 400, ok: false, error: 'data.name required' };
+            var sptPayload = { name: d.name, sys_scope: appScopeSysId() };
+            if (d.css_variables  !== undefined) sptPayload.css_variables  = d.css_variables;
+            if (d.fixed_header   !== undefined) sptPayload.fixed_header   = d.fixed_header ? 'true' : 'false';
+            if (d.navbar_inverse !== undefined) sptPayload.navbar_inverse = d.navbar_inverse ? 'true' : 'false';
+            return artifactUpsert('sp_theme', 'name=' + d.name, sptPayload, true);
+
+        case 'artifact.app_menu':
+            if (!d.title) return { _status: 400, ok: false, error: 'data.title required' };
+            var amPayload = {
+                title:     d.title,
+                active:    d.active !== false ? 'true' : 'false',
+                sys_scope: appScopeSysId()
+            };
+            if (d.category !== undefined) amPayload.category = d.category;
+            if (d.roles    !== undefined) amPayload.roles    = d.roles;
+            return artifactUpsert('sys_app_application', 'title=' + d.title, amPayload, true);
+
+        case 'artifact.app_module':
+            if (!d.title)           return { _status: 400, ok: false, error: 'data.title required' };
+            if (!d.application_sys_id) return { _status: 400, ok: false, error: 'data.application_sys_id required' };
+            var amodPayload = {
+                title:       d.title,
+                application: d.application_sys_id,
+                active:      d.active !== false ? 'true' : 'false',
+                link_type:   d.link_type || 'LIST',
+                order:       String(d.order || 100),
+                sys_scope:   appScopeSysId()
+            };
+            if (d.table     !== undefined) amodPayload.table  = d.table;
+            if (d.filter    !== undefined) amodPayload.filter = d.filter;
+            if (d.url       !== undefined) amodPayload.url    = d.url;
+            if (d.roles     !== undefined) amodPayload.roles  = d.roles;
+            return artifactUpsert('sys_app_module', 'title=' + d.title + '^application=' + d.application_sys_id, amodPayload, true);
+
+        case 'artifact.catalog_item':
+            if (!d.name) return { _status: 400, ok: false, error: 'data.name required' };
+            var catPayload = {
+                name:              d.name,
+                active:            d.active !== false ? 'true' : 'false',
+                sys_scope:         appScopeSysId()
+            };
+            if (d.short_description !== undefined) catPayload.short_description = d.short_description;
+            if (d.description       !== undefined) catPayload.description       = d.description;
+            if (d.category          !== undefined) catPayload.category          = d.category;
+            if (d.price             !== undefined) catPayload.price             = String(d.price);
+            if (d.picture           !== undefined) catPayload.picture           = d.picture;
+            return artifactUpsert('sc_cat_item', 'name=' + d.name, catPayload, true);
+
+        case 'artifact.catalog_variable':
+            if (!d.name)        return { _status: 400, ok: false, error: 'data.name required' };
+            if (!d.cat_item_sys_id) return { _status: 400, ok: false, error: 'data.cat_item_sys_id required' };
+            var cvPayload = {
+                name:          d.name,
+                cat_item:      d.cat_item_sys_id,
+                question_text: d.question_text || d.name,
+                type:          String(d.type !== undefined ? d.type : 6),
+                order:         String(d.order || 100),
+                active:        d.active !== false ? 'true' : 'false',
+                mandatory:     d.mandatory ? 'true' : 'false',
+                sys_scope:     appScopeSysId()
+            };
+            if (d.default_value !== undefined) cvPayload.default_value = String(d.default_value);
+            if (d.help_text     !== undefined) cvPayload.help_text     = d.help_text;
+            return artifactUpsert('item_option_new', 'name=' + d.name + '^cat_item=' + d.cat_item_sys_id, cvPayload, true);
+
+        case 'artifact.ui_policy':
+            // name field on sys_ui_policy is short_description
+            if (!d.short_description) return { _status: 400, ok: false, error: 'data.short_description required' };
+            if (!d.table)             return { _status: 400, ok: false, error: 'data.table required' };
+            var uipolicPayload = {
+                short_description: d.short_description,
+                table:             d.table,
+                active:            d.active !== false ? 'true' : 'false',
+                sys_scope:         appScopeSysId()
+            };
+            if (d.run_scripts  !== undefined) uipolicPayload.run_scripts  = d.run_scripts ? 'true' : 'false';
+            if (d.on_load      !== undefined) uipolicPayload.on_load      = d.on_load ? 'true' : 'false';
+            if (d.script_true  !== undefined) uipolicPayload.script_true  = d.script_true;
+            if (d.script_false !== undefined) uipolicPayload.script_false = d.script_false;
+            if (d.reverse      !== undefined) uipolicPayload.reverse      = d.reverse ? 'true' : 'false';
+            if (d.conditions   !== undefined) uipolicPayload.conditions   = d.conditions;
+            return artifactUpsert('sys_ui_policy', 'short_description=' + d.short_description + '^table=' + d.table, uipolicPayload, true);
+
+        case 'artifact.ui_policy_action':
+            if (!d.ui_policy_sys_id) return { _status: 400, ok: false, error: 'data.ui_policy_sys_id required' };
+            if (!d.field)            return { _status: 400, ok: false, error: 'data.field required' };
+            var uipaPayload = {
+                ui_policy:  d.ui_policy_sys_id,
+                field:      d.field,
+                sys_scope:  appScopeSysId()
+            };
+            if (d.mandatory  !== undefined) uipaPayload.mandatory  = d.mandatory;
+            if (d.visible    !== undefined) uipaPayload.visible     = d.visible;
+            if (d.read_only  !== undefined) uipaPayload.read_only   = d.read_only;
+            return artifactUpsert('sys_ui_policy_action', 'ui_policy=' + d.ui_policy_sys_id + '^field=' + d.field, uipaPayload, true);
+
+        case 'artifact.event_registry':
+            if (!d.event_name) return { _status: 400, ok: false, error: 'data.event_name required' };
+            var evRegPayload = {
+                event_name: d.event_name,
+                sys_scope:  appScopeSysId()
+            };
+            if (d.description !== undefined) evRegPayload.description = d.description;
+            if (d.table       !== undefined) evRegPayload.table       = d.table;
+            if (d.fired_by    !== undefined) evRegPayload.fired_by    = d.fired_by;
+            return artifactUpsert('sysevent_register', 'event_name=' + d.event_name, evRegPayload, true);
+
+        case 'artifact.report':
+            if (!d.title) return { _status: 400, ok: false, error: 'data.title required' };
+            if (!t)       return { _status: 400, ok: false, error: 'table required' };
+            var rptPayload = {
+                title:     d.title,
+                table:     t,
+                type:      d.type || 'list',
+                sys_scope: appScopeSysId()
+            };
+            if (d.filter      !== undefined) rptPayload.filter      = d.filter;
+            if (d.field       !== undefined) rptPayload.field       = d.field;
+            if (d.group_by    !== undefined) rptPayload.group_by    = d.group_by;
+            if (d.aggregation !== undefined) rptPayload.aggregation = d.aggregation;
+            return artifactUpsert('sys_report', 'title=' + d.title + '^table=' + t, rptPayload, true);
 
         // ── FILES ──────────────────────────────────────────────
 
@@ -1618,13 +2025,11 @@
 
         case 'script.run':
             if (!d.script) return { _status: 400, ok: false, error: 'data.script required' };
-            var srResult;
-            try {
-                eval(d.script); // jshint ignore:line
-            } catch (se) {
-                return { ok: false, error: String(se) };
-            }
-            return { ok: true, result: (typeof srResult !== 'undefined') ? srResult : null };
+            var _sr;
+            var _srScript = d.script + '\n;try{if(typeof result!=="undefined"){_sr=result;}}catch(_e){}';
+            try { eval(_srScript); } // jshint ignore:line
+            catch (se) { return { ok: false, error: String(se) }; }
+            return { ok: true, result: (typeof _sr !== 'undefined') ? _sr : null };
 
         case 'rest.call':
             if (!d.path) return { _status: 400, ok: false, error: 'data.path required' };
@@ -1677,6 +2082,42 @@
             sidGr.query();
             if (!sidGr.next()) return { _status: 404, ok: false, error: 'Not found: ' + d.name + ' in ' + sidTbl };
             return { ok: true, type: sidType, name: d.name, sys_id: sidGr.getUniqueValue(), table: sidTbl };
+
+        // ── WORKFLOW ───────────────────────────────────────────
+
+        case 'workflow.start':
+            // Trigger a Flow Designer flow by sys_name (internal name) or sys_id
+            if (!d.flow) return { _status: 400, ok: false, error: 'data.flow (flow sys_name or sys_id) required' };
+            var wfPath = '/api/sn_fd/flow/' + encodeURIComponent(d.flow) + '/execute';
+            var wfRes = internalRest('POST', wfPath, { inputs: d.inputs || {} }, null, null);
+            if (!wfRes.ok) return { ok: false, error: 'Flow trigger failed', status: wfRes.status, body: wfRes.body };
+            return { ok: true, flow: d.flow, body: wfRes.body };
+
+        case 'workflow.cancel':
+            if (!d.instance_sys_id) return { _status: 400, ok: false, error: 'data.instance_sys_id required' };
+            var wcRes = internalRest('DELETE', '/api/sn_fd/flow_instances/' + d.instance_sys_id, null, null, null);
+            if (!wcRes.ok) return { ok: false, error: 'Flow cancel failed', status: wcRes.status, body: wcRes.body };
+            return { ok: true, cancelled_instance: d.instance_sys_id };
+
+        // ── EMAIL ──────────────────────────────────────────────
+
+        case 'email.send':
+            if (!d.to)      return { _status: 400, ok: false, error: 'data.to required' };
+            if (!d.subject) return { _status: 400, ok: false, error: 'data.subject required' };
+            if (!d.body)    return { _status: 400, ok: false, error: 'data.body required' };
+            try {
+                var em = new GlideEmailOutbound();
+                em.setTo(d.to);
+                em.setSubject(d.subject);
+                if (d.from) em.setFrom(d.from);
+                if (d.cc)   em.setCc(d.cc);
+                if (d.html) { em.setBody(d.body); em.setBodyText(d.body); }
+                else          em.setBody(d.body);
+                em.save();
+                return { ok: true, to: d.to, subject: d.subject };
+            } catch (emErr) {
+                return { ok: false, error: 'Email send failed: ' + String(emErr) };
+            }
 
         // ── ENGINE ─────────────────────────────────────────────
 
