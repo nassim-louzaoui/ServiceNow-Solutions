@@ -2221,9 +2221,7 @@
         case 'script.run':
             if (!d.script) return { _status: 400, ok: false, error: 'data.script required' };
             try {
-                // evaluateScript requires a real GlideRecord context to wire up putVariable/getVariable.
-                // We load the engine's own operation record in-memory, swap its script field to
-                // the user script + result-capture code (without saving), then evaluate.
+                // GlideScopedEvaluator requires a non-null GlideRecord; the engine record is loaded in-memory and its script field overridden without persisting.
                 var _srOpId = engineOperationId(d.operation_sys_id);
                 if (!_srOpId) return { _status: 500, ok: false, error: 'Engine operation record not found; pass data.operation_sys_id to override' };
                 var _srGR = new GlideRecord('sys_ws_operation');
