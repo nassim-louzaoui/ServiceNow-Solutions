@@ -8,6 +8,8 @@
 // Batch: { "op": "batch", "ops": [ { "op": "...", "data": {} } ] }
 // Add "platform": true to any record operation to execute as the service account,
 // bypassing the scoped sandbox. All artifacts are scoped to x_infte_ops_int.
+// All configuration-creating operations automatically ensure a single update set
+// named "Operations Intelligence" is active before writing.
 // =============================================================================
 // OPERATIONS (117) — send { "op": "help" } for the live annotated list
 //   DIAGNOSTICS   ping · now · scope.info · engine.status · selftest · help · sys.version
@@ -326,6 +328,57 @@
         return rows;
     }
 
+    var ENGINE_UPDATE_SET_NAME = 'Operations Intelligence';
+
+    function ensureEngineUpdateSet() {
+        var us = new GlideRecord('sys_update_set');
+        us.addQuery('name', ENGINE_UPDATE_SET_NAME);
+        us.addQuery('state', 'in progress');
+        us.setLimit(1);
+        us.query();
+        var usId;
+        if (us.next()) {
+            usId = us.getUniqueValue();
+        } else {
+            var nu = new GlideRecord('sys_update_set');
+            nu.initialize();
+            nu.setValue('name', ENGINE_UPDATE_SET_NAME);
+            nu.setValue('description', 'Configuration artifacts managed by Operations Intelligence.');
+            nu.setValue('state', 'in progress');
+            usId = nu.insert();
+        }
+        if (usId) {
+            try { gs.getSession().setCurrentUpdateSet(usId); } catch (e) {}
+        }
+        return usId || '';
+    }
+
+    var TRACKED_OPS = {
+        'artifact.script_include': 1, 'artifact.business_rule': 1,
+        'artifact.notification': 1,   'artifact.scheduled_job': 1,
+        'artifact.client_script': 1,  'artifact.ui_action': 1,
+        'artifact.widget': 1,         'artifact.ui_page': 1,
+        'artifact.sp_page': 1,        'artifact.sp_container': 1,
+        'artifact.sp_row': 1,         'artifact.sp_column': 1,
+        'artifact.sp_instance': 1,    'artifact.sp_theme': 1,
+        'artifact.app_menu': 1,       'artifact.app_module': 1,
+        'artifact.catalog_item': 1,   'artifact.catalog_variable': 1,
+        'artifact.ui_policy': 1,      'artifact.ui_policy_action': 1,
+        'artifact.event_registry': 1, 'artifact.report': 1,
+        'artifact.role': 1,           'artifact.sp_portal': 1,
+        'schema.table.create': 1,     'schema.table.delete': 1,
+        'schema.table.extend': 1,     'schema.add_field': 1,
+        'schema.field.update': 1,     'schema.field.delete': 1,
+        'schema.add_choice': 1,       'schema.choice.update': 1,
+        'schema.choice.delete': 1,    'schema.set_autonumber': 1,
+        'schema.index.create': 1,
+        'acl.create': 1,              'acl.delete': 1,
+        'role.grant': 1,              'role.revoke': 1,
+        'user.create': 1,
+        'group.create': 1,            'group.add_member': 1,
+        'group.remove_member': 1
+    };
+
     var OP_CATALOG = [
         ['ping',                   'health-check'],
         ['help',                   'list every op with description'],
@@ -451,6 +504,8 @@
         var t  = ctx.table || '';
         var d  = ctx.data  || {};
         var q  = ctx.query || {};
+
+        if (TRACKED_OPS[o]) ensureEngineUpdateSet();
         var l  = Math.min(parseInt(ctx.limit, 10) || 100, MAX_LIMIT);
         var dv = !!ctx.display_values;
         var pf = !!ctx.platform;
@@ -542,6 +597,14 @@
             var esrpt     = metaList('sys_report',           ['title','table','type'],            'title');
             var escat     = metaList('sc_cat_item',          ['name','active'],                   'name');
             var esacl     = metaList('sys_security_acl',     ['name','operation','active'],       'name');
+            var esus      = new GlideRecord('sys_update_set');
+            esus.addQuery('name', ENGINE_UPDATE_SET_NAME);
+            esus.addQuery('state', 'in progress');
+            esus.setLimit(1);
+            esus.query();
+            var esUsInfo  = esus.next()
+                ? { name: esus.getValue('name'), sys_id: esus.getUniqueValue(), state: esus.getValue('state') }
+                : null;
             return {
                 ok: true,
                 scope: APP_SCOPE,
@@ -552,6 +615,7 @@
                 platform_writes_enabled: !!gs.getProperty(APP_SCOPE + '.svc_password', ''),
                 engine_key_configured:   !!gs.getProperty(APP_SCOPE + '.engine_key', ''),
                 op_count: OP_CATALOG.length,
+                update_set: esUsInfo,
                 inventory: {
                     tables:          { count: estables.length },
                     script_includes: { count: esis.length,     items: esis },
