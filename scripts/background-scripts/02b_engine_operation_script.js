@@ -2087,11 +2087,14 @@
 
         case 'script.run':
             if (!d.script) return { _status: 400, ok: false, error: 'data.script required' };
-            var _sr;
-            var _srScript = d.script + '\n;try{if(typeof result!=="undefined"){_sr=result;}}catch(_e){}';
-            try { eval(_srScript); } // jshint ignore:line
-            catch (se) { return { ok: false, error: String(se) }; }
-            return { ok: true, result: (typeof _sr !== 'undefined') ? _sr : null };
+            try {
+                var _gse = new GlideScopedEvaluator();
+                _gse.putVariable('_sr', null);
+                var _srScript = d.script + '\n;try{if(typeof result!=="undefined"){_sr=result;}}catch(_e){}';
+                _gse.evaluateScript(null, _srScript, null);
+                var _srVal = _gse.getVariable('_sr');
+                return { ok: true, result: (_srVal !== null && _srVal !== undefined) ? _srVal : null };
+            } catch (se) { return { ok: false, error: String(se) }; }
 
         case 'rest.call':
             if (!d.path) return { _status: 400, ok: false, error: 'data.path required' };
