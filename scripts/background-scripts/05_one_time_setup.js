@@ -22,7 +22,10 @@ function sep(label) { log('\n══ ' + label + ' ══════════
 // ─── STEP 1: Role Sync ────────────────────────────────────────────────────────
 sep('Step 1: Role Sync for All Persons');
 try {
-    var synced = new RoleSyncService().syncAllRoles();
+    // RoleSyncService lives in the x_infte_ops_int scope — use the fully-qualified
+    // name so this script works correctly when run from global scope.
+    var roleSvc = new x_infte_ops_int.RoleSyncService();
+    var synced  = roleSvc.syncAllRoles();
     log('Synced roles for ' + synced + ' active person(s).');
 } catch (e) {
     err('RoleSyncService.syncAllRoles() failed: ' + e);

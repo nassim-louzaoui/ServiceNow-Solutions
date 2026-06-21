@@ -1331,3 +1331,170 @@
 @media (min-width: 768px) {
   .visible-xs-block { display: none !important; }
 }
+
+/* ── Command Tabs ─────────────────────────────────────────── */
+.oi-cmd-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid var(--now-border);
+  padding-bottom: 0;
+}
+.oi-cmd-tab {
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--now-text-muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.oi-cmd-tab:hover { color: var(--now-primary); }
+.oi-cmd-tab.active { color: var(--now-primary); border-bottom-color: var(--now-primary); }
+.oi-cmd-tab .fa { margin-right: 6px; }
+
+/* ── Management shared ────────────────────────────────────── */
+.oi-mgmt-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.oi-mgmt-loading {
+  padding: 16px;
+  color: var(--now-text-muted);
+  font-size: 14px;
+}
+.oi-mgmt-loading-inline {
+  color: var(--now-text-muted);
+  font-size: 14px;
+}
+.oi-mgmt-empty {
+  color: var(--now-text-muted);
+  font-size: 13px;
+  padding: 10px 0;
+  margin: 0;
+}
+.oi-mgmt-table {
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.oi-mgmt-add-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding-top: 10px;
+  border-top: 1px solid var(--now-border);
+}
+
+/* ── User search results ──────────────────────────────────── */
+.oi-mgmt-search-results {
+  background: var(--now-surface);
+  border: 1px solid var(--now-border);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.oi-mgmt-user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--now-border);
+  gap: 12px;
+}
+.oi-mgmt-user-row:last-child { border-bottom: none; }
+.oi-mgmt-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.oi-mgmt-user-name { font-size: 14px; font-weight: 600; color: var(--now-text); }
+.oi-mgmt-user-sub  { font-size: 12px; color: var(--now-text-muted); }
+.oi-avatar-sm {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  font-size: 13px;
+}
+
+/* ── Group management list ────────────────────────────────── */
+.oi-mgmt-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.oi-mgmt-group-item {
+  background: var(--now-surface);
+  border: 1px solid var(--now-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.oi-mgmt-group-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.oi-mgmt-group-row:hover { background: rgba(0, 114, 206, 0.04); }
+.oi-mgmt-group-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.oi-mgmt-group-detail {
+  padding: 14px 16px;
+  border-top: 1px solid var(--now-border);
+  background: var(--now-bg);
+}
+
+/* ── Create group form ────────────────────────────────────── */
+.oi-mgmt-create-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.oi-input {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--now-border);
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--now-text);
+  background: var(--now-surface);
+  min-width: 180px;
+}
+.oi-input:focus { outline: none; border-color: var(--now-primary); box-shadow: 0 0 0 3px rgba(0,114,206,0.12); }
+.oi-select {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--now-border);
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--now-text);
+  background: var(--now-surface);
+  min-width: 140px;
+}
+.oi-select:focus { outline: none; border-color: var(--now-primary); }
+
+/* ── Extra button sizes ───────────────────────────────────── */
+.oi-btn-xs {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.oi-btn-success {
+  background: var(--now-success);
+  color: #fff;
+  border: none;
+}
+.oi-btn-success:hover { background: #155f2a; }
