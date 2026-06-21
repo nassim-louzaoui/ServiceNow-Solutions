@@ -174,7 +174,13 @@ api.controller = function($scope, $timeout) {
         if (c.data && c.data.initialSection) {
             $timeout(function() {
                 c.navigate(c.data.initialSection);
-            }, 0);
+            }, 50);
         }
     };
+
+    $timeout(function() {
+        if (!c.ui.section && c.data && c.data.initialSection) {
+            c.navigate(c.data.initialSection);
+        }
+    }, 300);
 };

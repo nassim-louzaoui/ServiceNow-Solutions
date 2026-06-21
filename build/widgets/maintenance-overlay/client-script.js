@@ -24,8 +24,8 @@ function($scope, $interval) {
             c.returnLabel = 'Back in approximately ' + mins +
                 ' minute' + (mins !== 1 ? 's' : '');
         } else {
-            var hh  = String(ret.getHours()).padStart(2, '0');
-            var mm_ = String(ret.getMinutes()).padStart(2, '0');
+            var hh  = (ret.getHours()   < 10 ? '0' : '') + ret.getHours();
+            var mm_ = (ret.getMinutes() < 10 ? '0' : '') + ret.getMinutes();
             c.returnLabel = 'Back at ' + hh + ':' + mm_;
         }
     }

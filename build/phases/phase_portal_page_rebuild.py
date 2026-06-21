@@ -133,10 +133,10 @@ def build():
     log.append("Created column: %s" % col_sys_id)
     time.sleep(0.5)
 
-    # 6. Create widget instance
+    # 6. Create widget instance (field is sp_widget, NOT widget)
     instance_data = {
         "sp_column": col_sys_id,
-        "widget":    widget_sys_id,
+        "sp_widget": widget_sys_id,
         "order":     100,
     }
     instance = table_post("sp_instance", instance_data)

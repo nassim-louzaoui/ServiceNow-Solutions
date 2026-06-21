@@ -1,5 +1,15 @@
 (function() {
 
+    data.denied        = false;
+    data.userName      = '';
+    data.userEmail     = '';
+    data.userInitials  = '';
+    data.personSysId   = '';
+    data.userRole      = '';
+    data.sections      = [];
+    data.initialSection = '';
+    data.userGroups    = [];
+
     var userSysId = gs.getUserID();
 
     var hasAdmin      = gs.hasRole('x_infte_ops_int.admin');
@@ -12,26 +22,38 @@
         return;
     }
 
-    data.denied = false;
-
     var su = new GlideRecord('sys_user');
-    su.get(userSysId);
-    var fullName  = '' + su.getDisplayValue('name');
-    var userEmail = '' + su.getValue('email');
-    var nameParts = fullName.split(' ');
-    var initials  = '';
-    if (nameParts.length >= 2) {
-        initials = nameParts[0].charAt(0).toUpperCase() + nameParts[nameParts.length - 1].charAt(0).toUpperCase();
-    } else if (nameParts.length === 1) {
-        initials = nameParts[0].charAt(0).toUpperCase();
+    if (su.get(userSysId)) {
+        var fullName  = '' + su.getDisplayValue('name');
+        var nameParts = fullName.split(' ');
+        var initials  = '';
+        if (nameParts.length >= 2) {
+            initials = nameParts[0].charAt(0).toUpperCase() + nameParts[nameParts.length - 1].charAt(0).toUpperCase();
+        } else if (nameParts.length === 1 && nameParts[0].length > 0) {
+            initials = nameParts[0].charAt(0).toUpperCase();
+        }
+        data.userName     = fullName;
+        data.userEmail    = '' + su.getValue('email');
+        data.userInitials = initials;
     }
 
-    data.userName   = fullName;
-    data.userEmail  = userEmail;
-    data.userInitials = initials;
-
-    var pr = new PermissionResolver();
-    data.personSysId = pr.getPersonByUser(userSysId) || '';
+    try {
+        var pr = new PermissionResolver();
+        data.personSysId = pr.getPersonByUser(userSysId) || '';
+        var groups = pr.getUserGroups(userSysId);
+        if (groups && groups.length) {
+            var gi;
+            for (gi = 0; gi < groups.length; gi++) {
+                data.userGroups.push({
+                    sys_id: '' + groups[gi].group_sys_id,
+                    name:   '' + groups[gi].group_name,
+                    role:   '' + groups[gi].group_role
+                });
+            }
+        }
+    } catch (prErr) {
+        gs.warn('OI Portal: PermissionResolver error: ' + prErr);
+    }
 
     if (hasAdmin) {
         data.userRole = 'admin';
@@ -51,7 +73,6 @@
         { id: 'command',    label: 'Command',      icon: 'fa-terminal',    roles: ['admin'] }
     ];
 
-    data.sections = [];
     var i;
     for (i = 0; i < allSections.length; i++) {
         var sec = allSections[i];
@@ -61,18 +82,6 @@
     }
 
     data.initialSection = data.sections.length > 0 ? data.sections[0].id : '';
-
-    var groups = pr.getUserGroups(userSysId);
-    data.userGroups = [];
-    if (groups && groups.length) {
-        for (i = 0; i < groups.length; i++) {
-            data.userGroups.push({
-                sys_id: '' + groups[i].group_sys_id,
-                name:   '' + groups[i].group_name,
-                role:   '' + groups[i].group_role
-            });
-        }
-    }
 
     if (!input) {
         return;

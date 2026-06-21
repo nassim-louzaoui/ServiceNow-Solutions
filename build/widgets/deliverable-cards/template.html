@@ -1,7 +1,7 @@
 <div class="oi-dc">
   <div class="oi-dc-header">
     <div class="oi-dc-title">Existing Deliverables</div>
-    <div class="oi-dc-groupselect" ng-if="c.data.groups.length">
+    <div class="oi-dc-groupselect" ng-if="c.data && c.data.groups && c.data.groups.length">
       <label class="oi-dc-glabel">Group</label>
       <select class="oi-dc-select"
               ng-model="c.selectedGroup"
@@ -14,11 +14,11 @@
 
   <div class="oi-dc-error" ng-if="c.data.error">{{c.data.error}}</div>
 
-  <div class="oi-dc-empty" ng-if="!c.data.error && !c.data.cards.length">
+  <div class="oi-dc-empty" ng-if="!c.data.error && !(c.data.cards && c.data.cards.length)">
     No active deliverables for the selected group yet.
   </div>
 
-  <div class="oi-dc-grid" ng-if="!c.data.error && c.data.cards.length">
+  <div class="oi-dc-grid" ng-if="!c.data.error && c.data.cards && c.data.cards.length">
     <div class="oi-dc-card"
          ng-repeat="card in c.data.cards"
          ng-click="c.openCard(card)">
