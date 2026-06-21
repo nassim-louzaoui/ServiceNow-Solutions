@@ -120,17 +120,15 @@
   var NAV_ITEMS = [
     { id: 'workspace',   label: 'Workspace',             icon: 'workspace'  },
     { id: 'activity',    label: 'My Activity',           icon: 'activity'   },
-    { id: 'assistant',   label: 'Operations Assistant',  icon: 'assistant'  },
-    { id: 'studio',      label: 'Studio',                icon: 'studio'     },
-    { id: 'governance',  label: 'Governance',            icon: 'governance' },
-    { id: 'command',     label: 'Command',               icon: 'command'    }
+    { id: 'studio',      label: 'Operations Studio',     icon: 'studio'     },
+    { id: 'governance',  label: 'Operations Governance', icon: 'governance' },
+    { id: 'command',     label: 'Operations Command',    icon: 'command'    }
   ];
 
   var initialState = {
     section: 'workspace',
     sectionData: null,
     loading: true,
-    sidebarCollapsed: false,
     mobileOpen: false,
     error: null,
     toasts: [],
@@ -148,8 +146,6 @@
         return Object.assign({}, state, { sectionData: action.payload, loading: false });
       case 'SET_LOADING':
         return Object.assign({}, state, { loading: action.payload });
-      case 'TOGGLE_SIDEBAR':
-        return Object.assign({}, state, { sidebarCollapsed: !state.sidebarCollapsed });
       case 'TOGGLE_MOBILE':
         return Object.assign({}, state, { mobileOpen: !state.mobileOpen });
       case 'CLOSE_MOBILE':
@@ -262,9 +258,7 @@
       );
     }
 
-    var shellClass = 'oi-shell' +
-      (state.sidebarCollapsed ? ' sb-collapsed' : '') +
-      (state.mobileOpen ? ' mobile-open' : '');
+    var shellClass = 'oi-shell' + (state.mobileOpen ? ' mobile-open' : '');
 
     var allowedIds = state.initData && state.initData.sections
       ? state.initData.sections.map(function (s) { return s.id; })
@@ -305,7 +299,6 @@
 
   function Sidebar(props) {
     var ctx = React.useContext(AppContext);
-    var state = ctx.state;
     var dispatch = ctx.dispatch;
     var idata = props.initData || {};
     var userName = idata.userName || 'User';
@@ -337,12 +330,7 @@
         h('div', { className: 'oi-user-info' },
           h('div', { className: 'oi-user-name' }, userName),
           h('div', { className: 'oi-user-role' }, ROLE_LABELS[userRole] || userRole)
-        ),
-        h('button', {
-          className: 'oi-collapse-btn',
-          onClick: function () { dispatch({ type: 'TOGGLE_SIDEBAR' }); },
-          title: state.sidebarCollapsed ? 'Expand' : 'Collapse'
-        }, h(OIIcon, { name: state.sidebarCollapsed ? 'expand' : 'collapse', size: 16 }))
+        )
       )
     );
   }
@@ -384,7 +372,6 @@
     switch (props.section) {
       case 'workspace':   return h(WorkspaceSection, { data: data });
       case 'activity':    return h(ActivitySection, { data: data });
-      case 'assistant':   return h(OperationsAssistantSection, { data: data });
       case 'studio':      return h(StudioSection, { data: data });
       case 'governance':  return h(GovernanceSection, { data: data });
       case 'command':     return h(CommandSection, { data: data });
@@ -398,6 +385,20 @@
     var ctx = React.useContext(AppContext);
     var data = props.data;
     var automations = data.automations || [];
+
+    var messagesResult = React.useState([
+      { role: 'assistant', text: 'Welcome. I can run automations, check execution status, list your available tools, or answer questions about Operations Intelligence. Type "help" for all commands.' }
+    ]);
+    var messages = messagesResult[0];
+    var setMessages = messagesResult[1];
+
+    var inputResult = React.useState('');
+    var wsInput = inputResult[0];
+    var setWsInput = inputResult[1];
+
+    var chatBusyResult = React.useState(false);
+    var chatBusy = chatBusyResult[0];
+    var setChatBusy = chatBusyResult[1];
 
     var busyResult = React.useState({});
     var busy = busyResult[0];
@@ -416,70 +417,153 @@
         })
       : automations;
 
+    function sendMessage() {
+      var q = wsInput.trim();
+      if (!q || chatBusy) return;
+      var newMsgs = messages.concat([{ role: 'user', text: q }]);
+      setMessages(newMsgs);
+      setWsInput('');
+      setChatBusy(true);
+      ctx.callServer({ action: 'assistant_query', query: q }, function (d, err) {
+        setChatBusy(false);
+        if (err) {
+          setMessages(newMsgs.concat([{ role: 'assistant', text: 'Error: ' + err, type: 'error' }]));
+          return;
+        }
+        var reply = (d && d.reply) || 'I could not process that request.';
+        setMessages(newMsgs.concat([{ role: 'assistant', text: reply, type: d && d.type }]));
+      });
+    }
+
     function triggerAuto(auto) {
-      var busyOn = Object.assign({}, busy); busyOn[auto.sys_id] = true; setBusy(busyOn);
+      var b = Object.assign({}, busy);
+      b[auto.sys_id] = true;
+      setBusy(b);
       ctx.callServer({ action: 'trigger_automation', automation_sys_id: auto.sys_id, group_sys_id: auto.owner_group_sys_id }, function (d, err) {
-        var busyOff = Object.assign({}, busy); busyOff[auto.sys_id] = false; setBusy(busyOff);
+        var b2 = Object.assign({}, busy);
+        b2[auto.sys_id] = false;
+        setBusy(b2);
         if (err) { ctx.toast(err, 'error'); return; }
         var result = d && d.triggered;
         if (result && result.ok) {
           ctx.toast('Triggered: ' + (result.number || auto.name), 'success');
+          setMessages(messages.concat([
+            { role: 'user', text: 'Run ' + auto.name },
+            { role: 'assistant', text: 'Automation "' + auto.name + '" triggered successfully. Execution ' + (result.number || '') + ' is now ' + (result.status || 'running') + '.', type: 'success' }
+          ]));
         } else {
           ctx.toast((result && result.error) || 'Failed to trigger.', 'error');
         }
       });
     }
 
-    return h('div', { className: 'oi-section' },
-      h('div', { className: 'oi-toolbar' },
-        h('div', { className: 'oi-toolbar-left' },
-          h('h1', { className: 'oi-section-title' }, 'Workspace'),
-          h('span', { style: { fontSize: '0.75rem', color: '#6E6E6E' } }, automations.length + ' automation' + (automations.length === 1 ? '' : 's') + ' available')
+    return h('div', { className: 'oi-section oi-workspace-layout' },
+      h('div', { className: 'oi-ws-assistant-panel' },
+        h('div', { className: 'oi-ws-assistant-head' },
+          h('div', { className: 'oi-ws-assistant-icon-wrap' },
+            h(OIIcon, { name: 'assistant', size: 22, fill: '#00BF6F' })
+          ),
+          h('div', null,
+            h('div', { className: 'oi-ws-assistant-name' }, 'Operations Assistant'),
+            h('div', { className: 'oi-ws-assistant-tagline' }, 'Your intelligent operations interface')
+          )
         ),
-        h('div', { className: 'oi-toolbar-right' },
+        h('div', { className: 'oi-chat-messages' },
+          messages.map(function (m, i) {
+            return h('div', { key: i, className: 'oi-chat-msg ' + m.role + (m.type === 'error' ? ' error' : '') },
+              h('div', { className: 'oi-chat-bubble' }, m.text)
+            );
+          }),
+          chatBusy ? h('div', { className: 'oi-chat-msg assistant' },
+            h('div', { className: 'oi-chat-bubble oi-typing' },
+              h('span', { className: 'oi-dot' }),
+              h('span', { className: 'oi-dot' }),
+              h('span', { className: 'oi-dot' })
+            )
+          ) : null
+        ),
+        h('div', { className: 'oi-chat-input-area' },
+          h('input', {
+            className: 'oi-input',
+            value: wsInput,
+            placeholder: 'Ask me to run an automation, check status, list tools...',
+            disabled: chatBusy,
+            onChange: function (e) { setWsInput(e.target.value); },
+            onKeyDown: function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+          }),
+          h('button', {
+            className: 'oi-btn primary',
+            disabled: chatBusy || !wsInput.trim(),
+            onClick: sendMessage
+          }, chatBusy ? h('div', { className: 'oi-spinner sm' }) : h(OIIcon, { name: 'send', size: 16 }))
+        )
+      ),
+      h('div', { className: 'oi-ws-catalog-panel' },
+        h('div', { className: 'oi-ws-catalog-head' },
+          h('div', null,
+            h('div', { className: 'oi-ws-catalog-title' }, 'Available Automations'),
+            h('span', { className: 'oi-ws-catalog-count' }, automations.length + ' available')
+          ),
           h('div', { className: 'oi-search-wrap' },
             h('span', { className: 'oi-search-icon' }, h(OIIcon, { name: 'search', size: 14 })),
             h('input', {
               className: 'oi-search-input',
               type: 'text',
-              placeholder: 'Search automations…',
+              placeholder: 'Search...',
               value: search,
               onChange: function (e) { setSearch(e.target.value); }
             })
           )
+        ),
+        h('div', { className: 'oi-ws-catalog-body' },
+          automations.length === 0
+            ? h('div', { className: 'oi-empty' },
+                h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'automation', size: 40, fill: '#DCDCDC' })),
+                h('div', { className: 'oi-empty-title' }, 'No automations available'),
+                h('div', { className: 'oi-empty-sub' }, 'Contact your administrator to be added to a group with published automations.')
+              )
+            : filtered.length === 0
+              ? h('div', { className: 'oi-empty' },
+                  h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'search', size: 40, fill: '#DCDCDC' })),
+                  h('div', { className: 'oi-empty-title' }, 'No results'),
+                  h('div', { className: 'oi-empty-sub' }, 'No automations match your search.')
+                )
+              : h('div', { className: 'oi-auto-list' },
+                  filtered.map(function (auto) {
+                    var isBusy = !!busy[auto.sys_id];
+                    return h('div', { key: auto.sys_id, className: 'oi-auto-item' },
+                      h('div', { className: 'oi-auto-item-accent', style: { background: auto.category_color || '#00BF6F' } }),
+                      h('div', { className: 'oi-auto-item-icon' },
+                        h(OIIcon, { name: 'automation', size: 18, fill: auto.category_color || '#00BF6F' })
+                      ),
+                      h('div', { className: 'oi-auto-item-body' },
+                        h('div', { className: 'oi-auto-item-name' }, auto.name),
+                        auto.short_description
+                          ? h('div', { className: 'oi-auto-item-desc' }, auto.short_description)
+                          : null,
+                        h('div', { className: 'oi-auto-item-meta' },
+                          h('span', null, auto.owner_group || ''),
+                          auto.usage_count
+                            ? h('span', null, ' · ' + auto.usage_count + ' runs')
+                            : null
+                        )
+                      ),
+                      h('button', {
+                        className: 'oi-btn primary sm',
+                        disabled: isBusy,
+                        onClick: function () { triggerAuto(auto); }
+                      }, isBusy
+                        ? h('span', { className: 'oi-spinner sm' })
+                        : h('span', { style: { display: 'flex', alignItems: 'center', gap: '0.25rem' } },
+                            h(OIIcon, { name: 'play', size: 14 }),
+                            'Run'
+                          )
+                      )
+                    );
+                  })
+                )
         )
-      ),
-      automations.length === 0
-        ? h('div', { className: 'oi-empty' },
-            h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'automation', size: 40, fill: '#DCDCDC' })),
-            h('div', { className: 'oi-empty-title' }, 'No automations available'),
-            h('div', { className: 'oi-empty-sub' }, 'Contact your administrator to be added to a group with published automations.')
-          )
-        : filtered.length === 0
-          ? h('div', { className: 'oi-empty' },
-              h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'search', size: 40, fill: '#DCDCDC' })),
-              h('div', { className: 'oi-empty-title' }, 'No results'),
-              h('div', { className: 'oi-empty-sub' }, 'No automations match your search.')
-            )
-          : h('div', { className: 'oi-auto-grid' },
-              filtered.map(function (auto) {
-                var isBusy = !!busy[auto.sys_id];
-                return h('div', { key: auto.sys_id, className: 'oi-auto-card', style: { borderTopColor: auto.category_color || '#00BF6F' } },
-                  h('div', { className: 'oi-auto-card-icon' }, h(OIIcon, { name: 'automation', size: 20, fill: '#00BF6F' })),
-                  h('div', { className: 'oi-auto-card-name' }, auto.name),
-                  h('div', { className: 'oi-auto-card-desc' }, auto.short_description || 'No description.'),
-                  h('div', { className: 'oi-auto-card-owner' }, h(OIIcon, { name: 'user', size: 12 }), ' ' + (auto.owner_group || 'Unassigned')),
-                  h('div', { className: 'oi-auto-card-foot' },
-                    auto.usage_count != null ? h('span', { className: 'oi-td-muted', style: { fontSize: '0.75rem' } }, auto.usage_count + ' runs') : null,
-                    h('button', {
-                      className: 'oi-btn primary xs',
-                      disabled: isBusy,
-                      onClick: function () { triggerAuto(auto); }
-                    }, isBusy ? h('span', { className: 'oi-spinner sm' }) : [h(OIIcon, { name: 'play', size: 14 }), ' Run'])
-                  )
-                );
-              })
-            )
+      )
     );
   }
 
@@ -626,7 +710,7 @@
     return h('div', { className: 'oi-section' },
       h('div', { className: 'oi-toolbar' },
         h('div', { className: 'oi-toolbar-left' },
-          h('h1', { className: 'oi-section-title' }, 'Studio')
+          h('h1', { className: 'oi-section-title' }, 'Operations Studio')
         )
       ),
       h('div', null,
@@ -791,7 +875,7 @@
     return h('div', { className: 'oi-section' },
       h('div', { className: 'oi-toolbar' },
         h('div', { className: 'oi-toolbar-left' },
-          h('h1', { className: 'oi-section-title' }, 'Governance')
+          h('h1', { className: 'oi-section-title' }, 'Operations Governance')
         ),
         h('div', { className: 'oi-toolbar-right' },
           tab === 'groups'
@@ -1265,123 +1349,6 @@
     );
   }
 
-  /* ── Operations Assistant Section ───────────────────────────── */
-
-  function OperationsAssistantSection(props) {
-    var ctx = React.useContext(AppContext);
-    var data = props.data;
-    var stats = data.stats || {};
-    var recentExecutions = data.recent_executions || [];
-
-    var messagesResult = React.useState([
-      { role: 'assistant', text: 'Welcome to the Operations Assistant. Ask me to run an automation, check execution status, list your available automations, or type "help" for a full list of commands.' }
-    ]);
-    var messages = messagesResult[0];
-    var setMessages = messagesResult[1];
-
-    var inputResult = React.useState('');
-    var input = inputResult[0];
-    var setInput = inputResult[1];
-
-    var busyResult = React.useState(false);
-    var busy = busyResult[0];
-    var setBusy = busyResult[1];
-
-    function send() {
-      var q = input.trim();
-      if (!q || busy) return;
-      var newMsgs = messages.concat([{ role: 'user', text: q }]);
-      setMessages(newMsgs);
-      setInput('');
-      setBusy(true);
-      ctx.callServer({ action: 'assistant_query', query: q }, function (d, err) {
-        setBusy(false);
-        if (err) {
-          setMessages(newMsgs.concat([{ role: 'assistant', text: 'Error: ' + err, type: 'error' }]));
-          return;
-        }
-        var reply = (d && d.reply) || 'I could not process that request.';
-        setMessages(newMsgs.concat([{ role: 'assistant', text: reply, type: d && d.type }]));
-      });
-    }
-
-    return h('div', { className: 'oi-section' },
-      h('div', { className: 'oi-toolbar' },
-        h('div', { className: 'oi-toolbar-left' },
-          h('h1', { className: 'oi-section-title' }, 'Operations Assistant')
-        )
-      ),
-      h('div', { className: 'oi-assistant-layout' },
-        h('div', { className: 'oi-assistant-panel' },
-          h('div', { className: 'oi-card' },
-            h('div', { className: 'oi-card-hdr' },
-              h('span', { className: 'oi-card-title' }, 'Quick Stats')
-            ),
-            h('div', { className: 'oi-card-body' },
-              h('div', { className: 'oi-assistant-stats' },
-                h(StatCard, { label: 'Available Automations', value: stats.available_automations != null ? stats.available_automations : '--', icon: h(OIIcon, { name: 'automation', size: 20, fill: '#00BF6F' }) }),
-                h(StatCard, { label: 'My Executions', value: stats.my_executions != null ? stats.my_executions : '--', icon: h(OIIcon, { name: 'activity', size: 20, fill: '#00BF6F' }) }),
-                h(StatCard, { label: 'My Groups', value: stats.my_groups != null ? stats.my_groups : '--', icon: h(OIIcon, { name: 'group', size: 20, fill: '#00BF6F' }) }),
-                h(StatCard, { label: 'Runs Today', value: stats.executions_today != null ? stats.executions_today : '--', icon: h(OIIcon, { name: 'play', size: 20, fill: '#00BF6F' }) })
-              )
-            )
-          ),
-          h('div', { className: 'oi-card', style: { marginTop: '1rem' } },
-            h('div', { className: 'oi-card-hdr' },
-              h('span', { className: 'oi-card-title' }, 'Recent Activity')
-            ),
-            h('div', { className: 'oi-card-body' },
-              recentExecutions.length === 0
-                ? h('div', { className: 'oi-empty-inline' }, 'No recent executions.')
-                : h('div', null,
-                    recentExecutions.map(function (ex, i) {
-                      return h('div', { key: ex.sys_id || i, className: 'oi-assistant-recent-item' },
-                        h('div', { className: 'oi-assistant-recent-name' }, ex.automation_name || 'Unnamed'),
-                        h('div', { className: 'oi-assistant-recent-meta' },
-                          h(Badge, { cls: statusClass(ex.status) }, ex.status || 'unknown'),
-                          h('span', { className: 'oi-td-muted', style: { marginLeft: '0.5rem' } }, relTime(ex.triggered_at))
-                        )
-                      );
-                    })
-                  )
-            )
-          )
-        ),
-        h('div', { className: 'oi-assistant-chat' },
-          h('div', { className: 'oi-chat-messages' },
-            messages.map(function (m, i) {
-              return h('div', { key: i, className: 'oi-chat-msg ' + m.role + (m.type === 'error' ? ' error' : '') },
-                h('div', { className: 'oi-chat-bubble' }, m.text)
-              );
-            }),
-            busy ? h('div', { className: 'oi-chat-msg assistant' },
-              h('div', { className: 'oi-chat-bubble oi-typing' },
-                h('span', { className: 'oi-dot' }),
-                h('span', { className: 'oi-dot' }),
-                h('span', { className: 'oi-dot' })
-              )
-            ) : null
-          ),
-          h('div', { className: 'oi-chat-input-area' },
-            h('input', {
-              className: 'oi-input',
-              value: input,
-              placeholder: 'Ask me to run an automation, check status, list automations...',
-              disabled: busy,
-              onChange: function (e) { setInput(e.target.value); },
-              onKeyDown: function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }
-            }),
-            h('button', {
-              className: 'oi-btn primary',
-              disabled: busy || !input.trim(),
-              onClick: send
-            }, busy ? h('div', { className: 'oi-spinner sm' }) : h(OIIcon, { name: 'send', size: 16 }))
-          )
-        )
-      )
-    );
-  }
-
   /* ── Command Section ─────────────────────────────────────────── */
 
   function CommandSection(props) {
@@ -1426,7 +1393,7 @@
     return h('div', { className: 'oi-section' },
       h('div', { className: 'oi-toolbar' },
         h('div', { className: 'oi-toolbar-left' },
-          h('h1', { className: 'oi-section-title' }, 'Command')
+          h('h1', { className: 'oi-section-title' }, 'Operations Command')
         )
       ),
       h('div', { className: 'oi-cmd-grid' },

@@ -422,10 +422,9 @@
     var allSections = [
         { id: 'workspace',  label: 'Workspace',             icon: 'fa-th-large', roles: ['admin','leadership','creator','user'] },
         { id: 'activity',   label: 'My Activity',           icon: 'fa-history',  roles: ['admin','leadership','creator','user'] },
-        { id: 'assistant',  label: 'Operations Assistant',  icon: 'fa-comment',  roles: ['admin','leadership','creator','user'] },
-        { id: 'studio',     label: 'Studio',                icon: 'fa-code',     roles: ['admin','creator'] },
-        { id: 'governance', label: 'Governance',            icon: 'fa-shield',   roles: ['admin','leadership'] },
-        { id: 'command',    label: 'Command',               icon: 'fa-terminal', roles: ['admin'] }
+        { id: 'studio',     label: 'Operations Studio',     icon: 'fa-code',     roles: ['admin','creator'] },
+        { id: 'governance', label: 'Operations Governance', icon: 'fa-shield',   roles: ['admin','leadership'] },
+        { id: 'command',    label: 'Operations Command',    icon: 'fa-terminal', roles: ['admin'] }
     ];
 
     var si;
@@ -454,8 +453,6 @@
             if (hasLeadership || hasAdmin) {
                 data.sectionData = loadGovernance(data.personSysId, hasAdmin);
             }
-        } else if (section === 'assistant') {
-            data.sectionData = loadAssistant(data.personSysId, data.userGroups);
         } else if (section === 'command') {
             if (hasAdmin) {
                 data.sectionData = loadCommand();
