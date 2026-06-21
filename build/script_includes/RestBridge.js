@@ -1,5 +1,5 @@
-var RESTBridge = Class.create();
-RESTBridge.prototype = {
+var RestBridge = Class.create();
+RestBridge.prototype = {
     initialize: function() {
         this.DEFAULT_TIMEOUT_MS = 10000;
         this.DEFAULT_RETRIES = 0;
@@ -105,7 +105,7 @@ RESTBridge.prototype = {
             try {
                 request.setAuthenticationProfile(authType ? authType : 'basic', '' + alias);
             } catch (e) {
-                gs.warn('x_infte_ops_int RESTBridge could not apply connection alias ' + alias + ': ' + e);
+                gs.warn('x_infte_ops_int RestBridge could not apply connection alias ' + alias + ': ' + e);
             }
         }
     },
@@ -130,5 +130,5 @@ RESTBridge.prototype = {
         }
     },
 
-    type: 'RESTBridge'
+    type: 'RestBridge'
 };

@@ -1,5 +1,5 @@
-var VAHelper = Class.create();
-VAHelper.prototype = {
+var VirtualAgentHelper = Class.create();
+VirtualAgentHelper.prototype = {
     initialize: function() {
         this.PERSON_TABLE = 'x_infte_ops_int_person';
         this.GROUP_MEMBER_TABLE = 'x_infte_ops_int_group_member';
@@ -193,5 +193,5 @@ VAHelper.prototype = {
         return pa.getRowCount();
     },
 
-    type: 'VAHelper'
+    type: 'VirtualAgentHelper'
 };

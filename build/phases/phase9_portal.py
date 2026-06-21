@@ -2,9 +2,9 @@
 """
 Phase 9a — Portal Infrastructure
 
-Creates the single Operations Intelligence Service Portal, its custom theme, and
-the two pages (main + onboarding) in the application scope. Widgets and page
-layout are built in subsequent steps.
+Creates the Operations Intelligence Service Portal, its custom theme, and the
+two portal pages.  The portal's homepage field is a reference to sp_page by
+sys_id, so pages must be created (or looked up) before the portal is wired.
 """
 import os
 import sys
@@ -29,6 +29,14 @@ body { background: var(--oi-bg); color: var(--oi-text); font-family: 'Segoe UI',
 """
 
 
+def page_sys_id(page_id):
+    r = ec.op("record.query", table="sp_page",
+              encoded_query="id=%s" % page_id,
+              fields=["sys_id"], limit=1)
+    recs = r.get("records", [])
+    return recs[0]["sys_id"] if recs else None
+
+
 def build():
     log = []
 
@@ -40,21 +48,34 @@ def build():
                                  theme.get("sys_id", str(theme)[:120])))
     theme_id = theme.get("sys_id", "")
 
-    portal = ec.op("artifact.sp_portal", data={
-        "title": "Operations Intelligence",
-        "url_suffix": "operations_intelligence",
-        "theme": theme_id,
-        "default_page": "oi_main",
-        "homepage": "oi_main",
-    })
-    log.append("portal: %s %s" % ("ok" if portal.get("ok") else "FAIL",
-                                  portal.get("sys_id", str(portal)[:120])))
-
+    # Pages must exist before the portal so we can pass the sys_id as homepage.
+    # sp_portal.homepage is a reference field (not a string page-id).
+    page_ids = {}
     for pid, title in [("oi_main", "Operations Intelligence"),
                        ("oi_onboarding", "Operations Intelligence Onboarding")]:
         pg = ec.op("artifact.sp_page", data={"id": pid, "title": title, "draft": False})
-        log.append("page %-12s %s %s" % (pid, "ok" if pg.get("ok") else "FAIL",
-                                         pg.get("sys_id", str(pg)[:120])))
+        page_ids[pid] = pg.get("sys_id", "")
+        log.append("page %-14s %s %s" % (pid, "ok" if pg.get("ok") else "FAIL",
+                                          page_ids[pid]))
+
+    main_sys_id = page_ids.get("oi_main") or page_sys_id("oi_main") or ""
+
+    portal = ec.op("artifact.sp_portal", data={
+        "title":      "Operations Intelligence",
+        "url_suffix": "operations_intelligence",
+        "theme":      theme_id,
+        "homepage":   main_sys_id,
+    })
+    portal_id = portal.get("sys_id", "")
+    log.append("portal: %s %s" % ("ok" if portal.get("ok") else "FAIL", portal_id))
+
+    # Ensure homepage reference is the page sys_id (artifact.sp_portal may store
+    # the string value; force it via record.update using the confirmed sys_id).
+    if portal_id and main_sys_id:
+        ec.op("record.update", table="sp_portal",
+              data={"sys_id": portal_id, "homepage": main_sys_id})
+        log.append("portal homepage pinned to page sys_id %s" % main_sys_id)
+
     return log
 
 

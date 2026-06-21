@@ -460,7 +460,7 @@ ExecutionEngine.prototype = {
 
     _doRestCall: function(config, context) {
         var resolved = this.resolveTemplates(config, context);
-        var result = new RESTBridge().call(resolved);
+        var result = new RestBridge().call(resolved);
         var output = {};
         var fieldName = resolved.output_field ? ('' + resolved.output_field) : 'response';
         output[fieldName] = result ? (result.body || '') : '';

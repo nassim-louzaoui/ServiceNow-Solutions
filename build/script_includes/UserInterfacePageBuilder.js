@@ -1,5 +1,5 @@
-var UIPageBuilder = Class.create();
-UIPageBuilder.prototype = {
+var UserInterfacePageBuilder = Class.create();
+UserInterfacePageBuilder.prototype = {
     initialize: function() {
         this.SCOPE = 'x_infte_ops_int';
         this.UI_PAGE_TABLE = 'sys_ui_page';
@@ -113,5 +113,5 @@ UIPageBuilder.prototype = {
         return [];
     },
 
-    type: 'UIPageBuilder'
+    type: 'UserInterfacePageBuilder'
 };

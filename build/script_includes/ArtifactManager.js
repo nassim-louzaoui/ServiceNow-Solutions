@@ -125,7 +125,7 @@ ArtifactManager.prototype = {
             return new TableBuilder().build(spec);
         }
         if (type === 'ui_page') {
-            return new UIPageBuilder().build(spec);
+            return new UserInterfacePageBuilder().build(spec);
         }
         this.audit.log('artifact_unknown_type', { artifact_type: '' + type });
         return { sys_ids: [] };
@@ -262,7 +262,7 @@ ArtifactManager.prototype = {
         } else if (type === 'custom_table') {
             new TableBuilder().remove(sysIds);
         } else if (type === 'ui_page') {
-            new UIPageBuilder().remove(sysIds);
+            new UserInterfacePageBuilder().remove(sysIds);
         }
     },
 
