@@ -78,7 +78,6 @@
     mobileOpen: false,
     error: null,
     toasts: [],
-    locked: false,
     authDenied: false,
     initData: null
   };
@@ -105,8 +104,6 @@
         return Object.assign({}, state, { toasts: state.toasts.concat([action.payload]) });
       case 'POP_TOAST':
         return Object.assign({}, state, { toasts: state.toasts.filter(function (t) { return t.id !== action.payload; }) });
-      case 'SET_LOCKED':
-        return Object.assign({}, state, { locked: action.payload });
       case 'PATCH_SECTION_DATA':
         return Object.assign({}, state, { sectionData: Object.assign({}, state.sectionData, action.payload) });
       case 'SET_AUTH_DENIED':
@@ -120,46 +117,12 @@
 
   var AppContext = React.createContext(null);
 
-  /* ── DevTools detection ──────────────────────────────────────── */
-
-  function useDevToolsGuard(dispatch) {
-    React.useEffect(function () {
-      function checkSize() {
-        var threshold = 200;
-        var widthDiff = window.outerWidth - window.innerWidth;
-        var heightDiff = window.outerHeight - window.innerHeight;
-        if (widthDiff > threshold || heightDiff > threshold) {
-          dispatch({ type: 'SET_LOCKED', payload: true });
-        }
-      }
-      function blockKey(e) {
-        if (e.keyCode === 123) { e.preventDefault(); return false; }
-        if (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) {
-          e.preventDefault(); return false;
-        }
-        if (e.ctrlKey && e.keyCode === 85) { e.preventDefault(); return false; }
-      }
-      function blockMenu(e) { e.preventDefault(); return false; }
-      window.addEventListener('resize', checkSize);
-      document.addEventListener('keydown', blockKey);
-      document.addEventListener('contextmenu', blockMenu);
-      checkSize();
-      return function () {
-        window.removeEventListener('resize', checkSize);
-        document.removeEventListener('keydown', blockKey);
-        document.removeEventListener('contextmenu', blockMenu);
-      };
-    }, [dispatch]);
-  }
-
   /* ── Root App ────────────────────────────────────────────────── */
 
   function App() {
     var result = React.useReducer(reducer, initialState);
     var state = result[0];
     var dispatch = result[1];
-
-    useDevToolsGuard(dispatch);
 
     function toast(message, type) {
       var id = ++_toastId;
@@ -224,18 +187,6 @@
     }, []);
 
     var ctx = { state: state, dispatch: dispatch, toast: toast, callServer: callServer, loadSection: loadSection };
-
-    if (state.locked) {
-      return h('div', { id: 'oi-root' },
-        h('div', { className: 'oi-lock' },
-          h('div', { className: 'oi-lock-card' },
-            h('div', { className: 'oi-lock-icon' }, '🔒'),
-            h('h1', { className: 'oi-lock-title' }, 'Session Paused'),
-            h('p', { className: 'oi-lock-desc' }, 'Developer tools detected. Close your browser developer tools to resume your session.')
-          )
-        )
-      );
-    }
 
     if (state.authDenied) {
       var deniedLogin = _bridge && _bridge.data && _bridge.data.deniedLogin ? _bridge.data.deniedLogin : '';
