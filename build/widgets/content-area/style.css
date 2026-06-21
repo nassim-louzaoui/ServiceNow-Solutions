@@ -1,0 +1,65 @@
+.oi-content-area {
+  background: var(--oi-surface, #FFFFFF);
+  min-height: 60vh;
+  padding: 24px;
+  color: var(--oi-text, #0F172A);
+}
+
+.oi-content-sections {
+  display: block;
+}
+
+.oi-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.oi-content-empty {
+  color: var(--oi-muted, #64748B);
+  font-size: 0.95rem;
+  text-align: center;
+  padding: 40px 0;
+}
+
+.oi-content-maintenance {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+}
+
+.oi-maint-inline {
+  max-width: 480px;
+  text-align: center;
+  padding: 36px 28px;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 14px;
+  background: rgba(254, 243, 199, 0.35);
+}
+
+.oi-maint-inline-icon {
+  font-size: 2.2rem;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.oi-maint-inline-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--oi-text, #0F172A);
+  margin: 0 0 10px;
+}
+
+.oi-maint-inline-message {
+  font-size: 0.98rem;
+  color: var(--oi-muted, #64748B);
+  margin: 0 0 8px;
+}
+
+.oi-maint-inline-return {
+  font-size: 0.85rem;
+  color: var(--oi-muted, #64748B);
+  margin: 0;
+  font-weight: 600;
+}

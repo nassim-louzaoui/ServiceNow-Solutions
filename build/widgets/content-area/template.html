@@ -1,0 +1,51 @@
+<div class="oi-content-area">
+
+  <div ng-if="c.activeInMaintenance()" class="oi-content-maintenance" role="status">
+    <div class="oi-maint-inline">
+      <span class="oi-maint-inline-icon" aria-hidden="true">&#128295;</span>
+      <h2 class="oi-maint-inline-title">{{c.maintenanceTitle()}}</h2>
+      <p class="oi-maint-inline-message">{{c.data.maintenanceMessage}}</p>
+      <p ng-if="c.data.maintenanceReturnAt" class="oi-maint-inline-return">
+        Estimated return: {{c.data.maintenanceReturnAt}}
+      </p>
+    </div>
+  </div>
+
+  <div ng-if="!c.activeInMaintenance()" class="oi-content-sections" ng-switch="c.activeSection">
+
+    <div ng-switch-when="workspace" class="oi-section oi-section--workspace">
+      <widget id="workspace-automation-panel"></widget>
+      <widget id="deliverable-type-tiles"></widget>
+      <widget id="deliverable-cards"></widget>
+    </div>
+
+    <div ng-switch-when="activity" class="oi-section oi-section--activity">
+      <widget id="execution-history"></widget>
+      <widget id="artifact-history"></widget>
+    </div>
+
+    <div ng-switch-when="studio" class="oi-section oi-section--studio">
+      <widget id="creator-studio-panel"></widget>
+    </div>
+
+    <div ng-switch-when="governance" class="oi-section oi-section--governance">
+      <widget id="pending-approvals"></widget>
+      <widget id="group-manager"></widget>
+      <widget id="flow-oversight"></widget>
+      <widget id="group-metrics"></widget>
+    </div>
+
+    <div ng-switch-when="command" class="oi-section oi-section--command">
+      <widget id="admin-overview"></widget>
+      <widget id="audit-log-viewer"></widget>
+      <widget id="system-config-panel"></widget>
+      <widget id="maintenance-control-panel"></widget>
+    </div>
+
+    <div ng-switch-default class="oi-section oi-section--empty">
+      <p class="oi-content-empty">Select a section to begin.</p>
+    </div>
+
+  </div>
+
+</div>

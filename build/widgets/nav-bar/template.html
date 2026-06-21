@@ -1,0 +1,32 @@
+<nav class="oi-nav-bar" role="navigation" aria-label="Operations Intelligence sections">
+
+  <div class="oi-nav-brand">
+    <span class="oi-nav-logo" aria-hidden="true">&#9670;</span>
+    <span class="oi-nav-brand-text">{{c.data.branding}}</span>
+  </div>
+
+  <ul class="oi-nav-links">
+    <li ng-repeat="section in c.data.sections track by section.id" class="oi-nav-item">
+      <button type="button"
+              class="oi-nav-link"
+              ng-class="{ 'oi-nav-link--active': c.isActive(section.id) }"
+              ng-click="c.setSection(section.id)"
+              aria-current="{{ c.isActive(section.id) ? 'page' : 'false' }}">
+        <span class="oi-nav-label">{{section.label}}</span>
+        <span ng-if="section.in_maintenance"
+              class="oi-nav-wrench"
+              title="{{section.label}} is under maintenance"
+              aria-label="{{section.label}} is under maintenance">&#128295;</span>
+      </button>
+    </li>
+  </ul>
+
+  <div class="oi-nav-profile" ng-if="c.data.userName">
+    <span class="oi-nav-avatar" aria-hidden="true">{{c.data.userInitials}}</span>
+    <span class="oi-nav-user">
+      <span class="oi-nav-user-name">{{c.data.userName}}</span>
+      <span class="oi-nav-user-role">{{c.data.role}}</span>
+    </span>
+  </div>
+
+</nav>

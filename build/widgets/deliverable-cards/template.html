@@ -1,0 +1,44 @@
+<div class="oi-dc">
+  <div class="oi-dc-header">
+    <div class="oi-dc-title">Existing Deliverables</div>
+    <div class="oi-dc-groupselect" ng-if="c.data.groups.length">
+      <label class="oi-dc-glabel">Group</label>
+      <select class="oi-dc-select"
+              ng-model="c.selectedGroup"
+              ng-change="c.onGroupChange()">
+        <option value="">All my groups</option>
+        <option ng-repeat="g in c.data.groups" value="{{g.sys_id}}">{{g.name}}</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="oi-dc-error" ng-if="c.data.error">{{c.data.error}}</div>
+
+  <div class="oi-dc-empty" ng-if="!c.data.error && !c.data.cards.length">
+    No active deliverables for the selected group yet.
+  </div>
+
+  <div class="oi-dc-grid" ng-if="!c.data.error && c.data.cards.length">
+    <div class="oi-dc-card"
+         ng-repeat="card in c.data.cards"
+         ng-click="c.openCard(card)">
+      <div class="oi-dc-cardtop">
+        <span class="oi-dc-icon"><i class="fa {{card.type_icon}}"></i></span>
+        <span class="oi-dc-name">{{card.display_name}}</span>
+        <span class="oi-dc-status oi-dc-status-{{card.status}}">{{card.status}}</span>
+      </div>
+      <div class="oi-dc-type">{{card.type_label}}</div>
+      <div class="oi-dc-desc" ng-if="card.description">{{card.description}}</div>
+      <div class="oi-dc-meta">
+        <span class="oi-dc-metaline"><i class="fa fa-users"></i> {{card.owner_group}}</span>
+        <span class="oi-dc-metaline"><i class="fa fa-user"></i> {{card.created_by}}</span>
+        <span class="oi-dc-metaline"><i class="fa fa-clock-o"></i> {{card.created_at}}</span>
+      </div>
+      <div class="oi-dc-controls" ng-if="card.can_manage">
+        <button class="oi-dc-ctrl" ng-click="$event.stopPropagation(); c.manage(card, 'edit')">Edit</button>
+        <button class="oi-dc-ctrl" ng-click="$event.stopPropagation(); c.manage(card, 'deactivate')">Deactivate</button>
+        <button class="oi-dc-ctrl oi-dc-ctrl-danger" ng-click="$event.stopPropagation(); c.manage(card, 'archive')">Archive</button>
+      </div>
+    </div>
+  </div>
+</div>

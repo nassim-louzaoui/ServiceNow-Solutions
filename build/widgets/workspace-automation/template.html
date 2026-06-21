@@ -1,0 +1,63 @@
+<div class="oi-wa">
+  <div class="oi-wa-header">
+    <div class="oi-wa-title">Automations</div>
+    <div class="oi-wa-groupselect" ng-if="c.data.groups.length">
+      <label class="oi-wa-glabel">Group</label>
+      <select class="oi-wa-select"
+              ng-model="c.selectedGroup"
+              ng-change="c.onGroupChange()">
+        <option value="">All my groups</option>
+        <option ng-repeat="g in c.data.groups" value="{{g.sys_id}}">{{g.name}}</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="oi-wa-error" ng-if="c.data.error">{{c.data.error}}</div>
+
+  <div class="oi-wa-empty" ng-if="!c.data.error && !c.data.cards.length">
+    No published automations are available for the selected group yet.
+  </div>
+
+  <div class="oi-wa-grid" ng-if="!c.data.error && c.data.cards.length">
+    <div class="oi-wa-card"
+         ng-repeat="card in c.data.cards"
+         ng-class="{'oi-wa-card-event': card.trigger_type === 'event_driven'}"
+         ng-click="card.trigger_type === 'event_driven' && c.openFlowDetail(card)">
+      <div class="oi-wa-cat" ng-style="{'background-color': card.category_color}"></div>
+      <div class="oi-wa-body">
+        <div class="oi-wa-cardtop">
+          <span class="oi-wa-icon" ng-if="card.category_icon">
+            <i class="fa {{card.category_icon}}"></i>
+          </span>
+          <span class="oi-wa-name">{{card.name}}</span>
+        </div>
+        <div class="oi-wa-desc">{{card.short_description}}</div>
+        <div class="oi-wa-meta">
+          <span class="oi-wa-badge"
+                ng-if="card.trigger_type === 'on_demand'">On-Demand</span>
+          <span class="oi-wa-badge oi-wa-badge-event"
+                ng-if="card.trigger_type === 'event_driven'">Event-Driven</span>
+          <span class="oi-wa-pill" ng-if="card.trigger_type === 'on_demand'">
+            Used {{card.usage_count}}×
+          </span>
+          <span class="oi-wa-pill" ng-if="card.trigger_type === 'event_driven'">
+            Fired {{card.fired_this_month}}× this month
+          </span>
+          <span class="oi-wa-status"
+                ng-if="card.trigger_type === 'event_driven'"
+                ng-class="card.active ? 'oi-wa-on' : 'oi-wa-off'">
+            {{card.active ? 'Active' : 'Inactive'}}
+          </span>
+        </div>
+        <div class="oi-wa-actions" ng-if="card.trigger_type === 'on_demand'">
+          <button class="oi-wa-trigger" ng-click="$event.stopPropagation(); c.trigger(card)">
+            Trigger
+          </button>
+        </div>
+        <div class="oi-wa-hint" ng-if="card.trigger_type === 'event_driven'">
+          Click card for trigger condition and recent activity
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

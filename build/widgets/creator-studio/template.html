@@ -1,0 +1,61 @@
+<div class="oi-studio">
+  <div class="oi-copilot-banner" ng-if="data.copilot.show_banner">
+    <span class="oi-banner-icon">!</span>
+    <span class="oi-banner-text" ng-if="data.copilot.token_status === 'expired'">
+      Your Copilot connection has expired. AI gap-fill is unavailable until you reconnect your token.
+    </span>
+    <span class="oi-banner-text" ng-if="data.copilot.token_status === 'revoked'">
+      Your Copilot connection was revoked. Reconnect your token to restore AI gap-fill.
+    </span>
+    <span class="oi-banner-text" ng-if="data.copilot.token_status === 'none'">
+      Copilot is not connected. Connect a token to enable AI gap-fill during creation.
+    </span>
+    <button class="oi-banner-action" ng-click="c.connectCopilot()">Connect Copilot</button>
+  </div>
+
+  <section class="oi-section">
+    <h2 class="oi-section-title">Quick Start</h2>
+    <div class="oi-card-grid">
+      <button type="button" class="oi-quickcard" ng-repeat="card in data.cards" ng-click="c.startIntent(card.pre_intent)">
+        <span class="oi-quickcard-title">{{card.title}}</span>
+        <span class="oi-quickcard-desc">{{card.description}}</span>
+      </button>
+    </div>
+  </section>
+
+  <section class="oi-section">
+    <h2 class="oi-section-title">Active Drafts</h2>
+    <div class="oi-empty" ng-if="data.drafts.length === 0">No drafts in progress.</div>
+    <div class="oi-list">
+      <div class="oi-row" ng-repeat="d in data.drafts">
+        <div class="oi-row-main">
+          <span class="oi-row-number">{{d.number}}</span>
+          <span class="oi-row-title">{{d.title}}</span>
+          <span class="oi-badge oi-badge-draft">{{d.status}}</span>
+          <span class="oi-row-meta" ng-if="d.artifact_type">{{d.artifact_type}}</span>
+        </div>
+        <button class="oi-btn oi-btn-primary" ng-click="c.resumeDraft(d)">Resume</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="oi-section">
+    <h2 class="oi-section-title">Published Automations</h2>
+    <div class="oi-empty" ng-if="data.published.length === 0">No published automations for your groups.</div>
+    <div class="oi-list">
+      <div class="oi-row" ng-repeat="a in data.published">
+        <div class="oi-row-main">
+          <span class="oi-row-number">{{a.number}}</span>
+          <span class="oi-row-title">{{a.name}}</span>
+          <span class="oi-badge oi-badge-version">v{{a.version}}</span>
+          <span class="oi-row-meta">{{a.usage_count}} uses</span>
+          <span class="oi-row-meta">{{a.owner_group}}</span>
+        </div>
+        <div class="oi-row-actions">
+          <button class="oi-btn" ng-click="c.editAutomation(a)">Edit</button>
+          <button class="oi-btn oi-btn-danger" ng-click="c.deprecateAutomation(a)">Deprecate</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>

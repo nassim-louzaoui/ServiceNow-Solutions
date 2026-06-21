@@ -1,0 +1,43 @@
+<div class="oi-assistant-panel" ng-class="{ 'oi-assistant-panel--collapsed': c.collapsed }">
+
+  <button type="button"
+          class="oi-assistant-toggle"
+          ng-click="c.toggle()"
+          aria-expanded="{{ !c.collapsed }}"
+          aria-label="{{ c.collapsed ? 'Open Operations Assistant' : 'Collapse Operations Assistant' }}">
+    <span ng-if="c.collapsed" aria-hidden="true">&#9001;</span>
+    <span ng-if="!c.collapsed" aria-hidden="true">&#9002;</span>
+  </button>
+
+  <div class="oi-assistant-body" ng-if="!c.collapsed">
+
+    <header class="oi-assistant-header">
+      <span class="oi-assistant-icon" aria-hidden="true">&#9679;</span>
+      <h2 class="oi-assistant-title">Operations Assistant</h2>
+    </header>
+
+    <div class="oi-assistant-welcome">
+      <p class="oi-assistant-greeting">{{c.data.welcome.message}}</p>
+      <p ng-if="c.data.welcome.pending_approvals > 0" class="oi-assistant-badge">
+        {{c.data.welcome.pending_approvals}} pending approval(s)
+      </p>
+    </div>
+
+    <!-- Operations Assistant Virtual Agent embed placeholder.
+         In the deployed portal this hosts <sn-va-web-client-embed>
+         wired with the session variables shown below. -->
+    <div class="oi-va-embed-placeholder"
+         data-page-id="{{c.data.pageId}}"
+         data-active-section="{{c.activeSection}}"
+         data-pre-intent="{{c.preIntent}}">
+      <p class="oi-va-placeholder-label">[ Operations Assistant — Virtual Agent embed ]</p>
+      <dl class="oi-va-placeholder-meta">
+        <dt>page_id</dt><dd>{{c.data.pageId}}</dd>
+        <dt>active_section</dt><dd>{{c.activeSection}}</dd>
+        <dt>pre_intent</dt><dd>{{ c.preIntent || '(none)' }}</dd>
+      </dl>
+    </div>
+
+  </div>
+
+</div>

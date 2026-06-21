@@ -1,0 +1,67 @@
+<div class="oi-onboarding">
+
+  <header class="oi-onb-header">
+    <h1 class="oi-onb-title">Welcome to Operations Intelligence</h1>
+    <p class="oi-onb-subtitle" ng-if="c.data.userName">{{c.data.userName}}, let us complete your onboarding.</p>
+  </header>
+
+  <ol class="oi-onb-stepper" aria-label="Onboarding steps">
+    <li ng-repeat="step in c.steps track by step.key"
+        class="oi-onb-step"
+        ng-class="{
+          'oi-onb-step--active': c.isStepActive($index),
+          'oi-onb-step--done': c.isStepDone($index)
+        }"
+        aria-current="{{ c.isStepActive($index) ? 'step' : 'false' }}">
+      <span class="oi-onb-step-marker">
+        <span ng-if="c.isStepDone($index)" aria-hidden="true">&#10003;</span>
+        <span ng-if="!c.isStepDone($index)">{{$index + 1}}</span>
+      </span>
+      <span class="oi-onb-step-label">{{step.label}}</span>
+    </li>
+  </ol>
+
+  <div class="oi-onb-body">
+
+    <div ng-if="c.data.error" class="oi-onb-error" role="alert">
+      We could not complete onboarding ({{c.data.error}}). Please contact your manager.
+    </div>
+
+    <div ng-if="c.data.completed" class="oi-onb-complete">
+      <span class="oi-onb-complete-icon" aria-hidden="true">&#10003;</span>
+      <h2>You are all set</h2>
+      <p>Your onboarding is complete. You now have access to Operations Intelligence.</p>
+      <button type="button" class="oi-onb-btn oi-onb-btn--primary" ng-click="c.goToPortal()">
+        Go to Operations Intelligence
+      </button>
+    </div>
+
+    <div ng-if="!c.data.completed && c.data.request" class="oi-onb-confirm-card">
+      <h2 class="oi-onb-card-title">Confirm your role and group</h2>
+      <p class="oi-onb-ref">Reference: {{c.data.request.number}}</p>
+
+      <dl class="oi-onb-details">
+        <dt>System Role</dt>
+        <dd class="oi-onb-role">{{c.data.request.system_role}}</dd>
+        <dt>Group</dt>
+        <dd>{{ c.data.request.group_name || 'Not assigned' }}</dd>
+        <dt>Group Role</dt>
+        <dd>{{c.data.request.group_role}}</dd>
+      </dl>
+
+      <button type="button"
+              class="oi-onb-btn oi-onb-btn--primary"
+              ng-click="c.confirmOnboarding()"
+              ng-disabled="c.confirming">
+        <span ng-if="!c.confirming">Confirm and Complete</span>
+        <span ng-if="c.confirming">Completing&#8230;</span>
+      </button>
+    </div>
+
+    <div ng-if="!c.data.completed && !c.data.request && !c.data.error" class="oi-onb-empty">
+      <p>There is no pending onboarding invitation for your account.</p>
+    </div>
+
+  </div>
+
+</div>

@@ -1,0 +1,19 @@
+<div class="oi-dt">
+  <div class="oi-dt-header">
+    <div class="oi-dt-title">Create New</div>
+    <div class="oi-dt-sub">Pick a deliverable type — the Operations Assistant guides you from there.</div>
+  </div>
+
+  <div class="oi-dt-error" ng-if="c.data.error">{{c.data.error}}</div>
+
+  <div class="oi-dt-grid" ng-if="!c.data.error">
+    <button class="oi-dt-tile"
+            ng-repeat="tile in c.data.tiles"
+            ng-click="c.openTile(tile)"
+            title="{{tile.description}}">
+      <span class="oi-dt-icon"><i class="fa {{tile.icon}}"></i></span>
+      <span class="oi-dt-label">{{tile.label}}</span>
+      <span class="oi-dt-desc">{{tile.description}}</span>
+    </button>
+  </div>
+</div>
