@@ -1803,23 +1803,24 @@
             if (!d.name)       return { _status: 400, ok: false, error: 'data.name required' };
             if (!d.collection) return { _status: 400, ok: false, error: 'data.collection (table name) required' };
             if (!d.script)     return { _status: 400, ok: false, error: 'data.script required' };
+            var brName = d.name.length > 40 ? d.name.substring(0, 40) : d.name;
             var brPayload = {
-                name:             d.name,
+                name:             brName,
                 collection:       d.collection,
                 script:           d.script,
                 active:           d.active !== false ? 'true' : 'false',
                 when:             d.when || 'after',
                 order:            String(d.order || 100),
-                insert:           d.insert    !== false ? 'true' : 'false',
-                update:           d.update    !== false ? 'true' : 'false',
-                delete:           d.delete    !== false ? 'true' : 'false',
-                query:            d.query     ? 'true' : 'false',
+                action_insert:    d.insert    !== false ? 'true' : 'false',
+                action_update:    d.update    !== false ? 'true' : 'false',
+                action_delete:    d.delete    !== false ? 'true' : 'false',
+                action_query:     d.query     ? 'true' : 'false',
                 add_message:      d.add_message ? 'true' : 'false',
                 sys_scope:        appScopeSysId()
             };
             if (d.condition)        brPayload.condition        = d.condition;
             if (d.filter_condition) brPayload.filter_condition = d.filter_condition;
-            var brRes = artifactUpsert('sys_script', 'name=' + d.name + '^collection=' + d.collection, brPayload, true);
+            var brRes = artifactUpsert('sys_script', 'name=' + brName + '^collection=' + d.collection, brPayload, true);
             return brRes;
 
         case 'artifact.notification':
