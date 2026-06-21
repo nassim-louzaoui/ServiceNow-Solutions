@@ -777,7 +777,7 @@
     }
 
     React.useEffect(function () {
-      if (tab === 'persons' && persons.length === 0) loadPersons();
+      if (tab === 'persons') loadPersons();
     }, [tab]);
 
     return h('div', { className: 'oi-section' },
@@ -1081,7 +1081,7 @@
         if (err) { ctx.toast(err, 'error'); return; }
         if (d && d.member_added) {
           ctx.toast(selectedUser.name + ' added to ' + group.name, 'success');
-          props.onAdded({ person_sys_id: selectedUser.sys_id, person_name: selectedUser.name, group_role: 'member' });
+          props.onAdded({ person_sys_id: selectedUser.person_sys_id, person_name: selectedUser.name, group_role: 'member' });
           props.onClose();
         } else {
           ctx.toast('Failed to add member.', 'error');
