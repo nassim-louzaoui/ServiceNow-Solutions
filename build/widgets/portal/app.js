@@ -1452,11 +1452,29 @@
   };
 
   /* ── Mount ───────────────────────────────────────────────────── */
-  // Mount inside oi:ready so the AngularJS template is already linked to the
-  // DOM when we look for #oi-root. The controller IIFE runs during Angular's
-  // compile phase (before $onInit), so getElementById returns null at that
-  // point — React would append a hidden body div and the template's actual
-  // #oi-root would remain empty.
+  // SP widget lifecycle: the controller IIFE executes during Angular's compile
+  // phase, before the template HTML is linked to the DOM. $onInit fires slightly
+  // later but may still precede template link in some SP versions. We wait for
+  // both the oi:ready signal AND the #oi-root element to be present.
+
+  function mountReact() {
+    var container = document.getElementById('oi-root');
+    if (container) {
+      var root = ReactDOM.createRoot(container);
+      root.render(h(OIErrorBoundary, null, h(App, null)));
+      return;
+    }
+    var observer = new MutationObserver(function () {
+      var c = document.getElementById('oi-root');
+      if (c) {
+        observer.disconnect();
+        var root2 = ReactDOM.createRoot(c);
+        root2.render(h(OIErrorBoundary, null, h(App, null)));
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    setTimeout(function () { observer.disconnect(); }, 10000);
+  }
 
   window.addEventListener('oi:ready', function (e) {
     _bridge = e.detail;
@@ -1465,14 +1483,7 @@
       _onBridgeReady = null;
       fn();
     }
-    var container = document.getElementById('oi-root');
-    if (!container) {
-      container = document.createElement('div');
-      container.id = 'oi-root';
-      document.body.appendChild(container);
-    }
-    var root = ReactDOM.createRoot(container);
-    root.render(h(OIErrorBoundary, null, h(App, null)));
+    mountReact();
   }, { once: true });
 
 })();
