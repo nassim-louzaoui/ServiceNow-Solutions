@@ -1,7 +1,33 @@
 (function() {
     data.branding = 'Operations Intelligence';
+    data.accessDenied = false;
 
     var userSysId = gs.getUserID();
+
+    var OI_ROLES = [
+        'x_infte_ops_int.user',
+        'x_infte_ops_int.creator',
+        'x_infte_ops_int.leadership'
+    ];
+    var hasOiRole = false;
+    var r;
+    for (r = 0; r < OI_ROLES.length; r++) {
+        if (gs.hasRole(OI_ROLES[r])) {
+            hasOiRole = true;
+            break;
+        }
+    }
+
+    if (!hasOiRole) {
+        data.accessDenied = true;
+        data.userName = '';
+        data.userInitials = '';
+        data.role = '';
+        data.groups = [];
+        data.sections = [];
+        data.defaultSection = '';
+        return;
+    }
 
     var pr = new PermissionResolver();
     data.role = pr.getSystemRole(userSysId);
@@ -17,11 +43,11 @@
     }
 
     var sections = [
-        { id: 'workspace', label: 'Workspace', roles: ['user', 'creator', 'leadership', 'admin'] },
-        { id: 'activity', label: 'My Activity', roles: ['user', 'creator', 'leadership', 'admin'] },
-        { id: 'studio', label: 'Studio', roles: ['creator'] },
-        { id: 'governance', label: 'Governance', roles: ['leadership'] },
-        { id: 'command', label: 'Command', roles: ['admin'] }
+        { id: 'workspace',  label: 'Workspace',   roles: ['user', 'creator', 'leadership', 'admin'] },
+        { id: 'activity',   label: 'My Activity',  roles: ['user', 'creator', 'leadership', 'admin'] },
+        { id: 'studio',     label: 'Studio',       roles: ['creator'] },
+        { id: 'governance', label: 'Governance',   roles: ['leadership'] },
+        { id: 'command',    label: 'Command',      roles: ['admin'] }
     ];
 
     var mm = new MaintenanceManager();

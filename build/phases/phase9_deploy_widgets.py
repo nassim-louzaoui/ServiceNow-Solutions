@@ -39,6 +39,12 @@ NAMES = {
     "maintenance-overlay": "Maintenance Overlay",
 }
 
+# sp_widget.id is limited to 40 characters; any computed id that would exceed
+# that limit must be declared here with its actual truncated value.
+ID_OVERRIDES = {
+    "maintenance-control-panel": "x_infte_ops_int_maintenance_control_pane",
+}
+
 
 def read(folder, fname):
     path = os.path.join(WIDGETS_DIR, folder, fname)
@@ -54,7 +60,7 @@ def build():
     folders = sorted(d for d in os.listdir(WIDGETS_DIR)
                      if os.path.isdir(os.path.join(WIDGETS_DIR, d)))
     for folder in folders:
-        wid = "x_infte_ops_int_" + folder.replace("-", "_")
+        wid = ID_OVERRIDES.get(folder, "x_infte_ops_int_" + folder.replace("-", "_"))
         name = NAMES.get(folder, folder.replace("-", " ").title())
         data = {
             "id": wid,

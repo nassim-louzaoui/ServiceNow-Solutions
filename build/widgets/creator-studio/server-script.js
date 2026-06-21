@@ -41,20 +41,17 @@
     }
 
     function _loadCopilotStatus(personSysId) {
-        var cc = new GlideRecord('x_infte_ops_int_creator_credential');
-        cc.addQuery('user', personSysId);
-        cc.setLimit(1);
-        cc.query();
-        if (cc.next()) {
-            var status = '' + cc.getValue('token_status');
-            data.copilot.token_status = status;
-            data.copilot.connected_at = '' + cc.getValue('connected_at');
-            data.copilot.last_validated_at = '' + cc.getValue('last_validated_at');
-            data.copilot.show_banner = (status !== 'active');
-        } else {
+        var person = new GlideRecord('x_infte_ops_int_person');
+        if (!person.get(personSysId)) {
             data.copilot.token_status = 'none';
             data.copilot.show_banner = true;
+            return;
         }
+        var status = '' + person.getValue('token_status');
+        data.copilot.token_status = status || 'none';
+        data.copilot.connected_at = '' + person.getValue('github_connected_at');
+        data.copilot.last_validated_at = '' + person.getValue('github_last_validated');
+        data.copilot.show_banner = (status !== 'active');
     }
 
     function _loadDrafts(personSysId) {

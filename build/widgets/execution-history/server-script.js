@@ -52,6 +52,11 @@
         });
     }
 
+    function parseJson(raw, fallback) {
+        if (!raw) { return fallback; }
+        try { return JSON.parse(raw); } catch (e) { return fallback; }
+    }
+
     function loadStepLog(executionSysId, ownerPersonSysId) {
         var result = {
             execution_sys_id: executionSysId,
@@ -67,19 +72,21 @@
         }
         result.authorized = true;
 
-        var log = new GlideRecord('x_infte_ops_int_execution_step_log');
-        log.addQuery('execution', executionSysId);
-        log.orderBy('step_order');
-        log.query();
-        while (log.next()) {
+        var entries = parseJson('' + ex.getValue('step_log'), []);
+        entries.sort(function(a, b) {
+            return (parseInt(a.step_order, 10) || 0) - (parseInt(b.step_order, 10) || 0);
+        });
+        var i;
+        for (i = 0; i < entries.length; i++) {
+            var e = entries[i];
             result.steps.push({
-                step_order: parseInt('' + log.getValue('step_order'), 10) || 0,
-                step_name: '' + log.getValue('step_name'),
-                action_type: '' + log.getValue('action_type'),
-                status: '' + log.getValue('status'),
-                started_at: '' + log.getDisplayValue('started_at'),
-                completed_at: '' + log.getDisplayValue('completed_at'),
-                error_message: '' + log.getValue('error_message')
+                step_order: parseInt('' + e.step_order, 10) || 0,
+                step_name: '' + (e.step_name || ''),
+                action_type: '' + (e.action_type || ''),
+                status: '' + (e.status || ''),
+                started_at: '' + (e.started_at || ''),
+                completed_at: '' + (e.completed_at || ''),
+                error_message: '' + (e.error_message || '')
             });
         }
         return result;

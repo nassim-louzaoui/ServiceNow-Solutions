@@ -3,7 +3,6 @@ ScheduleManager.prototype = {
     initialize: function() {
         this.SCOPE = 'x_infte_ops_int';
         this.AUTOMATION_TABLE = 'x_infte_ops_int_automation';
-        this.AUTOMATION_SCHEDULE_TABLE = 'x_infte_ops_int_automation_schedule';
         this.SYSAUTO_SCRIPT_TABLE = 'sysauto_script';
         this.SYS_SCOPE_TABLE = 'sys_scope';
         this.audit = new AuditService();
@@ -25,22 +24,18 @@ ScheduleManager.prototype = {
             gs.error('x_infte_ops_int ScheduleManager.createSchedule called without automation sys_id');
             return null;
         }
-        var schedule = new GlideRecord(this.AUTOMATION_SCHEDULE_TABLE);
-        schedule.addQuery('automation', automationSysId);
-        schedule.addQuery('active', true);
-        schedule.orderByDesc('created_at');
-        schedule.setLimit(1);
-        schedule.query();
-        if (!schedule.next()) {
+        var auto = new GlideRecord(this.AUTOMATION_TABLE);
+        if (!auto.get(automationSysId)) {
+            gs.error('x_infte_ops_int ScheduleManager.createSchedule could not load automation ' + automationSysId);
             return null;
         }
 
-        var auto = new GlideRecord(this.AUTOMATION_TABLE);
-        var automationName = automationSysId;
-        if (auto.get(automationSysId)) {
-            automationName = '' + auto.getValue('name');
+        var scheduleType = '' + auto.getValue('schedule_type');
+        if (!scheduleType) {
+            return null;
         }
 
+        var automationName = '' + auto.getValue('name');
         var scriptBody = "new ExecutionEngine().runScheduled('" + automationSysId + "');";
 
         var job = new GlideRecord(this.SYSAUTO_SCRIPT_TABLE);
@@ -49,21 +44,20 @@ ScheduleManager.prototype = {
         job.setValue('script', scriptBody);
         job.setValue('active', true);
 
-        var scheduleType = '' + schedule.getValue('schedule_type');
-        var timezone = '' + schedule.getValue('timezone');
+        var timezone = '' + auto.getValue('timezone');
         if (timezone) {
             job.setValue('time_zone', timezone);
         }
 
         if (scheduleType === 'recurring') {
-            var cron = '' + schedule.getValue('cron_expression');
+            var cron = '' + auto.getValue('cron_expression');
             job.setValue('run_type', 'periodically');
             if (cron) {
                 job.setValue('run_period', this._cronToRunPeriod(cron));
             }
         } else if (scheduleType === 'one_time') {
             job.setValue('run_type', 'once');
-            var runAt = '' + schedule.getValue('run_at');
+            var runAt = '' + auto.getValue('run_at');
             if (runAt) {
                 job.setValue('run_start', runAt);
             }
@@ -80,8 +74,9 @@ ScheduleManager.prototype = {
             return null;
         }
 
-        schedule.setValue('sysauto_sys_id', '' + sysautoSysId);
-        schedule.update();
+        auto.setValue('sysauto_sys_id', '' + sysautoSysId);
+        auto.setValue('schedule_active', true);
+        auto.update();
 
         this.audit.log('schedule_created', {
             automation_sys_id: automationSysId,
@@ -99,23 +94,26 @@ ScheduleManager.prototype = {
         if (!automationSysId) {
             return false;
         }
-        var schedule = new GlideRecord(this.AUTOMATION_SCHEDULE_TABLE);
-        schedule.addQuery('automation', automationSysId);
-        schedule.query();
-        var anyDeactivated = false;
-        while (schedule.next()) {
-            var sysautoSysId = '' + schedule.getValue('sysauto_sys_id');
-            if (sysautoSysId) {
-                var job = new GlideRecord(this.SYSAUTO_SCRIPT_TABLE);
-                if (job.get(sysautoSysId)) {
-                    job.setValue('active', false);
-                    job.update();
-                    anyDeactivated = true;
-                }
-            }
-            schedule.setValue('active', false);
-            schedule.update();
+        var auto = new GlideRecord(this.AUTOMATION_TABLE);
+        if (!auto.get(automationSysId)) {
+            return false;
         }
+
+        var sysautoSysId = '' + auto.getValue('sysauto_sys_id');
+        var anyDeactivated = false;
+
+        if (sysautoSysId) {
+            var job = new GlideRecord(this.SYSAUTO_SCRIPT_TABLE);
+            if (job.get(sysautoSysId)) {
+                job.setValue('active', false);
+                job.update();
+                anyDeactivated = true;
+            }
+        }
+
+        auto.setValue('schedule_active', false);
+        auto.update();
+
         if (anyDeactivated) {
             this.audit.log('schedule_deactivated', { automation_sys_id: automationSysId });
         }

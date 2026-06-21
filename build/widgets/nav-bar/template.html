@@ -1,4 +1,15 @@
-<nav class="oi-nav-bar" role="navigation" aria-label="Operations Intelligence navigation">
+<div ng-if="c.data.accessDenied" class="oi-access-denied">
+  <div class="oi-access-denied-card">
+    <span class="oi-access-denied-icon" aria-hidden="true">&#128274;</span>
+    <h1 class="oi-access-denied-title">Access Restricted</h1>
+    <p class="oi-access-denied-message">
+      This portal is restricted to authorised Operations Intelligence users.<br>
+      Contact your Operations Intelligence administrator to request access.
+    </p>
+  </div>
+</div>
+
+<nav ng-if="!c.data.accessDenied" class="oi-nav-bar" role="navigation" aria-label="Operations Intelligence navigation">
 
   <div class="oi-nav-brand">
     <span class="oi-nav-logo" aria-hidden="true">&#9670;</span>

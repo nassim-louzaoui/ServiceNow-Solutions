@@ -3,10 +3,7 @@ CatalogService.prototype = {
     initialize: function() {
         this.SCOPE = 'x_infte_ops_int';
         this.AUTOMATION_TABLE = 'x_infte_ops_int_automation';
-        this.AUTOMATION_STEP_TABLE = 'x_infte_ops_int_automation_step';
-        this.AUTOMATION_INPUT_TABLE = 'x_infte_ops_int_automation_input';
         this.AUTOMATION_VERSION_TABLE = 'x_infte_ops_int_automation_version';
-        this.AUTOMATION_SCHEDULE_TABLE = 'x_infte_ops_int_automation_schedule';
         this.GROUP_AUTOMATION_TABLE = 'x_infte_ops_int_group_automation';
         this.USE_CASE_REQUEST_TABLE = 'x_infte_ops_int_use_case_request';
         this.PERSON_TABLE = 'x_infte_ops_int_person';
@@ -72,10 +69,18 @@ CatalogService.prototype = {
         auto.setValue('name', '' + (spec.name || ucr.getValue('title')));
         auto.setValue('short_description', '' + (spec.short_description || ''));
         auto.setValue('description', '' + (spec.description || ucr.getValue('description')));
-        if (spec.category) {
-            auto.setValue('category', '' + spec.category);
+        if (spec.category_name) {
+            auto.setValue('category_name', '' + spec.category_name);
+        }
+        if (spec.category_color) {
+            auto.setValue('category_color', '' + spec.category_color);
+        }
+        if (spec.category_icon) {
+            auto.setValue('category_icon', '' + spec.category_icon);
         }
         auto.setValue('trigger_phrases', JSON.stringify(spec.trigger_phrases || []));
+        auto.setValue('step_definitions', JSON.stringify(this._normaliseSteps(spec.steps || [])));
+        auto.setValue('input_definitions', JSON.stringify(this._normaliseInputs(spec.inputs || [])));
         auto.setValue('status', 'draft');
         auto.setValue('version', 1);
         auto.setValue('owner_group', ownerGroupSysId);
@@ -87,6 +92,9 @@ CatalogService.prototype = {
         }
         auto.setValue('usage_count', 0);
         auto.setValue('active', true);
+
+        this._applyScheduleFields(auto, spec.schedule);
+
         var automationSysId = auto.insert();
         if (!automationSysId) {
             gs.error('x_infte_ops_int CatalogService failed to insert automation');
@@ -95,10 +103,6 @@ CatalogService.prototype = {
 
         auto.setValue('base_automation', '' + automationSysId);
         auto.update();
-
-        this._createSteps(automationSysId, spec.steps || [], scopeSysId);
-        this._createInputs(automationSysId, spec.inputs || [], scopeSysId);
-        this._createSchedule(automationSysId, spec.schedule, scopeSysId);
 
         var ga = new GlideRecord(this.GROUP_AUTOMATION_TABLE);
         ga.initialize();
@@ -125,82 +129,58 @@ CatalogService.prototype = {
         return '' + automationSysId;
     },
 
-    _createSteps: function(automationSysId, steps, scopeSysId) {
+    _normaliseSteps: function(steps) {
         var i;
+        var result = [];
         for (i = 0; i < steps.length; i++) {
             var s = steps[i];
-            var step = new GlideRecord(this.AUTOMATION_STEP_TABLE);
-            step.initialize();
-            if (scopeSysId) {
-                step.setValue('sys_scope', scopeSysId);
-            }
-            step.setValue('automation', '' + automationSysId);
-            step.setValue('order', (s.order !== undefined && s.order !== null) ? parseInt(s.order, 10) : (i + 1));
-            step.setValue('name', '' + (s.name || ('Step ' + (i + 1))));
-            step.setValue('action_type', '' + s.action_type);
-            step.setValue('configuration', (typeof s.configuration === 'string') ?
-                ('' + s.configuration) : JSON.stringify(s.configuration || {}));
-            if (s.branch_true_step !== undefined && s.branch_true_step !== null) {
-                step.setValue('branch_true_step', parseInt(s.branch_true_step, 10));
-            }
-            if (s.branch_false_step !== undefined && s.branch_false_step !== null) {
-                step.setValue('branch_false_step', parseInt(s.branch_false_step, 10));
-            }
-            step.setValue('on_failure', '' + (s.on_failure || 'stop'));
-            step.setValue('active', true);
-            step.insert();
+            result.push({
+                order: (s.order !== undefined && s.order !== null) ? parseInt(s.order, 10) : (i + 1),
+                name: '' + (s.name || ('Step ' + (i + 1))),
+                action_type: '' + (s.action_type || ''),
+                configuration: (typeof s.configuration === 'string') ? ('' + s.configuration) : JSON.stringify(s.configuration || {}),
+                branch_true_step: (s.branch_true_step !== undefined && s.branch_true_step !== null) ? parseInt(s.branch_true_step, 10) : null,
+                branch_false_step: (s.branch_false_step !== undefined && s.branch_false_step !== null) ? parseInt(s.branch_false_step, 10) : null,
+                on_failure: '' + (s.on_failure || 'stop'),
+                active: true
+            });
         }
+        return result;
     },
 
-    _createInputs: function(automationSysId, inputs, scopeSysId) {
+    _normaliseInputs: function(inputs) {
         var i;
+        var result = [];
         for (i = 0; i < inputs.length; i++) {
             var inp = inputs[i];
-            var input = new GlideRecord(this.AUTOMATION_INPUT_TABLE);
-            input.initialize();
-            if (scopeSysId) {
-                input.setValue('sys_scope', scopeSysId);
-            }
-            input.setValue('automation', '' + automationSysId);
-            input.setValue('order', (inp.order !== undefined && inp.order !== null) ? parseInt(inp.order, 10) : (i + 1));
-            input.setValue('label', '' + (inp.label || ''));
-            input.setValue('field_name', '' + (inp.field_name || ''));
-            input.setValue('input_type', '' + (inp.input_type || 'text'));
-            if (inp.choices !== undefined && inp.choices !== null) {
-                input.setValue('choices', (typeof inp.choices === 'string') ?
-                    ('' + inp.choices) : JSON.stringify(inp.choices));
-            }
-            input.setValue('required', inp.required ? true : false);
-            if (inp.validation_regex) {
-                input.setValue('validation_regex', '' + inp.validation_regex);
-            }
-            input.insert();
+            result.push({
+                order: (inp.order !== undefined && inp.order !== null) ? parseInt(inp.order, 10) : (i + 1),
+                label: '' + (inp.label || ''),
+                field_name: '' + (inp.field_name || ''),
+                input_type: '' + (inp.input_type || 'text'),
+                choices: (typeof inp.choices === 'string') ? ('' + inp.choices) : JSON.stringify(inp.choices || []),
+                required: inp.required ? true : false,
+                validation_regex: '' + (inp.validation_regex || '')
+            });
         }
+        return result;
     },
 
-    _createSchedule: function(automationSysId, schedule, scopeSysId) {
+    _applyScheduleFields: function(autoGr, schedule) {
         if (!schedule || !schedule.schedule_type) {
             return;
         }
-        var sched = new GlideRecord(this.AUTOMATION_SCHEDULE_TABLE);
-        sched.initialize();
-        if (scopeSysId) {
-            sched.setValue('sys_scope', scopeSysId);
-        }
-        sched.setValue('automation', '' + automationSysId);
-        sched.setValue('schedule_type', '' + schedule.schedule_type);
+        autoGr.setValue('schedule_type', '' + schedule.schedule_type);
         if (schedule.cron_expression) {
-            sched.setValue('cron_expression', '' + schedule.cron_expression);
+            autoGr.setValue('cron_expression', '' + schedule.cron_expression);
         }
         if (schedule.run_at) {
-            sched.setValue('run_at', '' + schedule.run_at);
+            autoGr.setValue('run_at', '' + schedule.run_at);
         }
         if (schedule.timezone) {
-            sched.setValue('timezone', '' + schedule.timezone);
+            autoGr.setValue('timezone', '' + schedule.timezone);
         }
-        sched.setValue('active', true);
-        sched.setValue('created_at', new GlideDateTime().getValue());
-        sched.insert();
+        autoGr.setValue('schedule_active', true);
     },
 
     onPublish: function(automationSysId) {
@@ -443,40 +423,8 @@ CatalogService.prototype = {
         }
         var scopeSysId = this._scopeSysId();
 
-        var stepsSnapshot = [];
-        var step = new GlideRecord(this.AUTOMATION_STEP_TABLE);
-        step.addQuery('automation', automationSysId);
-        step.orderBy('order');
-        step.query();
-        while (step.next()) {
-            stepsSnapshot.push({
-                order: parseInt(step.getValue('order'), 10),
-                name: '' + step.getValue('name'),
-                action_type: '' + step.getValue('action_type'),
-                configuration: '' + step.getValue('configuration'),
-                branch_true_step: '' + step.getValue('branch_true_step'),
-                branch_false_step: '' + step.getValue('branch_false_step'),
-                on_failure: '' + step.getValue('on_failure'),
-                active: '' + step.getValue('active')
-            });
-        }
-
-        var inputsSnapshot = [];
-        var input = new GlideRecord(this.AUTOMATION_INPUT_TABLE);
-        input.addQuery('automation', automationSysId);
-        input.orderBy('order');
-        input.query();
-        while (input.next()) {
-            inputsSnapshot.push({
-                order: parseInt(input.getValue('order'), 10),
-                label: '' + input.getValue('label'),
-                field_name: '' + input.getValue('field_name'),
-                input_type: '' + input.getValue('input_type'),
-                choices: '' + input.getValue('choices'),
-                required: '' + input.getValue('required')
-            });
-        }
-
+        var stepsSnapshot = this._parseJson('' + auto.getValue('step_definitions'), []);
+        var inputsSnapshot = this._parseJson('' + auto.getValue('input_definitions'), []);
         var triggerPhrases = this._parseJson('' + auto.getValue('trigger_phrases'), []);
 
         var version = new GlideRecord(this.AUTOMATION_VERSION_TABLE);
