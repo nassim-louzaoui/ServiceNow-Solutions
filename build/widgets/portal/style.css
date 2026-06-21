@@ -140,6 +140,7 @@
 .oi-badge.danger   { background: rgba(217,83,79,0.12);  color: #D9534F; }
 .oi-badge.primary  { background: rgba(0,114,206,0.12);  color: #0072CE; }
 .oi-badge.neutral  { background: rgba(107,123,141,0.12); color: #6B7B8D; }
+.oi-badge.pending  { background: rgba(240,173,0,0.12);  color: #F0AD00; }
 .oi-badge.running  { background: rgba(0,114,206,0.12);  color: #0072CE; }
 .oi-badge.failed   { background: rgba(217,83,79,0.12);  color: #D9534F; }
 

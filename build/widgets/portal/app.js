@@ -1076,7 +1076,7 @@
     function addMember() {
       if (!selectedUser) return;
       setBusy(true);
-      ctx.callServer({ action: 'add_member', group_sys_id: group.sys_id, person_sys_id: selectedUser.sys_id }, function (d, err) {
+      ctx.callServer({ action: 'add_member', group_sys_id: group.sys_id, person_sys_id: selectedUser.person_sys_id }, function (d, err) {
         setBusy(false);
         if (err) { ctx.toast(err, 'error'); return; }
         if (d && d.member_added) {
@@ -1118,14 +1118,14 @@
                   return h('button', {
                     key: u.sys_id || i,
                     className: 'oi-list-item' + (sel ? ' selected' : ''),
-                    style: { opacity: u.already_enrolled ? 0.5 : 1 },
-                    disabled: u.already_enrolled,
+                    style: { opacity: u.already_enrolled ? 1 : 0.5 },
+                    disabled: !u.already_enrolled,
                     onClick: function () { setSelectedUser(u); }
                   },
                     h('div', { className: 'oi-member-avatar' }, initials(u.name || '')),
                     h('div', { className: 'oi-member-info' },
                       h('div', { className: 'oi-member-name' }, u.name),
-                      h('div', { className: 'oi-member-role' }, u.user_name + (u.already_enrolled ? ' (already enrolled)' : ''))
+                      h('div', { className: 'oi-member-role' }, u.user_name + (u.already_enrolled ? '' : ' — not enrolled in Operations Intelligence'))
                     ),
                     sel ? h('span', { style: { color: '#0072CE', fontSize: '0.875rem' } }, '✓') : null
                   );

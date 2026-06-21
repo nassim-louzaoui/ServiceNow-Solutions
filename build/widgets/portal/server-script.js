@@ -495,14 +495,20 @@
     if (input.action === 'toggle_maintenance') {
         if (!hasAdmin) { return; }
         var tPropName = '' + input.prop_name;
+        var tPropVal  = (input.value === true || ('' + input.value) === 'true') ? 'true' : 'false';
         var tPropRec = new GlideRecord('sys_properties');
         tPropRec.addQuery('name', tPropName);
         tPropRec.setLimit(1);
         tPropRec.query();
         if (tPropRec.next()) {
-            var curVal = ('' + tPropRec.getValue('value')) === 'true' ? 'false' : 'true';
-            tPropRec.setValue('value', curVal);
+            tPropRec.setValue('value', tPropVal);
             tPropRec.update();
+        } else {
+            var tPropNew = new GlideRecord('sys_properties');
+            tPropNew.initialize();
+            tPropNew.setValue('name', tPropName);
+            tPropNew.setValue('value', tPropVal);
+            tPropNew.insert();
         }
         return;
     }
