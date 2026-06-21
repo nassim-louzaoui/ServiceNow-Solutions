@@ -1452,13 +1452,11 @@
   };
 
   /* ── Mount ───────────────────────────────────────────────────── */
-
-  var container = document.getElementById('oi-root');
-  if (!container) {
-    container = document.createElement('div');
-    container.id = 'oi-root';
-    document.body.appendChild(container);
-  }
+  // Mount inside oi:ready so the AngularJS template is already linked to the
+  // DOM when we look for #oi-root. The controller IIFE runs during Angular's
+  // compile phase (before $onInit), so getElementById returns null at that
+  // point — React would append a hidden body div and the template's actual
+  // #oi-root would remain empty.
 
   window.addEventListener('oi:ready', function (e) {
     _bridge = e.detail;
@@ -1467,9 +1465,14 @@
       _onBridgeReady = null;
       fn();
     }
+    var container = document.getElementById('oi-root');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'oi-root';
+      document.body.appendChild(container);
+    }
+    var root = ReactDOM.createRoot(container);
+    root.render(h(OIErrorBoundary, null, h(App, null)));
   }, { once: true });
-
-  var root = ReactDOM.createRoot(container);
-  root.render(h(OIErrorBoundary, null, h(App, null)));
 
 })();
