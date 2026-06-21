@@ -1,9 +1,0 @@
-.oi-artifact-history { padding: 8px; }
-.oi-artifact-history .oi-card { margin-bottom: 10px; }
-.oi-artifact-history .oi-status { font-size: 11px; padding: 2px 8px; border-radius: 10px; color: #fff; }
-.oi-artifact-history .oi-status.draft { background: var(--oi-muted, #5A6772); }
-.oi-artifact-history .oi-status.pending_approval { background: var(--oi-accent, #00838F); }
-.oi-artifact-history .oi-status.active { background: var(--oi-success, #2E7D32); }
-.oi-artifact-history .oi-status.inactive { background: var(--oi-muted, #5A6772); }
-.oi-artifact-history .oi-status.archived { background: var(--oi-danger, #C62828); }
-.oi-artifact-history .oi-resume { cursor: pointer; color: var(--oi-primary, #1565C0); }

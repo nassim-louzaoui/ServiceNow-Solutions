@@ -1908,7 +1908,7 @@
             };
             if (d.template      !== undefined) wPayload.template      = d.template;
             if (d.client_script !== undefined) wPayload.client_script = d.client_script;
-            if (d.server_script !== undefined) wPayload.server_script = d.server_script;
+            if (d.server_script !== undefined) wPayload.script        = d.server_script;
             if (d.css           !== undefined) wPayload.css           = d.css;
             if (d.option_schema !== undefined) wPayload.option_schema = typeof d.option_schema === 'string'
                 ? d.option_schema : JSON.stringify(d.option_schema);

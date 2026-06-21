@@ -1,25 +1,24 @@
-<div class="oi-portal">
+<div class="oi-app" ng-class="{'oi-app-denied': c.data.denied}">
 
-  <!-- ACCESS DENIED — Full-screen -->
+  <!-- ================================================================
+       ACCESS DENIED
+       ================================================================ -->
   <div class="oi-denied" ng-if="c.data.denied">
     <div class="oi-denied-brand">
-      <i class="fa fa-diamond"></i>
-      <span>Operations Intelligence</span>
+      <span class="oi-denied-diamond">◆</span>
+      <span class="oi-denied-brand-text">Operations Intelligence</span>
     </div>
-    <div class="oi-denied-svg" aria-hidden="true">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 260" width="200" height="216">
-        <!-- Outer decorative ring -->
-        <circle cx="120" cy="122" r="108" fill="none" stroke="#1D4ED8" stroke-width="1.5" opacity="0.18"/>
-        <circle cx="120" cy="122" r="96"  fill="none" stroke="#1D4ED8" stroke-width="1"   opacity="0.12"/>
-        <!-- Tick marks -->
-        <g stroke="#3B82F6" stroke-width="2" stroke-linecap="round" opacity="0.35">
+    <div class="oi-denied-icon-wrap" aria-hidden="true">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 260" width="190" height="206">
+        <circle cx="120" cy="122" r="108" fill="none" stroke="#6c5ce7" stroke-width="1.5" opacity="0.18"/>
+        <circle cx="120" cy="122" r="96"  fill="none" stroke="#6c5ce7" stroke-width="1"   opacity="0.10"/>
+        <g stroke="#6c5ce7" stroke-width="2" stroke-linecap="round" opacity="0.35">
           <line x1="120" y1="10"  x2="120" y2="22"/>
           <line x1="120" y1="222" x2="120" y2="234"/>
           <line x1="10"  y1="122" x2="22"  y2="122"/>
           <line x1="218" y1="122" x2="230" y2="122"/>
         </g>
-        <!-- Corner dots -->
-        <g fill="#3B82F6" opacity="0.4">
+        <g fill="#6c5ce7" opacity="0.4">
           <circle cx="44"  cy="58"  r="3.5"/>
           <circle cx="28"  cy="122" r="3"/>
           <circle cx="44"  cy="186" r="3.5"/>
@@ -27,643 +26,772 @@
           <circle cx="212" cy="122" r="3"/>
           <circle cx="196" cy="186" r="3.5"/>
         </g>
-        <!-- Shield body -->
         <path d="M120 28 L192 58 L192 118 Q192 178 120 210 Q48 178 48 118 L48 58 Z"
-              fill="#0F2044" stroke="#2563EB" stroke-width="2.5" stroke-linejoin="round"/>
-        <!-- Shield inner bevel -->
+              fill="#0d0d1a" stroke="#6c5ce7" stroke-width="2.5" stroke-linejoin="round"/>
         <path d="M120 42 L178 68 L178 118 Q178 168 120 194 Q62 168 62 118 L62 68 Z"
-              fill="none" stroke="#60A5FA" stroke-width="1" opacity="0.3"/>
-        <!-- Lock body -->
-        <rect x="90" y="128" width="60" height="48" rx="8" fill="#2563EB"/>
-        <!-- Lock shine -->
-        <rect x="90" y="128" width="60" height="18" rx="8" fill="#3B82F6" opacity="0.5"/>
-        <!-- Lock shackle -->
+              fill="none" stroke="#a29bfe" stroke-width="1" opacity="0.3"/>
+        <rect x="90" y="128" width="60" height="48" rx="8" fill="#6c5ce7"/>
+        <rect x="90" y="128" width="60" height="18" rx="8" fill="#a29bfe" opacity="0.45"/>
         <path d="M98 128 L98 110 Q98 88 120 88 Q142 88 142 110 L142 128"
-              fill="none" stroke="#60A5FA" stroke-width="10" stroke-linecap="round"/>
-        <!-- Keyhole -->
-        <circle cx="120" cy="147" r="8.5" fill="#0F2044"/>
-        <rect x="116.5" y="147" width="7" height="14" rx="3.5" fill="#0F2044"/>
+              fill="none" stroke="#a29bfe" stroke-width="10" stroke-linecap="round"/>
+        <circle cx="120" cy="147" r="8.5" fill="#0d0d1a"/>
+        <rect x="116.5" y="147" width="7" height="14" rx="3.5" fill="#0d0d1a"/>
       </svg>
     </div>
     <h1 class="oi-denied-title">Access Restricted</h1>
     <p class="oi-denied-msg">
-      This portal is restricted to authorised Operations Intelligence users.
-      Your account does not have a qualifying role assigned.
+      Your account <span ng-if="c.data.deniedLogin">({{c.data.deniedLogin}})</span>
+      does not have access to Operations Intelligence.
     </p>
     <div class="oi-denied-account" ng-if="c.data.deniedLogin">
-      <i class="fa fa-user-circle"></i>
-      <span>Signed in as <strong>{{c.data.deniedLogin}}</strong></span>
+      <span class="oi-denied-account-icon">&#9679;</span>
+      Signed in as <strong>{{c.data.deniedLogin}}</strong>
     </div>
     <p class="oi-denied-contact">Contact your Operations Intelligence administrator to request access.</p>
   </div>
 
-  <!-- PORTAL SHELL -->
+  <!-- ================================================================
+       MAIN APPLICATION SHELL
+       ================================================================ -->
   <div ng-if="!c.data.denied" class="oi-shell">
 
     <!-- HEADER -->
     <header class="oi-header">
-      <div class="oi-navbar">
+      <div class="oi-header-inner">
 
         <!-- Brand -->
         <div class="oi-brand">
-          <span class="oi-brand-icon"><i class="fa fa-diamond"></i></span>
+          <span class="oi-brand-icon">◆</span>
           <span class="oi-brand-text">Operations Intelligence</span>
         </div>
 
-        <!-- Desktop Nav Tabs -->
-        <nav class="oi-nav-tabs hidden-xs">
+        <!-- Desktop Navigation -->
+        <nav class="oi-nav" aria-label="Main navigation">
           <button
-            ng-repeat="sec in c.data.sections"
+            type="button"
             class="oi-nav-tab"
-            ng-class="{'active': c.ui.section === sec.id}"
-            ng-click="c.navigate(sec.id)"
-            type="button">
-            <i class="fa" ng-class="sec.icon"></i>
-            <span>{{sec.label}}</span>
+            ng-repeat="s in c.data.sections"
+            ng-class="{'active': c.ui.section === s.id}"
+            ng-click="c.navigate(s.id)">
+            {{s.label}}
           </button>
         </nav>
 
-        <!-- Mobile Hamburger -->
-        <button class="oi-hamburger visible-xs-block" type="button" ng-click="c.toggleMobileNav()">
-          <i class="fa" ng-class="c.ui.mobileNavOpen ? 'fa-times' : 'fa-bars'"></i>
-        </button>
-
-        <!-- User Chip -->
-        <div class="oi-user-chip">
-          <div class="oi-avatar">{{c.data.userInitials}}</div>
-          <div class="oi-user-info hidden-xs">
-            <span class="oi-user-name">{{c.data.userName}}</span>
-            <span class="oi-user-role">{{c.roleLabel()}}</span>
+        <!-- Header Right -->
+        <div class="oi-header-right">
+          <!-- Hamburger (mobile only) -->
+          <button
+            type="button"
+            class="oi-hamburger"
+            aria-label="Toggle navigation"
+            ng-click="c.toggleMobileNav()">
+            <span class="oi-hamburger-line"></span>
+            <span class="oi-hamburger-line"></span>
+            <span class="oi-hamburger-line"></span>
+          </button>
+          <!-- User Badge -->
+          <div class="oi-user-badge" title="{{c.data.userName}} ({{c.data.userRole}})">
+            <span class="oi-user-initials">{{c.data.userInitials}}</span>
+            <span class="oi-user-name-label">{{c.data.userName}}</span>
+            <span class="oi-role-tag role-{{c.data.userRole}}">{{c.data.userRole}}</span>
           </div>
         </div>
 
       </div>
 
       <!-- Mobile Nav Drawer -->
-      <div class="oi-mobile-nav" ng-if="c.ui.mobileNavOpen">
+      <div class="oi-drawer" ng-show="c.ui.mobileNavOpen" role="navigation" aria-label="Mobile navigation">
         <button
-          ng-repeat="sec in c.data.sections"
-          class="oi-mobile-nav-item"
-          ng-class="{'active': c.ui.section === sec.id}"
-          ng-click="c.navigate(sec.id)"
-          type="button">
-          <i class="fa" ng-class="sec.icon"></i>
-          <span>{{sec.label}}</span>
+          type="button"
+          class="oi-drawer-item"
+          ng-repeat="s in c.data.sections"
+          ng-class="{'active': c.ui.section === s.id}"
+          ng-click="c.navigate(s.id)">
+          {{s.label}}
         </button>
       </div>
+
+      <!-- Loading Bar -->
+      <div class="oi-loading-bar" ng-show="c.ui.loading" role="progressbar" aria-label="Loading"></div>
     </header>
 
-    <!-- MAIN CONTENT -->
-    <main class="oi-main">
+    <!-- MAIN CONTENT AREA -->
+    <main class="oi-main" role="main">
 
-      <!-- Loading Spinner -->
-      <div class="oi-spinner-wrap" ng-if="c.ui.loading">
-        <div class="oi-spinner">
-          <div class="oi-spinner-ring"></div>
-        </div>
+      <!-- Section Loading Spinner -->
+      <div class="oi-section-loading" ng-if="c.ui.loading">
+        <div class="oi-spinner"></div>
         <p class="oi-spinner-label">Loading...</p>
       </div>
 
-      <!-- Section Content -->
-      <div ng-if="!c.ui.loading" ng-switch on="c.ui.section">
+      <!-- ============================================================
+           WORKSPACE
+           ============================================================ -->
+      <div ng-if="!c.ui.loading && c.ui.section === 'workspace'" class="oi-section">
 
-        <!-- ===== WORKSPACE ===== -->
-        <div ng-switch-when="workspace">
-          <div class="oi-section-header">
-            <div>
-              <h1 class="oi-section-title">Workspace</h1>
-              <p class="oi-section-subtitle">Automations available to your groups</p>
-            </div>
-            <div class="oi-section-actions">
-              <div class="oi-search-wrap">
-                <i class="fa fa-search oi-search-icon"></i>
-                <input
-                  type="text"
-                  class="oi-search-input"
-                  placeholder="Search automations..."
-                  ng-model="c.ui.search" />
-              </div>
-            </div>
+        <div class="oi-section-head">
+          <div>
+            <h1 class="oi-section-title">Workspace</h1>
+            <p class="oi-section-sub">Automations available to your groups</p>
           </div>
-
-          <!-- Group Filter Tabs -->
-          <div class="oi-group-tabs" ng-if="c.data.userGroups && c.data.userGroups.length > 1">
-            <button
-              class="oi-group-tab"
-              ng-class="{'active': c.ui.selectedGroup === ''}"
-              ng-click="c.selectGroup('')"
-              type="button">All Groups</button>
-            <button
-              ng-repeat="grp in c.data.userGroups"
-              class="oi-group-tab"
-              ng-class="{'active': c.ui.selectedGroup === grp.sys_id}"
-              ng-click="c.selectGroup(grp.sys_id)"
-              type="button">{{grp.name}}</button>
-          </div>
-
-          <!-- Automation Cards -->
-          <div class="row oi-card-grid" ng-if="c.filteredAutomations().length > 0">
-            <div
-              class="col-xs-12 col-sm-6 col-lg-4"
-              ng-repeat="auto in c.filteredAutomations()">
-              <div class="oi-auto-card" ng-style="{'border-left-color': auto.category_color}">
-                <div class="oi-auto-card-header">
-                  <div class="oi-auto-card-icon" ng-style="{'background-color': auto.category_color}">
-                    <i class="fa" ng-class="auto.category_icon || 'fa-bolt'"></i>
-                  </div>
-                  <div class="oi-auto-card-meta">
-                    <span class="oi-auto-number">{{auto.number}}</span>
-                    <span ng-if="auto.schedule_active" class="oi-badge oi-badge-info oi-badge-xs">Scheduled</span>
-                    <span ng-if="!auto.schedule_active" class="oi-badge oi-badge-muted oi-badge-xs">On Demand</span>
-                  </div>
-                </div>
-                <div class="oi-auto-card-body">
-                  <h3 class="oi-auto-title">{{auto.name}}</h3>
-                  <p class="oi-auto-desc">{{auto.short_description}}</p>
-                </div>
-                <div class="oi-auto-card-footer">
-                  <div class="oi-auto-stats">
-                    <span class="oi-auto-stat">
-                      <i class="fa fa-play-circle"></i> {{auto.usage_count}} runs
-                    </span>
-                    <span class="oi-auto-stat oi-auto-group">
-                      <i class="fa fa-users"></i> {{auto.owner_group}}
-                    </span>
-                  </div>
-                  <button class="oi-btn oi-btn-primary oi-btn-sm" type="button" ng-click="c.triggerAutomation(auto)">
-                    <i class="fa fa-play"></i> Run
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="oi-empty-state" ng-if="c.filteredAutomations().length === 0">
-            <i class="fa fa-inbox fa-3x"></i>
-            <p>No automations found.</p>
+          <div class="oi-search-field">
+            <span class="oi-search-ico">&#128269;</span>
+            <input
+              type="text"
+              class="oi-input oi-input-search"
+              placeholder="Search automations..."
+              ng-model="c.ui.search" />
           </div>
         </div>
 
-        <!-- ===== ACTIVITY ===== -->
-        <div ng-switch-when="activity">
-          <div class="oi-section-header">
-            <div>
-              <h1 class="oi-section-title">My Activity</h1>
-              <p class="oi-section-subtitle">Your recent automation executions</p>
-            </div>
-            <div class="oi-section-actions">
-              <div class="oi-search-wrap">
-                <i class="fa fa-search oi-search-icon"></i>
-                <input
-                  type="text"
-                  class="oi-search-input"
-                  placeholder="Search executions..."
-                  ng-model="c.ui.search" />
+        <!-- Group Filter Pills -->
+        <div class="oi-pills" ng-if="c.data.userGroups && c.data.userGroups.length > 0">
+          <button
+            type="button"
+            class="oi-pill"
+            ng-class="{'oi-pill-active': !c.ui.selectedGroup}"
+            ng-click="c.ui.selectedGroup = ''">
+            All
+          </button>
+          <button
+            type="button"
+            class="oi-pill"
+            ng-repeat="g in c.data.userGroups"
+            ng-class="{'oi-pill-active': c.ui.selectedGroup === g.sys_id}"
+            ng-click="c.ui.selectedGroup = g.sys_id">
+            {{g.name}}
+          </button>
+        </div>
+
+        <!-- Automation Cards Grid -->
+        <div class="oi-card-grid" ng-if="c.filteredAutomations().length > 0">
+          <div
+            class="oi-card"
+            ng-repeat="auto in c.filteredAutomations()"
+            ng-style="{'border-top-color': auto.category_color || 'var(--oi-primary)'}">
+            <div class="oi-card-header">
+              <div class="oi-card-icon" ng-style="{'background': auto.category_color || 'var(--oi-primary)'}">
+                <i ng-if="auto.category_icon" class="fa {{auto.category_icon}}"></i>
+                <span ng-if="!auto.category_icon">&#9889;</span>
+              </div>
+              <div class="oi-card-tags">
+                <span class="oi-tag" ng-if="auto.schedule_active">Scheduled</span>
+                <span class="oi-tag oi-tag-muted" ng-if="!auto.schedule_active">On Demand</span>
               </div>
             </div>
+            <div class="oi-card-body">
+              <h3 class="oi-card-title">{{auto.name}}</h3>
+              <p class="oi-card-desc">{{auto.short_description}}</p>
+            </div>
+            <div class="oi-card-footer">
+              <span class="oi-tag oi-tag-group">{{auto.owner_group}}</span>
+              <button
+                type="button"
+                class="oi-btn oi-btn-primary oi-btn-sm"
+                ng-click="c.triggerAutomation(auto)">
+                &#9654; Run
+              </button>
+            </div>
           </div>
+        </div>
 
-          <!-- Status Filter Bar -->
-          <div class="oi-filter-bar">
-            <button
-              ng-repeat="f in c.statusFilters"
-              type="button"
-              class="oi-filter-tab"
-              ng-class="{'active': c.ui.activityFilter === f.value}"
-              ng-click="c.ui.activityFilter = f.value">
-              {{f.label}}
-            </button>
+        <!-- Empty State -->
+        <div class="oi-empty" ng-if="c.filteredAutomations().length === 0">
+          <div class="oi-empty-icon">&#9723;</div>
+          <p class="oi-empty-title">No Automations Found</p>
+          <p class="oi-empty-sub">There are no automations available for the selected group.</p>
+        </div>
+
+      </div><!-- /workspace -->
+
+      <!-- ============================================================
+           ACTIVITY
+           ============================================================ -->
+      <div ng-if="!c.ui.loading && c.ui.section === 'activity'" class="oi-section">
+
+        <div class="oi-section-head">
+          <div>
+            <h1 class="oi-section-title">Activity</h1>
+            <p class="oi-section-sub">Your recent automation executions</p>
           </div>
+        </div>
 
-          <!-- Executions Table -->
-          <div class="oi-table-wrap" ng-if="c.filteredExecutions().length > 0">
-            <table class="oi-table">
-              <thead>
-                <tr>
-                  <th>Number</th>
-                  <th>Automation</th>
-                  <th>Status</th>
-                  <th class="hidden-xs">Channel</th>
-                  <th class="hidden-xs">Triggered</th>
-                  <th class="hidden-xs">Test</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  ng-repeat-start="exc in c.filteredExecutions()"
-                  class="oi-table-row"
-                  ng-class="{'oi-row-expanded': c.isExpandedExecution(exc)}"
-                  ng-click="c.toggleExecution(exc)">
-                  <td class="oi-cell-number">
-                    <i class="fa fa-chevron-right oi-expand-icon" ng-class="{'oi-expanded': c.isExpandedExecution(exc)}"></i>
-                    {{exc.number}}
-                  </td>
-                  <td>{{exc.automation}}</td>
-                  <td><span ng-class="c.statusClass(exc.status)">{{exc.status}}</span></td>
-                  <td class="hidden-xs">{{exc.channel}}</td>
-                  <td class="hidden-xs oi-cell-time">{{exc.triggered_at}}</td>
-                  <td class="hidden-xs">
-                    <span ng-if="exc.is_test" class="oi-badge oi-badge-warning oi-badge-xs">Test</span>
-                  </td>
-                </tr>
-                <tr ng-repeat-end ng-if="c.isExpandedExecution(exc)" class="oi-step-log-row">
-                  <td colspan="6">
-                    <div class="oi-step-log">
-                      <div class="oi-step-log-header">
-                        <strong>Step Log</strong>
-                        <span class="oi-step-log-sub">{{exc.number}} — {{exc.automation}}</span>
-                      </div>
-                      <div ng-if="c.ui.stepLogLoading" class="oi-step-log-loading">
-                        <i class="fa fa-circle-o-notch fa-spin"></i> Loading steps...
-                      </div>
-                      <div ng-if="!c.ui.stepLogLoading && c.stepLogEntries().length === 0" class="oi-step-log-empty">
-                        No step log available.
-                      </div>
-                      <div ng-if="!c.ui.stepLogLoading && c.stepLogEntries().length > 0" class="oi-step-timeline">
-                        <div
-                          ng-repeat="step in c.stepLogEntries()"
-                          class="oi-step-entry">
-                          <div ng-class="c.stepStatusDot(step.status)"></div>
-                          <div class="oi-step-content">
-                            <div class="oi-step-name">{{step.name || 'Step ' + ($index + 1)}}</div>
-                            <div class="oi-step-detail" ng-if="step.message">{{step.message}}</div>
-                            <div class="oi-step-time" ng-if="step.duration">{{step.duration}}ms</div>
-                          </div>
-                          <div class="oi-step-status">
+        <!-- Status Filter Pills -->
+        <div class="oi-pills">
+          <button
+            type="button"
+            class="oi-pill"
+            ng-repeat="f in c.statusFilters"
+            ng-class="{'oi-pill-active': c.ui.activityFilter === f.value}"
+            ng-click="c.ui.activityFilter = f.value">
+            {{f.label}}
+          </button>
+        </div>
+
+        <!-- Executions Table -->
+        <div class="oi-table-wrap" ng-if="c.filteredExecutions().length > 0">
+          <table class="oi-table">
+            <thead>
+              <tr>
+                <th class="oi-th-num">#</th>
+                <th>Automation</th>
+                <th>Group</th>
+                <th>Status</th>
+                <th class="oi-col-hide-sm">Date</th>
+                <th class="oi-col-expand"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                ng-repeat-start="exec in c.filteredExecutions()"
+                class="oi-tr"
+                ng-class="{'oi-tr-expanded': c.isExpandedExecution(exec)}"
+                ng-click="c.toggleExecution(exec)">
+                <td class="oi-td-num">{{exec.number}}</td>
+                <td class="oi-td-main">{{exec.automation_name}}</td>
+                <td><span class="oi-tag">{{exec.group_name}}</span></td>
+                <td>
+                  <span ng-class="c.statusClass(exec.status)">
+                    {{exec.status}}
+                  </span>
+                </td>
+                <td class="oi-td-time oi-col-hide-sm">{{exec.triggered_at}}</td>
+                <td class="oi-td-expand">
+                  <span class="oi-expand-caret" ng-class="{'oi-expand-caret-open': c.isExpandedExecution(exec)}">&#9660;</span>
+                </td>
+              </tr>
+              <!-- Expanded Step Log Row -->
+              <tr ng-repeat-end ng-if="c.isExpandedExecution(exec)" class="oi-tr-detail">
+                <td colspan="6">
+                  <div class="oi-step-log">
+                    <div class="oi-step-log-title">
+                      <strong>Step Log</strong>
+                      <span class="oi-step-log-sub">{{exec.number}} &mdash; {{exec.automation_name}}</span>
+                    </div>
+                    <!-- Steps Loading -->
+                    <div class="oi-step-loading" ng-if="c.ui.stepLogLoading">
+                      <div class="oi-spinner oi-spinner-sm"></div>
+                      <span>Loading steps...</span>
+                    </div>
+                    <!-- No Steps -->
+                    <div class="oi-step-empty" ng-if="!c.ui.stepLogLoading && c.stepLogEntries().length === 0">
+                      No step log available for this execution.
+                    </div>
+                    <!-- Step Timeline -->
+                    <div class="oi-step-timeline" ng-if="!c.ui.stepLogLoading && c.stepLogEntries().length > 0">
+                      <div class="oi-step" ng-repeat="step in c.stepLogEntries()">
+                        <div ng-class="c.stepStatusDot(step.status)"></div>
+                        <div class="oi-step-connector" ng-if="!$last"></div>
+                        <div class="oi-step-content">
+                          <div class="oi-step-name">{{step.name || 'Step ' + ($index + 1)}}</div>
+                          <div class="oi-step-msg" ng-if="step.message">{{step.message}}</div>
+                          <div class="oi-step-meta">
+                            <span ng-if="step.duration">{{step.duration}}ms</span>
                             <span ng-class="c.statusClass(step.status)">{{step.status}}</span>
                           </div>
                         </div>
                       </div>
                     </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Empty State -->
+        <div class="oi-empty" ng-if="c.filteredExecutions().length === 0">
+          <div class="oi-empty-icon">&#128200;</div>
+          <p class="oi-empty-title">No Executions Found</p>
+          <p class="oi-empty-sub">No executions match the current filter.</p>
+        </div>
+
+      </div><!-- /activity -->
+
+      <!-- ============================================================
+           STUDIO
+           ============================================================ -->
+      <div ng-if="!c.ui.loading && c.ui.section === 'studio'" class="oi-section">
+
+        <div class="oi-section-head">
+          <div>
+            <h1 class="oi-section-title">Studio</h1>
+            <p class="oi-section-sub">Create and manage your automation deliverables</p>
+          </div>
+        </div>
+
+        <!-- Deliverable Type Tiles -->
+        <div ng-if="c.data.sectionData && c.data.sectionData.deliverable_types && c.data.sectionData.deliverable_types.length > 0">
+          <h2 class="oi-sub-heading">Deliverable Types</h2>
+          <div class="oi-card-grid oi-card-grid-sm">
+            <div
+              class="oi-card oi-card-action"
+              ng-repeat="dt in c.data.sectionData.deliverable_types"
+              ng-style="{'border-top-color': 'var(--oi-accent)'}">
+              <div class="oi-card-icon-lg" ng-style="{'background': 'var(--oi-accent)'}">
+                <i class="fa {{dt.icon || 'fa-cube'}}"></i>
+              </div>
+              <div class="oi-card-body">
+                <h3 class="oi-card-title">{{dt.name}}</h3>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Artifacts -->
+        <div ng-if="c.data.sectionData && c.data.sectionData.artifacts && c.data.sectionData.artifacts.length > 0">
+          <h2 class="oi-sub-heading">Recent Artifacts</h2>
+          <div class="oi-table-wrap">
+            <table class="oi-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th class="oi-col-hide-sm">Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="oi-tr" ng-repeat="art in c.data.sectionData.artifacts">
+                  <td class="oi-td-main">{{art.display_name}}</td>
+                  <td><span class="oi-tag">{{art.artifact_type}}</span></td>
+                  <td><span ng-class="c.statusClass(art.status)">{{art.status}}</span></td>
+                  <td class="oi-td-time oi-col-hide-sm">{{art.updated_at}}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div class="oi-empty" ng-if="!c.data.sectionData || ((!c.data.sectionData.deliverable_types || c.data.sectionData.deliverable_types.length === 0) && (!c.data.sectionData.artifacts || c.data.sectionData.artifacts.length === 0))">
+          <div class="oi-empty-icon">&#9998;</div>
+          <p class="oi-empty-title">Studio Ready</p>
+          <p class="oi-empty-sub">No deliverable types or artifacts found. Contact an administrator to set up Studio.</p>
+        </div>
+
+      </div><!-- /studio -->
+
+      <!-- ============================================================
+           GOVERNANCE
+           ============================================================ -->
+      <div ng-if="!c.ui.loading && c.ui.section === 'governance'" class="oi-section">
+
+        <div class="oi-section-head">
+          <div>
+            <h1 class="oi-section-title">Governance</h1>
+            <p class="oi-section-sub">Pending actions and group management</p>
+          </div>
+        </div>
+
+        <!-- Governance Sub-tabs -->
+        <div class="oi-subtabs">
+          <button type="button" class="oi-subtab" ng-class="{'active': c.ui.govTab === 'actions'}" ng-click="c.ui.govTab = 'actions'">
+            Pending Actions
+            <span class="oi-subtab-badge" ng-if="c.data.sectionData && c.data.sectionData.pending_actions && c.data.sectionData.pending_actions.length > 0">
+              {{c.data.sectionData.pending_actions.length}}
+            </span>
+          </button>
+          <button type="button" class="oi-subtab" ng-class="{'active': c.ui.govTab === 'groups'}" ng-click="c.ui.govTab = 'groups'">
+            Groups
+          </button>
+        </div>
+
+        <!-- PENDING ACTIONS TAB -->
+        <div ng-if="c.ui.govTab === 'actions'">
+
+          <div class="oi-action-list" ng-if="c.data.sectionData && c.data.sectionData.pending_actions && c.data.sectionData.pending_actions.length > 0">
+            <div class="oi-action-item" ng-repeat="action in c.data.sectionData.pending_actions">
+              <div class="oi-action-icon">&#9432;</div>
+              <div class="oi-action-body">
+                <div class="oi-action-title">{{action.type}}</div>
+                <div class="oi-action-desc">{{action.description}}</div>
+                <div class="oi-action-meta">
+                  {{action.subject_user_name}}
+                  <span ng-if="action.created">&middot; {{action.created}}</span>
+                </div>
+              </div>
+              <div class="oi-action-btns">
+                <button
+                  type="button"
+                  class="oi-btn oi-btn-success oi-btn-sm"
+                  ng-click="c.resolveAction(action, 'approved')"
+                  title="Approve">
+                  &#10003; Approve
+                </button>
+                <button
+                  type="button"
+                  class="oi-btn oi-btn-danger oi-btn-sm"
+                  ng-click="c.resolveAction(action, 'rejected')"
+                  title="Reject">
+                  &#10005; Reject
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="oi-empty" ng-if="!c.data.sectionData || !c.data.sectionData.pending_actions || c.data.sectionData.pending_actions.length === 0">
+            <div class="oi-empty-icon">&#10003;</div>
+            <p class="oi-empty-title">All Clear</p>
+            <p class="oi-empty-sub">No pending actions require your attention.</p>
+          </div>
+
+        </div>
+
+        <!-- GROUPS TAB -->
+        <div ng-if="c.ui.govTab === 'groups'">
+
+          <div class="oi-group-list" ng-if="c.data.sectionData && c.data.sectionData.groups && c.data.sectionData.groups.length > 0">
+            <div class="oi-group-item" ng-repeat="grp in c.data.sectionData.groups">
+              <div class="oi-group-row">
+                <div class="oi-group-info">
+                  <span class="oi-group-name">{{grp.name}}</span>
+                  <span class="oi-tag oi-tag-muted">{{grp.type}}</span>
+                  <span class="oi-tag">{{grp.member_count}} member<span ng-if="grp.member_count !== 1">s</span></span>
+                </div>
+                <button type="button" class="oi-btn oi-btn-outline oi-btn-sm" ng-click="c.toggleGovGroup(grp)">
+                  {{(c.ui.govExpandedGroup && c.ui.govExpandedGroup.sys_id === grp.sys_id) ? 'Close' : 'Manage Members'}}
+                </button>
+              </div>
+
+              <!-- Inline Member Panel -->
+              <div class="oi-group-members-panel" ng-if="c.ui.govExpandedGroup && c.ui.govExpandedGroup.sys_id === grp.sys_id">
+                <div class="oi-members-loading" ng-if="c.ui.govGroupMembersLoading">
+                  <div class="oi-spinner oi-spinner-sm"></div> Loading members...
+                </div>
+                <div ng-if="!c.ui.govGroupMembersLoading">
+                  <table class="oi-table oi-table-compact" ng-if="c.ui.govGroupMembers && c.ui.govGroupMembers.length > 0">
+                    <thead>
+                      <tr>
+                        <th>Person</th>
+                        <th>Role</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr class="oi-tr" ng-repeat="mem in c.ui.govGroupMembers">
+                        <td class="oi-td-main">{{mem.person_name || mem.name}}</td>
+                        <td><span class="oi-badge oi-badge-info">{{mem.group_role || mem.role}}</span></td>
+                        <td>
+                          <button type="button" class="oi-btn oi-btn-danger oi-btn-xs" ng-click="c.govRemoveMember(grp, mem)">
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <p class="oi-members-empty" ng-if="!c.ui.govGroupMembers || c.ui.govGroupMembers.length === 0">No current members.</p>
+                  <!-- Add Member Row -->
+                  <div class="oi-add-member-row">
+                    <input
+                      type="text"
+                      class="oi-input"
+                      placeholder="Person sys_id..."
+                      ng-model="c.ui.govAddPersonId" />
+                    <select class="oi-input" ng-model="c.ui.govAddRole" ng-options="r.value as r.label for r in c.memberRoles"></select>
+                    <button type="button" class="oi-btn oi-btn-primary oi-btn-sm" ng-click="c.govAddMember(grp)">
+                      Add Member
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="oi-empty" ng-if="!c.data.sectionData || !c.data.sectionData.groups || c.data.sectionData.groups.length === 0">
+            <div class="oi-empty-icon">&#128101;</div>
+            <p class="oi-empty-title">No Groups</p>
+            <p class="oi-empty-sub">No groups have been configured. Contact an administrator.</p>
+          </div>
+
+        </div>
+
+      </div><!-- /governance -->
+
+      <!-- ============================================================
+           COMMAND (admin only)
+           ============================================================ -->
+      <div ng-if="!c.ui.loading && c.ui.section === 'command'" class="oi-section">
+
+        <div class="oi-section-head">
+          <div>
+            <h1 class="oi-section-title">Command</h1>
+            <p class="oi-section-sub">System administration and oversight</p>
+          </div>
+        </div>
+
+        <!-- Command Tabs -->
+        <div class="oi-subtabs">
+          <button type="button" class="oi-subtab" ng-class="{'active': c.ui.commandTab === 'stats'}"  ng-click="c.setCommandTab('stats')">Overview</button>
+          <button type="button" class="oi-subtab" ng-class="{'active': c.ui.commandTab === 'people'}" ng-click="c.setCommandTab('people')">People</button>
+          <button type="button" class="oi-subtab" ng-class="{'active': c.ui.commandTab === 'groups'}" ng-click="c.setCommandTab('groups')">Groups</button>
+        </div>
+
+        <!-- ---- OVERVIEW TAB ---- -->
+        <div ng-if="c.ui.commandTab === 'stats'">
+
+          <!-- Stat Cards -->
+          <div class="oi-stat-grid" ng-if="c.data.sectionData && c.data.sectionData.stats">
+            <div class="oi-stat-card oi-stat-blue">
+              <div class="oi-stat-icon">&#128101;</div>
+              <div class="oi-stat-value">{{c.data.sectionData.stats.persons || 0}}</div>
+              <div class="oi-stat-label">Active Users</div>
+            </div>
+            <div class="oi-stat-card oi-stat-green">
+              <div class="oi-stat-icon">&#9881;</div>
+              <div class="oi-stat-value">{{c.data.sectionData.stats.automations || 0}}</div>
+              <div class="oi-stat-label">Automations</div>
+            </div>
+            <div class="oi-stat-card oi-stat-orange">
+              <div class="oi-stat-icon">&#9654;</div>
+              <div class="oi-stat-value">{{c.data.sectionData.stats.executions_today || 0}}</div>
+              <div class="oi-stat-label">Today's Executions</div>
+            </div>
+            <div class="oi-stat-card oi-stat-purple">
+              <div class="oi-stat-icon">&#9728;</div>
+              <div class="oi-stat-value">{{c.data.sectionData.stats.groups || 0}}</div>
+              <div class="oi-stat-label">Active Groups</div>
+            </div>
+          </div>
+
+          <!-- Maintenance Mode Toggles -->
+          <div ng-if="c.ui.maintenanceItems && c.ui.maintenanceItems.length > 0">
+            <h2 class="oi-sub-heading">Maintenance Mode</h2>
+            <div class="oi-maintenance-panel">
+              <div class="oi-maintenance-row" ng-repeat="item in c.ui.maintenanceItems">
+                <div class="oi-maintenance-info">
+                  <span class="oi-maintenance-name">{{item.label}}</span>
+                  <span class="oi-maintenance-desc">{{item.desc}}</span>
+                </div>
+                <label class="oi-toggle">
+                  <input type="checkbox" ng-model="item.enabled" ng-change="c.toggleMaintenance(item)" />
+                  <span class="oi-toggle-track"><span class="oi-toggle-thumb"></span></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /overview -->
+
+        <!-- ---- PEOPLE TAB ---- -->
+        <div ng-if="c.ui.commandTab === 'people'">
+
+          <h2 class="oi-sub-heading">Enroll a User</h2>
+
+          <!-- User Search -->
+          <div class="oi-search-row">
+            <div class="oi-search-field">
+              <span class="oi-search-ico">&#128269;</span>
+              <input
+                type="text"
+                class="oi-input oi-input-search"
+                placeholder="Search users by name or username..."
+                ng-model="c.ui.userSearchQuery"
+                ng-keyup="$event.keyCode === 13 && c.searchUsers()" />
+            </div>
+            <button type="button" class="oi-btn oi-btn-primary" ng-click="c.searchUsers()">Search</button>
+          </div>
+
+          <!-- Search Loading -->
+          <div class="oi-members-loading" ng-if="c.ui.userSearchLoading">
+            <div class="oi-spinner oi-spinner-sm"></div> Searching...
+          </div>
+
+          <!-- Search Results -->
+          <div class="oi-search-results" ng-if="!c.ui.userSearchLoading && c.ui.userSearchResults && c.ui.userSearchResults.length > 0">
+            <div class="oi-result-item" ng-repeat="u in c.ui.userSearchResults">
+              <div class="oi-result-avatar">{{u.name ? u.name.charAt(0).toUpperCase() : '?'}}</div>
+              <div class="oi-result-info">
+                <div class="oi-result-name">{{u.name}}</div>
+                <div class="oi-result-sub">{{u.user_name}}</div>
+              </div>
+              <div class="oi-result-action">
+                <span class="oi-badge oi-badge-success" ng-if="u.already_enrolled">&#10003; Enrolled</span>
+                <button
+                  type="button"
+                  class="oi-btn oi-btn-primary oi-btn-sm"
+                  ng-if="!u.already_enrolled"
+                  ng-click="c.enrollUser(u)">
+                  Enroll
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="oi-no-results" ng-if="!c.ui.userSearchLoading && c.ui.userSearchResults && c.ui.userSearchResults.length === 0 && c.ui.userSearchQuery">
+            No users found matching "{{c.ui.userSearchQuery}}".
+          </div>
+
+          <!-- Enrolled Persons -->
+          <h2 class="oi-sub-heading" style="margin-top: 32px;">Enrolled People</h2>
+
+          <div class="oi-members-loading" ng-if="c.ui.personsLoading">
+            <div class="oi-spinner oi-spinner-sm"></div> Loading...
+          </div>
+
+          <div class="oi-table-wrap" ng-if="!c.ui.personsLoading && c.ui.persons && c.ui.persons.length > 0">
+            <table class="oi-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th class="oi-col-hide-sm">Username</th>
+                  <th>Groups</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="oi-tr" ng-repeat="p in c.ui.persons">
+                  <td class="oi-td-main">
+                    <div class="oi-person-row">
+                      <div class="oi-person-avatar">{{p.name ? p.name.charAt(0).toUpperCase() : '?'}}</div>
+                      <div>
+                        <div class="oi-person-name">{{p.name}}</div>
+                        <div class="oi-person-sub oi-col-hide-md">{{p.user_name}}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="oi-td-time oi-col-hide-sm">{{p.user_name}}</td>
+                  <td>
+                    <div class="oi-badge-group">
+                      <span
+                        class="oi-badge oi-badge-info"
+                        ng-repeat="g in p.groups">
+                        {{g.group_name}} <span class="oi-badge-role">({{g.group_role}})</span>
+                      </span>
+                      <span class="oi-badge oi-badge-muted" ng-if="!p.groups || p.groups.length === 0">No groups</span>
+                    </div>
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      class="oi-btn oi-btn-danger oi-btn-xs"
+                      ng-click="c.unenrollPerson(p)"
+                      title="Unenroll from Operations Intelligence">
+                      Unenroll
+                    </button>
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <div class="oi-empty-state" ng-if="c.filteredExecutions().length === 0">
-            <i class="fa fa-history fa-3x"></i>
-            <p>No executions found.</p>
-          </div>
-        </div>
-
-        <!-- ===== STUDIO ===== -->
-        <div ng-switch-when="studio">
-          <div class="oi-section-header">
-            <div>
-              <h1 class="oi-section-title">Studio</h1>
-              <p class="oi-section-subtitle">Create and manage your automation assets</p>
-            </div>
+          <div class="oi-empty" ng-if="!c.ui.personsLoading && (!c.ui.persons || c.ui.persons.length === 0)">
+            <div class="oi-empty-icon">&#128101;</div>
+            <p class="oi-empty-title">No Enrolled People</p>
+            <p class="oi-empty-sub">Search above to find and enroll users.</p>
           </div>
 
-          <!-- GitHub Banner -->
-          <div class="oi-github-banner" ng-if="c.data.sectionData && c.data.sectionData.copilot && c.data.sectionData.copilot.show_banner">
-            <div class="oi-github-banner-icon">
-              <i class="fa fa-github fa-2x"></i>
-            </div>
-            <div class="oi-github-banner-body">
-              <strong>GitHub not connected</strong>
-              <p>Connect your GitHub account to enable Studio features.</p>
-            </div>
-            <button class="oi-btn oi-btn-primary oi-btn-sm" type="button">Connect GitHub</button>
+        </div><!-- /people -->
+
+        <!-- ---- GROUPS TAB ---- -->
+        <div ng-if="c.ui.commandTab === 'groups'">
+
+          <!-- Create Group Form -->
+          <h2 class="oi-sub-heading">Create Group</h2>
+          <div class="oi-create-group-form">
+            <input
+              type="text"
+              class="oi-input"
+              placeholder="Group name"
+              ng-model="c.ui.newGroupName" />
+            <input
+              type="text"
+              class="oi-input"
+              placeholder="Description (optional)"
+              ng-model="c.ui.newGroupDesc" />
+            <select class="oi-input" ng-model="c.ui.newGroupType" ng-options="gt.value as gt.label for gt in c.groupTypes"></select>
+            <button
+              type="button"
+              class="oi-btn oi-btn-primary"
+              ng-click="c.createGroup()"
+              ng-disabled="!c.ui.newGroupName">
+              Create Group
+            </button>
           </div>
 
-          <!-- Quick Action Cards -->
-          <div class="row oi-quick-card-row" ng-if="c.data.sectionData && c.data.sectionData.cards">
-            <div
-              class="col-xs-12 col-sm-4"
-              ng-repeat="card in c.data.sectionData.cards">
-              <div class="oi-quick-card">
-                <div class="oi-quick-card-icon">
-                  <i class="fa" ng-class="card.icon"></i>
+          <!-- Active Groups List -->
+          <h2 class="oi-sub-heading" style="margin-top: 32px;">Active Groups</h2>
+
+          <div class="oi-group-list" ng-if="c.data.sectionData && c.data.sectionData.groups && c.data.sectionData.groups.length > 0">
+            <div class="oi-group-item" ng-repeat="grp in c.data.sectionData.groups">
+              <div class="oi-group-row">
+                <div class="oi-group-info">
+                  <span class="oi-group-name">{{grp.name}}</span>
+                  <span class="oi-tag oi-tag-muted">{{grp.type}}</span>
                 </div>
-                <div class="oi-quick-card-label">{{card.label}}</div>
+                <button
+                  type="button"
+                  class="oi-btn oi-btn-outline oi-btn-sm"
+                  ng-click="c.toggleGroup(grp)">
+                  {{(c.ui.expandedGroup && c.ui.expandedGroup.sys_id === grp.sys_id) ? 'Close' : 'Manage Members'}}
+                </button>
               </div>
-            </div>
-          </div>
 
-          <!-- Drafts -->
-          <div ng-if="c.data.sectionData && c.data.sectionData.drafts && c.data.sectionData.drafts.length > 0">
-            <h3 class="oi-subsection-title">In Progress</h3>
-            <div class="oi-table-wrap">
-              <table class="oi-table">
-                <thead>
-                  <tr>
-                    <th>Number</th>
-                    <th>Title</th>
-                    <th>Type</th>
-                    <th class="hidden-xs">Status</th>
-                    <th class="hidden-xs">Updated</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr ng-repeat="draft in c.data.sectionData.drafts" class="oi-table-row">
-                    <td class="oi-cell-number">{{draft.number}}</td>
-                    <td>{{draft.title}}</td>
-                    <td>{{draft.type}}</td>
-                    <td class="hidden-xs"><span ng-class="c.statusClass(draft.status)">{{draft.status}}</span></td>
-                    <td class="hidden-xs oi-cell-time">{{draft.updated}}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="oi-empty-state" ng-if="!c.data.sectionData || !c.data.sectionData.drafts || c.data.sectionData.drafts.length === 0">
-            <i class="fa fa-code fa-3x"></i>
-            <p>No drafts in progress.</p>
-          </div>
-        </div>
-
-        <!-- ===== GOVERNANCE ===== -->
-        <div ng-switch-when="governance">
-          <div class="oi-section-header">
-            <div>
-              <h1 class="oi-section-title">Governance</h1>
-              <p class="oi-section-subtitle">Pending actions and group management</p>
-            </div>
-          </div>
-
-          <!-- Pending Queue -->
-          <div ng-if="c.data.sectionData && c.data.sectionData.pending && c.data.sectionData.pending.length > 0">
-            <h3 class="oi-subsection-title">
-              <i class="fa fa-bell"></i> Pending Actions
-              <span class="oi-badge oi-badge-danger oi-badge-xs">{{c.data.sectionData.pending.length}}</span>
-            </h3>
-            <div class="oi-pending-list">
-              <div
-                ng-repeat="action in c.data.sectionData.pending"
-                class="oi-pending-item">
-                <div class="oi-pending-icon">
-                  <i ng-class="c.pendingActionIcon(action.action_type)"></i>
+              <!-- Inline Member Management -->
+              <div class="oi-group-members-panel" ng-if="c.ui.expandedGroup && c.ui.expandedGroup.sys_id === grp.sys_id">
+                <div class="oi-members-loading" ng-if="c.ui.groupMembersLoading">
+                  <div class="oi-spinner oi-spinner-sm"></div> Loading members...
                 </div>
-                <div class="oi-pending-body">
-                  <div class="oi-pending-title">{{action.number}} — {{action.action_type | uppercase}}</div>
-                  <div class="oi-pending-meta">{{action.subject_user}} &middot; {{action.created_at}}</div>
-                </div>
-                <div class="oi-pending-actions">
-                  <button class="oi-btn oi-btn-success oi-btn-sm" type="button"
-                          ng-click="$event.stopPropagation(); c.resolveAction(action, 'approved')"
-                          title="Approve">
-                    <i class="fa fa-check"></i>
-                  </button>
-                  <button class="oi-btn oi-btn-danger oi-btn-sm" type="button"
-                          ng-click="$event.stopPropagation(); c.resolveAction(action, 'rejected')"
-                          title="Reject">
-                    <i class="fa fa-times"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+                <div ng-if="!c.ui.groupMembersLoading">
+                  <table class="oi-table oi-table-compact" ng-if="c.ui.groupMembers && c.ui.groupMembers.length > 0">
+                    <thead>
+                      <tr>
+                        <th>Person</th>
+                        <th>Role</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr class="oi-tr" ng-repeat="mem in c.ui.groupMembers">
+                        <td class="oi-td-main">{{mem.person_name || mem.name}}</td>
+                        <td><span class="oi-badge oi-badge-info">{{mem.group_role || mem.role}}</span></td>
+                        <td>
+                          <button type="button" class="oi-btn oi-btn-danger oi-btn-xs" ng-click="c.removeMemberFromGroup(grp, mem)">
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <p class="oi-members-empty" ng-if="!c.ui.groupMembers || c.ui.groupMembers.length === 0">No current members.</p>
 
-          <div ng-if="!c.data.sectionData || !c.data.sectionData.pending || c.data.sectionData.pending.length === 0">
-            <div class="oi-empty-state">
-              <i class="fa fa-check-circle fa-3x"></i>
-              <p>No pending actions.</p>
-            </div>
-          </div>
-
-          <!-- Group List with member management -->
-          <div ng-if="c.data.sectionData && c.data.sectionData.groups && c.data.sectionData.groups.length > 0">
-            <h3 class="oi-subsection-title"><i class="fa fa-users"></i> Groups</h3>
-            <div class="oi-mgmt-group-list">
-              <div ng-repeat="grp in c.data.sectionData.groups" class="oi-mgmt-group-item">
-                <div class="oi-mgmt-group-row" ng-click="c.toggleGovGroup(grp)">
-                  <div class="oi-mgmt-group-info">
-                    <strong>{{grp.name}}</strong>
-                    <span class="oi-badge oi-badge-muted oi-badge-xs">{{grp.type}}</span>
-                    <span class="oi-badge oi-badge-info oi-badge-xs">{{grp.automation_count}} automations</span>
-                  </div>
-                  <i class="fa" ng-class="(c.ui.govExpandedGroup && c.ui.govExpandedGroup.sys_id === grp.sys_id) ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
-                </div>
-                <div class="oi-mgmt-group-detail" ng-if="c.ui.govExpandedGroup && c.ui.govExpandedGroup.sys_id === grp.sys_id">
-                  <div ng-if="c.ui.govGroupMembersLoading" class="oi-mgmt-loading"><i class="fa fa-circle-o-notch fa-spin"></i> Loading...</div>
-                  <div ng-if="!c.ui.govGroupMembersLoading">
-                    <table class="oi-table oi-mgmt-table" ng-if="c.ui.govGroupMembers.length > 0">
-                      <thead><tr><th>Person</th><th>Role</th><th>Added</th><th></th></tr></thead>
-                      <tbody>
-                        <tr ng-repeat="m in c.ui.govGroupMembers">
-                          <td>{{m.person_name}}</td>
-                          <td><span class="oi-badge oi-badge-info oi-badge-xs">{{m.group_role}}</span></td>
-                          <td class="oi-cell-time">{{m.added_at}}</td>
-                          <td><button class="oi-btn oi-btn-danger oi-btn-xs" type="button" ng-click="$event.stopPropagation(); c.govRemoveMember(grp, m)"><i class="fa fa-times"></i></button></td>
-                        </tr>
-                      </tbody>
-                    </table>
-                    <p class="oi-mgmt-empty" ng-if="c.ui.govGroupMembers.length === 0">No active members.</p>
-                    <div class="oi-mgmt-add-row" ng-if="c.data.sectionData.allPersons && c.data.sectionData.allPersons.length > 0">
-                      <select class="oi-select" ng-model="c.ui.govAddPersonId">
-                        <option value="">— Select person —</option>
-                        <option ng-repeat="p in c.data.sectionData.allPersons" value="{{p.sys_id}}">{{p.name}}</option>
-                      </select>
-                      <select class="oi-select" ng-model="c.ui.govAddRole">
-                        <option ng-repeat="r in c.memberRoles" value="{{r.value}}">{{r.label}}</option>
-                      </select>
-                      <button class="oi-btn oi-btn-primary oi-btn-sm" type="button" ng-click="$event.stopPropagation(); c.govAddMember(grp)">
-                        <i class="fa fa-plus"></i> Add Member
-                      </button>
-                    </div>
+                  <!-- Add Member -->
+                  <div class="oi-add-member-row">
+                    <input
+                      type="text"
+                      class="oi-input"
+                      placeholder="Person sys_id..."
+                      ng-model="c.ui.addMemberPersonId" />
+                    <select class="oi-input" ng-model="c.ui.addMemberRole" ng-options="r.value as r.label for r in c.memberRoles"></select>
+                    <button type="button" class="oi-btn oi-btn-primary oi-btn-sm" ng-click="c.addMemberToGroup(grp)">
+                      Add Member
+                    </button>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
 
-        <!-- ===== COMMAND ===== -->
-        <div ng-switch-when="command">
-          <div class="oi-section-header">
-            <div>
-              <h1 class="oi-section-title">Command</h1>
-              <p class="oi-section-subtitle">System status and administration</p>
             </div>
           </div>
 
-          <!-- Command Tab Bar -->
-          <div class="oi-cmd-tabs">
-            <button type="button" class="oi-cmd-tab" ng-class="{'active': c.ui.commandTab === 'stats'}"    ng-click="c.setCommandTab('stats')">   <i class="fa fa-bar-chart"></i> Overview</button>
-            <button type="button" class="oi-cmd-tab" ng-class="{'active': c.ui.commandTab === 'people'}"   ng-click="c.setCommandTab('people')">  <i class="fa fa-users"></i> People</button>
-            <button type="button" class="oi-cmd-tab" ng-class="{'active': c.ui.commandTab === 'groups'}"   ng-click="c.setCommandTab('groups')">  <i class="fa fa-sitemap"></i> Groups</button>
+          <div class="oi-empty" ng-if="!c.data.sectionData || !c.data.sectionData.groups || c.data.sectionData.groups.length === 0">
+            <div class="oi-empty-icon">&#9728;</div>
+            <p class="oi-empty-title">No Groups</p>
+            <p class="oi-empty-sub">Create a group above to get started.</p>
           </div>
 
-          <!-- Overview tab -->
-          <div ng-if="c.ui.commandTab === 'stats'">
-            <div class="row oi-stat-row" ng-if="c.data.sectionData && c.data.sectionData.stats">
-              <div class="col-xs-6 col-sm-3">
-                <div class="oi-stat-card">
-                  <div class="oi-stat-icon oi-stat-icon-blue"><i class="fa fa-users"></i></div>
-                  <div class="oi-stat-value">{{c.data.sectionData.stats.person_count}}</div>
-                  <div class="oi-stat-label">Active Users</div>
-                </div>
-              </div>
-              <div class="col-xs-6 col-sm-3">
-                <div class="oi-stat-card">
-                  <div class="oi-stat-icon oi-stat-icon-green"><i class="fa fa-cogs"></i></div>
-                  <div class="oi-stat-value">{{c.data.sectionData.stats.automation_count}}</div>
-                  <div class="oi-stat-label">Published Automations</div>
-                </div>
-              </div>
-              <div class="col-xs-6 col-sm-3">
-                <div class="oi-stat-card">
-                  <div class="oi-stat-icon oi-stat-icon-orange"><i class="fa fa-play-circle"></i></div>
-                  <div class="oi-stat-value">{{c.data.sectionData.stats.executions_today}}</div>
-                  <div class="oi-stat-label">Executions Today</div>
-                </div>
-              </div>
-              <div class="col-xs-6 col-sm-3">
-                <div class="oi-stat-card">
-                  <div class="oi-stat-icon oi-stat-icon-purple"><i class="fa fa-sitemap"></i></div>
-                  <div class="oi-stat-value">{{c.data.sectionData.stats.group_count}}</div>
-                  <div class="oi-stat-label">Active Groups</div>
-                </div>
-              </div>
-            </div>
+        </div><!-- /groups -->
 
-            <div ng-if="c.data.sectionData && c.data.sectionData.maintenance && c.data.sectionData.maintenance.length > 0">
-              <h3 class="oi-subsection-title"><i class="fa fa-wrench"></i> Maintenance Mode</h3>
-              <div class="oi-maintenance-list">
-                <div ng-repeat="item in c.data.sectionData.maintenance" class="oi-maintenance-item">
-                  <div class="oi-maintenance-label">
-                    <span>{{item.label}}</span>
-                    <span class="oi-maintenance-prop">{{item.prop_name}}</span>
-                  </div>
-                  <label class="oi-toggle" title="Toggle {{item.label}}">
-                    <input type="checkbox" ng-model="item.enabled" ng-change="c.toggleMaintenance(item)" />
-                    <span class="oi-toggle-track"><span class="oi-toggle-thumb"></span></span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
+      </div><!-- /command -->
 
-          <!-- People tab -->
-          <div ng-if="c.ui.commandTab === 'people'">
-            <h3 class="oi-subsection-title"><i class="fa fa-user-plus"></i> Enroll a User</h3>
-            <div class="oi-mgmt-search-bar">
-              <div class="oi-search-wrap">
-                <i class="fa fa-search oi-search-icon"></i>
-                <input type="text" class="oi-search-input" placeholder="Search users by name..." ng-model="c.ui.userSearchQuery" ng-change="c.searchUsers()" />
-              </div>
-              <span ng-if="c.ui.userSearchLoading" class="oi-mgmt-loading-inline"><i class="fa fa-circle-o-notch fa-spin"></i></span>
-            </div>
-            <div class="oi-mgmt-search-results" ng-if="c.ui.userSearchResults.length > 0">
-              <div ng-repeat="u in c.ui.userSearchResults" class="oi-mgmt-user-row">
-                <div class="oi-mgmt-user-info">
-                  <div class="oi-avatar oi-avatar-sm">{{u.name.charAt(0).toUpperCase()}}</div>
-                  <div>
-                    <div class="oi-mgmt-user-name">{{u.name}}</div>
-                    <div class="oi-mgmt-user-sub">{{u.user_name}} &middot; {{u.email}}</div>
-                  </div>
-                </div>
-                <div>
-                  <span ng-if="u.already_enrolled" class="oi-badge oi-badge-success oi-badge-xs"><i class="fa fa-check"></i> Enrolled</span>
-                  <button ng-if="!u.already_enrolled" class="oi-btn oi-btn-primary oi-btn-sm" type="button" ng-click="c.enrollUser(u)">
-                    <i class="fa fa-user-plus"></i> Enroll
-                  </button>
-                </div>
-              </div>
-            </div>
+      <!-- Default: no section selected -->
+      <div ng-if="!c.ui.loading && !c.ui.section" class="oi-section oi-empty oi-empty-full">
+        <div class="oi-empty-icon">◆</div>
+        <p class="oi-empty-title">Operations Intelligence</p>
+        <p class="oi-empty-sub">Select a section from the navigation above to get started.</p>
+      </div>
 
-            <h3 class="oi-subsection-title" style="margin-top:2rem"><i class="fa fa-users"></i> Enrolled People</h3>
-            <div ng-if="c.ui.personsLoading" class="oi-mgmt-loading"><i class="fa fa-circle-o-notch fa-spin"></i> Loading...</div>
-            <div class="oi-table-wrap" ng-if="!c.ui.personsLoading && c.ui.persons.length > 0">
-              <table class="oi-table">
-                <thead><tr><th>Name</th><th class="hidden-xs">Username</th><th>Groups</th><th></th></tr></thead>
-                <tbody>
-                  <tr ng-repeat="p in c.ui.persons" class="oi-table-row">
-                    <td><strong>{{p.name}}</strong></td>
-                    <td class="hidden-xs">{{p.user_name}}</td>
-                    <td>
-                      <span ng-repeat="g in p.groups" class="oi-badge oi-badge-info oi-badge-xs" style="margin-right:4px">{{g.group_name}} ({{g.group_role}})</span>
-                      <span ng-if="!p.groups || p.groups.length === 0" class="oi-badge oi-badge-muted oi-badge-xs">No groups</span>
-                    </td>
-                    <td>
-                      <button class="oi-btn oi-btn-danger oi-btn-xs" type="button" ng-click="c.unenrollPerson(p)" title="Remove from OI">
-                        <i class="fa fa-user-times"></i>
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="oi-empty-state" ng-if="!c.ui.personsLoading && c.ui.persons.length === 0">
-              <i class="fa fa-users fa-3x"></i>
-              <p>No persons enrolled yet. Search above to enroll a user.</p>
-            </div>
-          </div>
+    </main><!-- /oi-main -->
 
-          <!-- Groups tab -->
-          <div ng-if="c.ui.commandTab === 'groups'">
-            <h3 class="oi-subsection-title"><i class="fa fa-plus-circle"></i> Create Group</h3>
-            <div class="oi-mgmt-create-group">
-              <input type="text" class="oi-input" placeholder="Group name" ng-model="c.ui.newGroupName" />
-              <input type="text" class="oi-input" placeholder="Description (optional)" ng-model="c.ui.newGroupDesc" />
-              <select class="oi-select" ng-model="c.ui.newGroupType">
-                <option ng-repeat="t in c.groupTypes" value="{{t.value}}">{{t.label}}</option>
-              </select>
-              <button class="oi-btn oi-btn-primary" type="button" ng-click="c.createGroup()">
-                <i class="fa fa-plus"></i> Create
-              </button>
-            </div>
-
-            <h3 class="oi-subsection-title" style="margin-top:2rem"><i class="fa fa-sitemap"></i> Active Groups</h3>
-            <div class="oi-mgmt-group-list" ng-if="c.data.sectionData && c.data.sectionData.groups && c.data.sectionData.groups.length > 0">
-              <div ng-repeat="grp in c.data.sectionData.groups" class="oi-mgmt-group-item">
-                <div class="oi-mgmt-group-row" ng-click="c.toggleGroup(grp)">
-                  <div class="oi-mgmt-group-info">
-                    <strong>{{grp.name}}</strong>
-                    <span class="oi-badge oi-badge-muted oi-badge-xs">{{grp.type}}</span>
-                  </div>
-                  <i class="fa" ng-class="(c.ui.expandedGroup && c.ui.expandedGroup.sys_id === grp.sys_id) ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
-                </div>
-                <div class="oi-mgmt-group-detail" ng-if="c.ui.expandedGroup && c.ui.expandedGroup.sys_id === grp.sys_id">
-                  <div ng-if="c.ui.groupMembersLoading" class="oi-mgmt-loading"><i class="fa fa-circle-o-notch fa-spin"></i> Loading...</div>
-                  <div ng-if="!c.ui.groupMembersLoading">
-                    <table class="oi-table oi-mgmt-table" ng-if="c.ui.groupMembers.length > 0">
-                      <thead><tr><th>Person</th><th>Role</th><th>Added</th><th></th></tr></thead>
-                      <tbody>
-                        <tr ng-repeat="m in c.ui.groupMembers">
-                          <td>{{m.person_name}}</td>
-                          <td><span class="oi-badge oi-badge-info oi-badge-xs">{{m.group_role}}</span></td>
-                          <td class="oi-cell-time">{{m.added_at}}</td>
-                          <td><button class="oi-btn oi-btn-danger oi-btn-xs" type="button" ng-click="$event.stopPropagation(); c.removeMemberFromGroup(grp, m)"><i class="fa fa-times"></i></button></td>
-                        </tr>
-                      </tbody>
-                    </table>
-                    <p class="oi-mgmt-empty" ng-if="c.ui.groupMembers.length === 0">No active members.</p>
-                    <div class="oi-mgmt-add-row">
-                      <select class="oi-select" ng-model="c.ui.addMemberPersonId">
-                        <option value="">— Select enrolled person —</option>
-                        <option ng-repeat="p in c.ui.persons" value="{{p.sys_id}}">{{p.name}}</option>
-                      </select>
-                      <select class="oi-select" ng-model="c.ui.addMemberRole">
-                        <option ng-repeat="r in c.memberRoles" value="{{r.value}}">{{r.label}}</option>
-                      </select>
-                      <button class="oi-btn oi-btn-primary oi-btn-sm" type="button" ng-click="$event.stopPropagation(); c.addMemberToGroup(grp)">
-                        <i class="fa fa-plus"></i> Add Member
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="oi-empty-state" ng-if="!c.data.sectionData || !c.data.sectionData.groups || c.data.sectionData.groups.length === 0">
-              <i class="fa fa-sitemap fa-3x"></i>
-              <p>No groups yet. Create one above.</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Default / no section -->
-        <div ng-switch-default>
-          <div class="oi-empty-state">
-            <i class="fa fa-compass fa-3x"></i>
-            <p>Select a section from the navigation above.</p>
-          </div>
-        </div>
-
-      </div><!-- end ng-switch -->
-    </main>
-  </div><!-- end oi-shell -->
-</div>
+  </div><!-- /oi-shell -->
+</div><!-- /oi-app -->
