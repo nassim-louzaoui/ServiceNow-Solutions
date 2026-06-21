@@ -243,6 +243,65 @@
         return { pending_actions: pendingActions, groups: groups };
     }
 
+    function loadAssistant(personSysId, userGroups) {
+        var stats = {};
+        var groupIds = [];
+        var gi;
+        for (gi = 0; gi < userGroups.length; gi++) { groupIds.push(userGroups[gi].sys_id); }
+
+        var availableCount = 0;
+        if (groupIds.length > 0) {
+            var agGr = new GlideRecord('x_infte_ops_int_group');
+            agGr.addQuery('status', 'active');
+            agGr.query();
+            while (agGr.next()) {
+                if (groupIds.indexOf('' + agGr.getUniqueValue()) === -1) { continue; }
+                var agAutos = [];
+                try { agAutos = JSON.parse('' + agGr.getValue('automations')); } catch(e) { agAutos = []; }
+                var ai;
+                for (ai = 0; ai < agAutos.length; ai++) {
+                    if (agAutos[ai].approval_status === 'approved') { availableCount++; }
+                }
+            }
+        }
+        stats.available_automations = availableCount;
+        stats.my_groups             = userGroups.length;
+
+        var myExecAgg = new GlideAggregate('x_infte_ops_int_execution');
+        if (personSysId) { myExecAgg.addQuery('triggered_by', personSysId); }
+        myExecAgg.addAggregate('COUNT');
+        myExecAgg.query();
+        stats.my_executions = myExecAgg.next() ? (parseInt('' + myExecAgg.getAggregate('COUNT'), 10) || 0) : 0;
+
+        var todayDt = new GlideDateTime();
+        var todayStr = todayDt.getDate().toString() + ' 00:00:00';
+        var todayAgg = new GlideAggregate('x_infte_ops_int_execution');
+        if (personSysId) { todayAgg.addQuery('triggered_by', personSysId); }
+        todayAgg.addQuery('triggered_at', '>=', todayStr);
+        todayAgg.addAggregate('COUNT');
+        todayAgg.query();
+        stats.executions_today = todayAgg.next() ? (parseInt('' + todayAgg.getAggregate('COUNT'), 10) || 0) : 0;
+
+        var recentExecs = [];
+        if (personSysId) {
+            var reGr = new GlideRecord('x_infte_ops_int_execution');
+            reGr.addQuery('triggered_by', personSysId);
+            reGr.orderByDesc('triggered_at');
+            reGr.setLimit(5);
+            reGr.query();
+            while (reGr.next()) {
+                recentExecs.push({
+                    sys_id:         '' + reGr.getUniqueValue(),
+                    automation_name: '' + reGr.getDisplayValue('automation'),
+                    status:          '' + reGr.getValue('status'),
+                    triggered_at:    '' + reGr.getDisplayValue('triggered_at')
+                });
+            }
+        }
+
+        return { stats: stats, recent_executions: recentExecs };
+    }
+
     function loadCommand() {
         var stats = {};
 
@@ -361,11 +420,12 @@
     }
 
     var allSections = [
-        { id: 'workspace',  label: 'Workspace',  icon: 'fa-th-large', roles: ['admin','leadership','creator','user'] },
-        { id: 'activity',   label: 'My Activity', icon: 'fa-history',  roles: ['admin','leadership','creator','user'] },
-        { id: 'studio',     label: 'Studio',      icon: 'fa-code',     roles: ['admin','creator'] },
-        { id: 'governance', label: 'Governance',  icon: 'fa-shield',   roles: ['admin','leadership'] },
-        { id: 'command',    label: 'Command',     icon: 'fa-terminal', roles: ['admin'] }
+        { id: 'workspace',  label: 'Workspace',             icon: 'fa-th-large', roles: ['admin','leadership','creator','user'] },
+        { id: 'activity',   label: 'My Activity',           icon: 'fa-history',  roles: ['admin','leadership','creator','user'] },
+        { id: 'assistant',  label: 'Operations Assistant',  icon: 'fa-comment',  roles: ['admin','leadership','creator','user'] },
+        { id: 'studio',     label: 'Studio',                icon: 'fa-code',     roles: ['admin','creator'] },
+        { id: 'governance', label: 'Governance',            icon: 'fa-shield',   roles: ['admin','leadership'] },
+        { id: 'command',    label: 'Command',               icon: 'fa-terminal', roles: ['admin'] }
     ];
 
     var si;
@@ -394,11 +454,139 @@
             if (hasLeadership || hasAdmin) {
                 data.sectionData = loadGovernance(data.personSysId, hasAdmin);
             }
+        } else if (section === 'assistant') {
+            data.sectionData = loadAssistant(data.personSysId, data.userGroups);
         } else if (section === 'command') {
             if (hasAdmin) {
                 data.sectionData = loadCommand();
             }
         }
+        return;
+    }
+
+    if (input.action === 'assistant_query') {
+        var aq = ('' + (input.query || '')).toLowerCase().trim();
+
+        if (!aq) {
+            data.reply = 'Please enter a question or command.';
+            data.type  = 'info';
+            return;
+        }
+
+        if (aq === 'help' || aq.indexOf('what can') !== -1 || aq.indexOf('how do') !== -1) {
+            data.reply = 'I can help you with:\n\n' +
+                '- List automations: "Show my automations" or "What automations do I have?"\n' +
+                '- Run an automation: "Run [automation name]" or "Trigger [automation name]"\n' +
+                '- Check status: "What is the status of my last execution?" or "Show recent activity"\n' +
+                '- My groups: "What groups am I in?"\n' +
+                '- Statistics: "How many executions do I have?"';
+            data.type  = 'info';
+            return;
+        }
+
+        if (aq.indexOf('group') !== -1 && (aq.indexOf('my') !== -1 || aq.indexOf('what') !== -1 || aq.indexOf('list') !== -1 || aq.indexOf('show') !== -1 || aq.indexOf('which') !== -1)) {
+            if (data.userGroups.length === 0) {
+                data.reply = 'You are not a member of any groups. Contact your administrator to be added.';
+            } else {
+                var gNames = [];
+                var gni;
+                for (gni = 0; gni < data.userGroups.length; gni++) {
+                    gNames.push('- ' + data.userGroups[gni].name + ' (' + (data.userGroups[gni].role || 'user') + ')');
+                }
+                data.reply = 'You are a member of ' + data.userGroups.length + ' group' + (data.userGroups.length === 1 ? '' : 's') + ':\n\n' + gNames.join('\n');
+            }
+            data.type = 'info';
+            return;
+        }
+
+        if (aq.indexOf('status') !== -1 || aq.indexOf('last execution') !== -1 || aq.indexOf('recent') !== -1 || aq.indexOf('history') !== -1) {
+            var statusExecs = [];
+            if (data.personSysId) {
+                var seGr = new GlideRecord('x_infte_ops_int_execution');
+                seGr.addQuery('triggered_by', data.personSysId);
+                seGr.orderByDesc('triggered_at');
+                seGr.setLimit(5);
+                seGr.query();
+                while (seGr.next()) {
+                    statusExecs.push((statusExecs.length + 1) + '. ' + ('' + seGr.getDisplayValue('automation')) + ' — ' + ('' + seGr.getValue('status')) + ' (' + ('' + seGr.getDisplayValue('triggered_at')) + ')');
+                }
+            }
+            if (statusExecs.length === 0) {
+                data.reply = 'You have no recent executions.';
+            } else {
+                data.reply = 'Your most recent executions:\n\n' + statusExecs.join('\n');
+            }
+            data.type = 'info';
+            return;
+        }
+
+        if (aq.indexOf('list') !== -1 || aq.indexOf('show') !== -1 || (aq.indexOf('what') !== -1 && aq.indexOf('automation') !== -1) || aq.indexOf('available') !== -1) {
+            var listAutos = loadWorkspace(data.userGroups);
+            if (listAutos.automations.length === 0) {
+                data.reply = 'You have no automations available. Contact your administrator to be added to a group with published automations.';
+            } else {
+                var aLines = [];
+                var ali;
+                for (ali = 0; ali < listAutos.automations.length; ali++) {
+                    var aa = listAutos.automations[ali];
+                    aLines.push('- ' + aa.name + (aa.short_description ? ': ' + aa.short_description : '') + ' [Group: ' + (aa.owner_group || 'N/A') + ']');
+                }
+                data.reply = 'You have ' + listAutos.automations.length + ' automation' + (listAutos.automations.length === 1 ? '' : 's') + ' available:\n\n' + aLines.join('\n');
+            }
+            data.type = 'info';
+            return;
+        }
+
+        if (aq.indexOf('run') !== -1 || aq.indexOf('trigger') !== -1 || aq.indexOf('execute') !== -1 || aq.indexOf('start') !== -1) {
+            var runAutos = loadWorkspace(data.userGroups);
+            if (runAutos.automations.length === 0) {
+                data.reply = 'You have no automations available to run.';
+                data.type  = 'warning';
+                return;
+            }
+            var targetAuto = null;
+            var ri;
+            for (ri = 0; ri < runAutos.automations.length; ri++) {
+                var aName = (runAutos.automations[ri].name || '').toLowerCase();
+                if (aq.indexOf(aName) !== -1) {
+                    targetAuto = runAutos.automations[ri];
+                    break;
+                }
+            }
+            if (!targetAuto) {
+                var autoListNames = [];
+                var ani;
+                for (ani = 0; ani < runAutos.automations.length; ani++) {
+                    autoListNames.push('"' + runAutos.automations[ani].name + '"');
+                }
+                data.reply = 'Please specify which automation to run. Available: ' + autoListNames.join(', ') + '.\n\nExample: "Run ' + (runAutos.automations[0] ? runAutos.automations[0].name : 'automation name') + '"';
+                data.type  = 'warning';
+                return;
+            }
+            try {
+                var runEngine = new ExecutionEngine();
+                var runExecId = runEngine.createExecution(targetAuto.sys_id, {}, targetAuto.owner_group_sys_id);
+                if (runExecId) {
+                    var runExecRec = new GlideRecord('x_infte_ops_int_execution');
+                    if (runExecRec.get(runExecId)) {
+                        data.reply = 'Automation "' + targetAuto.name + '" triggered successfully.\nExecution: ' + ('' + runExecRec.getValue('number')) + '\nStatus: ' + ('' + runExecRec.getValue('status'));
+                    } else {
+                        data.reply = 'Automation "' + targetAuto.name + '" triggered successfully.';
+                    }
+                    data.type = 'success';
+                } else {
+                    data.reply = 'Failed to trigger "' + targetAuto.name + '". Please try again from the Workspace section.';
+                    data.type  = 'error';
+                }
+            } catch(runErr) {
+                data.reply = 'Error triggering "' + targetAuto.name + '": ' + runErr;
+                data.type  = 'error';
+            }
+            return;
+        }
+
+        data.reply = 'I am not sure how to answer that. Try: "List my automations", "Run [automation name]", "Show recent executions", or type "help" for all commands.';
+        data.type  = 'info';
         return;
     }
 

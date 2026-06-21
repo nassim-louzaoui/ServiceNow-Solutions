@@ -40,7 +40,9 @@
       reject:     'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z',
       person_add: 'M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
       toggle_on:  'M17 7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h10c2.76 0 5-2.24 5-5s-2.24-5-5-5zm0 8c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z',
-      toggle_off: 'M17 7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h10c2.76 0 5-2.24 5-5s-2.24-5-5-5zm-10 8c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z'
+      toggle_off: 'M17 7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h10c2.76 0 5-2.24 5-5s-2.24-5-5-5zm-10 8c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z',
+      assistant: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9 11H7V9h2v2zm4 0h-2V9h2v2zm4 0h-2V9h2v2z',
+      send:      'M2.01 21L23 12 2.01 3 2 10l15 2-15 2z'
     };
     var d = paths[props.name] || paths['command'];
     return h('svg', {
@@ -92,6 +94,13 @@
 
   function noop() {}
 
+  var ROLE_LABELS = {
+    admin:      'Administrator',
+    leadership: 'Leadership',
+    creator:    'Creator',
+    user:       'User'
+  };
+
   function callBridge(payload, cb) {
     if (!_bridge || !_bridge.call) { cb && cb(null, 'Bridge not ready'); return; }
     _bridge.call(payload).then(
@@ -109,11 +118,12 @@
   /* ── Reducer ─────────────────────────────────────────────────── */
 
   var NAV_ITEMS = [
-    { id: 'workspace',   label: 'Workspace',    icon: 'workspace'  },
-    { id: 'activity',    label: 'My Activity',  icon: 'activity'   },
-    { id: 'studio',      label: 'Studio',       icon: 'studio'     },
-    { id: 'governance',  label: 'Governance',   icon: 'governance' },
-    { id: 'command',     label: 'Command',      icon: 'command'    }
+    { id: 'workspace',   label: 'Workspace',             icon: 'workspace'  },
+    { id: 'activity',    label: 'My Activity',           icon: 'activity'   },
+    { id: 'assistant',   label: 'Operations Assistant',  icon: 'assistant'  },
+    { id: 'studio',      label: 'Studio',                icon: 'studio'     },
+    { id: 'governance',  label: 'Governance',            icon: 'governance' },
+    { id: 'command',     label: 'Command',               icon: 'command'    }
   ];
 
   var initialState = {
@@ -326,7 +336,7 @@
         h('div', { className: 'oi-user-avatar' }, userInitials),
         h('div', { className: 'oi-user-info' },
           h('div', { className: 'oi-user-name' }, userName),
-          h('div', { className: 'oi-user-role' }, userRole)
+          h('div', { className: 'oi-user-role' }, ROLE_LABELS[userRole] || userRole)
         ),
         h('button', {
           className: 'oi-collapse-btn',
@@ -342,9 +352,6 @@
   function Topbar(props) {
     var ctx = React.useContext(AppContext);
     var dispatch = ctx.dispatch;
-    var idata = props.initData || {};
-    var userName = idata.userName || 'User';
-    var userInitials = idata.userInitials || initials(userName);
 
     return h('header', { className: 'oi-topbar' },
       h('div', { className: 'oi-topbar-left' },
@@ -359,10 +366,7 @@
         )
       ),
       h('div', { className: 'oi-topbar-right' },
-        props.loading ? h('div', { className: 'oi-topbar-spinner' }, h('div', { className: 'oi-spinner sm' })) : null,
-        h('div', { className: 'oi-topbar-user' },
-          h('div', { className: 'oi-topbar-avatar' }, userInitials)
-        )
+        props.loading ? h('div', { className: 'oi-topbar-spinner' }, h('div', { className: 'oi-spinner sm' })) : null
       )
     );
   }
@@ -380,6 +384,7 @@
     switch (props.section) {
       case 'workspace':   return h(WorkspaceSection, { data: data });
       case 'activity':    return h(ActivitySection, { data: data });
+      case 'assistant':   return h(OperationsAssistantSection, { data: data });
       case 'studio':      return h(StudioSection, { data: data });
       case 'governance':  return h(GovernanceSection, { data: data });
       case 'command':     return h(CommandSection, { data: data });
@@ -459,8 +464,8 @@
           : h('div', { className: 'oi-auto-grid' },
               filtered.map(function (auto) {
                 var isBusy = !!busy[auto.sys_id];
-                return h('div', { key: auto.sys_id, className: 'oi-auto-card', style: { borderTopColor: auto.category_color || '#0072CE' } },
-                  h('div', { className: 'oi-auto-card-icon' }, h(OIIcon, { name: 'automation', size: 20, fill: '#0072CE' })),
+                return h('div', { key: auto.sys_id, className: 'oi-auto-card', style: { borderTopColor: auto.category_color || '#00BF6F' } },
+                  h('div', { className: 'oi-auto-card-icon' }, h(OIIcon, { name: 'automation', size: 20, fill: '#00BF6F' })),
                   h('div', { className: 'oi-auto-card-name' }, auto.name),
                   h('div', { className: 'oi-auto-card-desc' }, auto.short_description || 'No description.'),
                   h('div', { className: 'oi-auto-card-owner' }, h(OIIcon, { name: 'user', size: 12 }), ' ' + (auto.owner_group || 'Unassigned')),
@@ -677,7 +682,7 @@
                   : h('div', { className: 'oi-auto-grid' },
                       deliverableTypes.map(function (dt, i) {
                         return h('div', { key: dt.sys_id || i, className: 'oi-auto-card' },
-                          h('div', { className: 'oi-auto-card-icon' }, h(OIIcon, { name: 'document', size: 20, fill: '#0072CE' })),
+                          h('div', { className: 'oi-auto-card-icon' }, h(OIIcon, { name: 'document', size: 20, fill: '#00BF6F' })),
                           h('div', { className: 'oi-auto-card-name' }, dt.name),
                           h('div', { className: 'oi-auto-card-desc' }, dt.icon || '')
                         );
@@ -1137,7 +1142,7 @@
                       h('div', { className: 'oi-member-role' }, u.email || u.user_name),
                       u.already_enrolled ? null : h('div', { className: 'oi-member-role', style: { color: '#E57323' } }, 'Not enrolled — enroll from Persons tab first')
                     ),
-                    sel ? h('span', { style: { color: '#0072CE' } }, h(OIIcon, { name: 'check', size: 14 })) : null
+                    sel ? h('span', { style: { color: '#00BF6F' } }, h(OIIcon, { name: 'check', size: 14 })) : null
                   );
                 })
               )
@@ -1243,7 +1248,7 @@
                       h('div', { className: 'oi-member-role' }, u.email || u.user_name),
                       u.already_enrolled ? h('div', { className: 'oi-member-role', style: { color: '#E57323' } }, 'Already enrolled') : null
                     ),
-                    sel ? h('span', { style: { color: '#0072CE' } }, h(OIIcon, { name: 'check', size: 14 })) : null
+                    sel ? h('span', { style: { color: '#00BF6F' } }, h(OIIcon, { name: 'check', size: 14 })) : null
                   );
                 })
               )
@@ -1254,6 +1259,123 @@
           h('button', { className: 'oi-btn primary', disabled: busy || !selectedUser, onClick: enroll },
             busy ? h('span', { className: 'oi-spinner sm' }) : null,
             ' Enroll'
+          )
+        )
+      )
+    );
+  }
+
+  /* ── Operations Assistant Section ───────────────────────────── */
+
+  function OperationsAssistantSection(props) {
+    var ctx = React.useContext(AppContext);
+    var data = props.data;
+    var stats = data.stats || {};
+    var recentExecutions = data.recent_executions || [];
+
+    var messagesResult = React.useState([
+      { role: 'assistant', text: 'Welcome to the Operations Assistant. Ask me to run an automation, check execution status, list your available automations, or type "help" for a full list of commands.' }
+    ]);
+    var messages = messagesResult[0];
+    var setMessages = messagesResult[1];
+
+    var inputResult = React.useState('');
+    var input = inputResult[0];
+    var setInput = inputResult[1];
+
+    var busyResult = React.useState(false);
+    var busy = busyResult[0];
+    var setBusy = busyResult[1];
+
+    function send() {
+      var q = input.trim();
+      if (!q || busy) return;
+      var newMsgs = messages.concat([{ role: 'user', text: q }]);
+      setMessages(newMsgs);
+      setInput('');
+      setBusy(true);
+      ctx.callServer({ action: 'assistant_query', query: q }, function (d, err) {
+        setBusy(false);
+        if (err) {
+          setMessages(newMsgs.concat([{ role: 'assistant', text: 'Error: ' + err, type: 'error' }]));
+          return;
+        }
+        var reply = (d && d.reply) || 'I could not process that request.';
+        setMessages(newMsgs.concat([{ role: 'assistant', text: reply, type: d && d.type }]));
+      });
+    }
+
+    return h('div', { className: 'oi-section' },
+      h('div', { className: 'oi-toolbar' },
+        h('div', { className: 'oi-toolbar-left' },
+          h('h1', { className: 'oi-section-title' }, 'Operations Assistant')
+        )
+      ),
+      h('div', { className: 'oi-assistant-layout' },
+        h('div', { className: 'oi-assistant-panel' },
+          h('div', { className: 'oi-card' },
+            h('div', { className: 'oi-card-hdr' },
+              h('span', { className: 'oi-card-title' }, 'Quick Stats')
+            ),
+            h('div', { className: 'oi-card-body' },
+              h('div', { className: 'oi-assistant-stats' },
+                h(StatCard, { label: 'Available Automations', value: stats.available_automations != null ? stats.available_automations : '--', icon: h(OIIcon, { name: 'automation', size: 20, fill: '#00BF6F' }) }),
+                h(StatCard, { label: 'My Executions', value: stats.my_executions != null ? stats.my_executions : '--', icon: h(OIIcon, { name: 'activity', size: 20, fill: '#00BF6F' }) }),
+                h(StatCard, { label: 'My Groups', value: stats.my_groups != null ? stats.my_groups : '--', icon: h(OIIcon, { name: 'group', size: 20, fill: '#00BF6F' }) }),
+                h(StatCard, { label: 'Runs Today', value: stats.executions_today != null ? stats.executions_today : '--', icon: h(OIIcon, { name: 'play', size: 20, fill: '#00BF6F' }) })
+              )
+            )
+          ),
+          h('div', { className: 'oi-card', style: { marginTop: '1rem' } },
+            h('div', { className: 'oi-card-hdr' },
+              h('span', { className: 'oi-card-title' }, 'Recent Activity')
+            ),
+            h('div', { className: 'oi-card-body' },
+              recentExecutions.length === 0
+                ? h('div', { className: 'oi-empty-inline' }, 'No recent executions.')
+                : h('div', null,
+                    recentExecutions.map(function (ex, i) {
+                      return h('div', { key: ex.sys_id || i, className: 'oi-assistant-recent-item' },
+                        h('div', { className: 'oi-assistant-recent-name' }, ex.automation_name || 'Unnamed'),
+                        h('div', { className: 'oi-assistant-recent-meta' },
+                          h(Badge, { cls: statusClass(ex.status) }, ex.status || 'unknown'),
+                          h('span', { className: 'oi-td-muted', style: { marginLeft: '0.5rem' } }, relTime(ex.triggered_at))
+                        )
+                      );
+                    })
+                  )
+            )
+          )
+        ),
+        h('div', { className: 'oi-assistant-chat' },
+          h('div', { className: 'oi-chat-messages' },
+            messages.map(function (m, i) {
+              return h('div', { key: i, className: 'oi-chat-msg ' + m.role + (m.type === 'error' ? ' error' : '') },
+                h('div', { className: 'oi-chat-bubble' }, m.text)
+              );
+            }),
+            busy ? h('div', { className: 'oi-chat-msg assistant' },
+              h('div', { className: 'oi-chat-bubble oi-typing' },
+                h('span', { className: 'oi-dot' }),
+                h('span', { className: 'oi-dot' }),
+                h('span', { className: 'oi-dot' })
+              )
+            ) : null
+          ),
+          h('div', { className: 'oi-chat-input-area' },
+            h('input', {
+              className: 'oi-input',
+              value: input,
+              placeholder: 'Ask me to run an automation, check status, list automations...',
+              disabled: busy,
+              onChange: function (e) { setInput(e.target.value); },
+              onKeyDown: function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }
+            }),
+            h('button', {
+              className: 'oi-btn primary',
+              disabled: busy || !input.trim(),
+              onClick: send
+            }, busy ? h('div', { className: 'oi-spinner sm' }) : h(OIIcon, { name: 'send', size: 16 }))
           )
         )
       )
@@ -1380,7 +1502,7 @@
           ),
           h('div', { className: 'oi-card-body' },
             h('div', { className: 'oi-security-notice' },
-              h('div', { className: 'oi-security-icon' }, h(OIIcon, { name: 'lock', size: 24, fill: '#0072CE' })),
+              h('div', { className: 'oi-security-icon' }, h(OIIcon, { name: 'lock', size: 24, fill: '#00BF6F' })),
               h('div', null,
                 h('div', { className: 'oi-security-title' }, 'Credential Storage'),
                 h('p', { className: 'oi-security-desc' },
