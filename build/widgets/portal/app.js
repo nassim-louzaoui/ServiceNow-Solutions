@@ -9,6 +9,7 @@
   var h = React.createElement;
 
   var _bridge = null;
+  var _onBridgeReady = null;
   var _toastId = 0;
 
   /* ── Helpers ─────────────────────────────────────────────────── */
@@ -124,7 +125,7 @@
   function useDevToolsGuard(dispatch) {
     React.useEffect(function () {
       function checkSize() {
-        var threshold = 160;
+        var threshold = 200;
         var widthDiff = window.outerWidth - window.innerWidth;
         var heightDiff = window.outerHeight - window.innerHeight;
         if (widthDiff > threshold || heightDiff > threshold) {
@@ -190,9 +191,7 @@
     }
 
     React.useEffect(function () {
-      function initWithBridge(bridge) {
-        _bridge = bridge;
-        try { delete window.__oiBridge; } catch (e) {}
+      function startApp() {
         dispatch({ type: 'SET_LOADING', payload: true });
         callServer({ action: 'load_section', section: 'workspace' }, function (data, err) {
           if (err) { dispatch({ type: 'SET_ERROR', payload: err }); return; }
@@ -201,13 +200,12 @@
           dispatch({ type: 'SET_SECTION_DATA', payload: (data && data.sectionData) || {} });
         });
       }
-      if (window.__oiBridge) {
-        initWithBridge(window.__oiBridge);
-        return noop;
+      if (_bridge) {
+        startApp();
+      } else {
+        _onBridgeReady = startApp;
       }
-      function onReady(e) { initWithBridge(e.detail); }
-      window.addEventListener('oi:ready', onReady, { once: true });
-      return function () { window.removeEventListener('oi:ready', onReady); };
+      return noop;
     }, []);
 
     React.useEffect(function () {
@@ -1424,6 +1422,15 @@
     container.id = 'oi-root';
     document.body.appendChild(container);
   }
+
+  window.addEventListener('oi:ready', function (e) {
+    _bridge = e.detail;
+    if (_onBridgeReady) {
+      var fn = _onBridgeReady;
+      _onBridgeReady = null;
+      fn();
+    }
+  }, { once: true });
 
   var root = ReactDOM.createRoot(container);
   root.render(h(App, null));
