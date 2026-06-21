@@ -2,15 +2,15 @@
 """
 Portal Access Control Phase
 
-Locks the Operations Intelligence portal so only users holding one of the three
-OI roles (user, creator, leadership) can access it.  Platform administrators
+Locks the Operations Intelligence portal so only users holding an OI role
+(admin, user, creator, leadership) can access it. Platform administrators
 without an OI role are redirected to the portal login page.
 
 Two layers:
   1. sp_page.roles on both portal pages — enforced by the SP processor before
      any widget renders.
-  2. Nav-bar widget server script — server-side guard that aborts rendering and
-     sets data.accessDenied so the template can show an access-denied message.
+  2. Portal widget server script — server-side guard that sets data.denied
+     when no OI role is detected.
 """
 import os
 import sys
@@ -21,7 +21,7 @@ import urllib.parse
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 import engine_client as ec
 
-OI_ROLES = "x_infte_ops_int.user,x_infte_ops_int.creator,x_infte_ops_int.leadership"
+OI_ROLES = "x_infte_ops_int.admin,x_infte_ops_int.user,x_infte_ops_int.creator,x_infte_ops_int.leadership"
 
 PAGES = [
     ("oi_main",       "ed4829262b610b90efe3f355fe91bf6a"),
