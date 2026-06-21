@@ -16,6 +16,7 @@ api.controller = function($scope, $timeout, spModal, spUtil) {
         expandedExecution:    null,
         stepLogLoading:       false,
         mobileNavOpen:        false,
+        sidebarCollapsed:     false,
 
         commandTab:           'stats',
 
@@ -141,6 +142,19 @@ api.controller = function($scope, $timeout, spModal, spUtil) {
 
     c.toggleMobileNav = function() {
         c.ui.mobileNavOpen = !c.ui.mobileNavOpen;
+    };
+
+    c.toggleSidebar = function() {
+        c.ui.sidebarCollapsed = !c.ui.sidebarCollapsed;
+    };
+
+    c.currentSectionLabel = function() {
+        if (!c.ui.section || !c.data.sections) { return 'Operations Intelligence'; }
+        var i;
+        for (i = 0; i < c.data.sections.length; i++) {
+            if (c.data.sections[i].id === c.ui.section) { return c.data.sections[i].label; }
+        }
+        return 'Operations Intelligence';
     };
 
     // ── Workspace ─────────────────────────────────────────────────────────────
