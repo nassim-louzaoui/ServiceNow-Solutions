@@ -10,7 +10,7 @@
 (function() {
     data.sectionId    = options.section_id    || 'workspace';
     data.sectionLabel = options.section_label || 'This Section';
-    data.isAdmin      = gs.hasRole('admin');
+    data.isAdmin      = gs.hasRole('x_infte_ops_int.admin');
 
     var mm     = new MaintenanceManager();
     var status = mm.getStatus();

@@ -1,4 +1,4 @@
-api.controller = function($scope, $timeout) {
+api.controller = function($scope, $timeout, spModal, spUtil) {
     var c = this;
 
     c.ui = {
@@ -163,7 +163,51 @@ api.controller = function($scope, $timeout) {
     };
 
     c.triggerAutomation = function(card) {
-        alert('Trigger: ' + (card.name || card.sys_id));
+        spModal.confirm('Run automation "' + (card.name || card.sys_id) + '"?').then(function(confirmed) {
+            if (!confirmed) { return; }
+            c.server.get({
+                action:           'trigger_automation',
+                automation_sys_id: card.sys_id,
+                group_sys_id:      card.owner_group_sys_id || ''
+            }).then(function(response) {
+                var t = response.data.triggered;
+                if (t && t.ok) {
+                    spUtil.addInfoMessage('Execution ' + (t.number || t.sys_id) + ' started.');
+                } else {
+                    spUtil.addErrorMessage('Failed to trigger automation.');
+                }
+            }, function() {
+                spUtil.addErrorMessage('Server error while triggering automation.');
+            });
+        });
+    };
+
+    c.resolveAction = function(action, resolution) {
+        spModal.confirm(resolution === 'approved' ? 'Approve this action?' : 'Reject this action?').then(function(confirmed) {
+            if (!confirmed) { return; }
+            c.server.get({
+                action:         'resolve_action',
+                action_sys_id:  action.sys_id,
+                resolution:     resolution
+            }).then(function(response) {
+                if (response.data.resolved) {
+                    var pending = c.data.sectionData && c.data.sectionData.pending;
+                    if (pending) {
+                        for (var i = 0; i < pending.length; i++) {
+                            if (pending[i].sys_id === action.sys_id) {
+                                pending.splice(i, 1);
+                                break;
+                            }
+                        }
+                    }
+                    spUtil.addInfoMessage('Action ' + resolution + '.');
+                } else {
+                    spUtil.addErrorMessage('Could not resolve action.');
+                }
+            }, function() {
+                spUtil.addErrorMessage('Server error while resolving action.');
+            });
+        });
     };
 
     c.toggleMobileNav = function() {

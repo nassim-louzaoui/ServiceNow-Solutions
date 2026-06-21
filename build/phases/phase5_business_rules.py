@@ -91,6 +91,16 @@ BR5 = """(function executeRule(current, previous) {
     }
 })(current, previous);"""
 
+BR6 = """(function executeRule(current, previous) {
+    try {
+        new RoleSyncService().syncGroupMembers(current.getUniqueValue());
+    } catch(e) {
+        gs.warn('x_infte_ops_int Group Member Role Sync: ' + e);
+    }
+})(current, previous);"""
+
+GROUP = ec.table("group")
+
 # (name, collection, when, insert, update, condition, script)
 RULES = [
     ("Operations Intelligence - Deactivation Detector", "sys_user", "after",
@@ -103,6 +113,8 @@ RULES = [
      False, True, "current.status == 'published' && previous.status != 'published'", BR4),
     ("Operations Intelligence - Deprecation Guard", AUTO, "after",
      False, True, "current.status == 'deprecation_queued'", BR5),
+    ("Operations Intelligence - Group Member Role Sync", GROUP, "after",
+     True, True, "current.members != previous.members", BR6),
 ]
 
 

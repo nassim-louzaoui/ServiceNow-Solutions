@@ -6,7 +6,7 @@ api.controller = function($scope, spUtil, spModal, $window) {
     c.onGroupChange = function() {
         c.data.selected_group = c.selectedGroup;
         c.server.get({ selected_group: c.selectedGroup }).then(function(response) {
-            c.data.cards = response.data.cards;
+            c.data.cards = response.data.cards || [];
         });
     };
 

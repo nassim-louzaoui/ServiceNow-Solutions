@@ -19,6 +19,10 @@
 
     if (!hasAdmin && !hasLeadership && !hasCreator && !hasUser) {
         data.denied = true;
+        var suDenied = new GlideRecord('sys_user');
+        if (suDenied.get(userSysId)) {
+            data.deniedLogin = '' + suDenied.getValue('user_name');
+        }
         return;
     }
 
@@ -112,6 +116,62 @@
             var curVal = '' + propRec.getValue('value');
             propRec.setValue('value', curVal === 'true' ? 'false' : 'true');
             propRec.update();
+        }
+        return;
+    }
+
+    if (input.action === 'trigger_automation') {
+        var autoSysId = '' + input.automation_sys_id;
+        var grpSysId  = input.group_sys_id ? '' + input.group_sys_id : null;
+        try {
+            var engine = new ExecutionEngine();
+            var execSysId = engine.createExecution(autoSysId, {}, grpSysId);
+            if (execSysId) {
+                var execRec = new GlideRecord('x_infte_ops_int_execution');
+                if (execRec.get(execSysId)) {
+                    data.triggered = {
+                        ok:     true,
+                        sys_id: execSysId,
+                        number: '' + execRec.getValue('number'),
+                        status: '' + execRec.getValue('status')
+                    };
+                } else {
+                    data.triggered = { ok: true, sys_id: execSysId };
+                }
+            } else {
+                data.triggered = { ok: false, error: 'Execution could not be created.' };
+            }
+        } catch (trigErr) {
+            data.triggered = { ok: false, error: '' + trigErr };
+        }
+        return;
+    }
+
+    if (input.action === 'resolve_action') {
+        if (!hasLeadership && !hasAdmin) { return; }
+        var paId    = '' + input.action_sys_id;
+        var verdict = '' + input.resolution;
+        if (verdict !== 'approved' && verdict !== 'rejected') { return; }
+        var paRec = new GlideRecord('x_infte_ops_int_pending_action');
+        if (paRec.get(paId)) {
+            paRec.setValue('status', verdict);
+            paRec.update();
+            if (verdict === 'approved') {
+                try {
+                    var rs = new RoleSyncService();
+                    var subjectUser = '' + paRec.getValue('subject_user');
+                    if (subjectUser) {
+                        var subjectPr = new PermissionResolver();
+                        var subjectPerson = subjectPr.getPersonByUser(subjectUser);
+                        if (subjectPerson) { rs.syncPersonRoles(subjectPerson); }
+                    }
+                } catch(rsErr) {
+                    gs.warn('OI Portal: role sync on action approval: ' + rsErr);
+                }
+            }
+            data.resolveResult = { ok: true };
+        } else {
+            data.resolveResult = { ok: false };
         }
         return;
     }

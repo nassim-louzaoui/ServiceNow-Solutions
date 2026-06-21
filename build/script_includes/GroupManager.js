@@ -3,7 +3,6 @@ GroupManager.prototype = {
     initialize: function() {
         this.PERSON_TABLE = 'x_infte_ops_int_person';
         this.GROUP_TABLE  = 'x_infte_ops_int_group';
-        this.ROLE_CREATOR = 'x_infte_ops_int.creator';
     },
 
     _parseJson: function(raw, fallback) {
@@ -73,37 +72,9 @@ GroupManager.prototype = {
         gr.setValue('members', JSON.stringify(members));
         gr.update();
 
-        if (role === 'creator') {
-            this._ensureCreatorSystemRole(personSysId);
+        try { new RoleSyncService().syncPersonRoles(personSysId); } catch(e) {
+            gs.warn('x_infte_ops_int GroupManager.addMember role sync: ' + e);
         }
-        return true;
-    },
-
-    _ensureCreatorSystemRole: function(personSysId) {
-        var person = new GlideRecord(this.PERSON_TABLE);
-        if (!person.get(personSysId)) { return false; }
-        var userSysId = '' + person.getValue('user');
-        if (!userSysId) { return false; }
-
-        var roleGr = new GlideRecord('sys_user_role');
-        roleGr.addQuery('name', this.ROLE_CREATOR);
-        roleGr.setLimit(1);
-        roleGr.query();
-        if (!roleGr.next()) { return false; }
-        var roleSysId = '' + roleGr.getUniqueValue();
-
-        var existing = new GlideRecord('sys_user_has_role');
-        existing.addQuery('user', userSysId);
-        existing.addQuery('role', roleSysId);
-        existing.setLimit(1);
-        existing.query();
-        if (existing.next()) { return true; }
-
-        var has = new GlideRecord('sys_user_has_role');
-        has.initialize();
-        has.setValue('user', userSysId);
-        has.setValue('role', roleSysId);
-        has.insert();
         return true;
     },
 
@@ -124,6 +95,9 @@ GroupManager.prototype = {
         if (updated) {
             gr.setValue('members', JSON.stringify(members));
             gr.update();
+            try { new RoleSyncService().syncPersonRoles(personSysId); } catch(e) {
+                gs.warn('x_infte_ops_int GroupManager.removeMember role sync: ' + e);
+            }
         }
         return updated;
     },

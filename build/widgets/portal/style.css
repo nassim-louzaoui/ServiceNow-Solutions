@@ -1181,42 +1181,97 @@
 
 .oi-denied {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: #1D2D35;
-  padding: 40px 20px;
-}
-
-.oi-denied-box {
+  background: linear-gradient(160deg, #080F1E 0%, #0C1A31 50%, #060D1C 100%);
+  padding: 48px 24px;
+  position: relative;
+  overflow: hidden;
   text-align: center;
-  max-width: 440px;
 }
 
-.oi-denied-icon {
-  display: inline-flex;
+.oi-denied::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 28% 35%, rgba(0,114,206,0.10) 0%, transparent 55%),
+    radial-gradient(ellipse at 72% 65%, rgba(37,99,235,0.07) 0%, transparent 55%);
+  pointer-events: none;
+}
+
+.oi-denied-brand {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: rgba(217,48,37,0.15);
-  color: var(--now-danger);
-  margin-bottom: 20px;
+  gap: 10px;
+  color: rgba(255,255,255,0.45);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 48px;
+  position: relative;
+}
+
+.oi-denied-brand .fa {
+  color: #3B82F6;
+  font-size: 16px;
+}
+
+.oi-denied-svg {
+  margin-bottom: 36px;
+  position: relative;
+  filter: drop-shadow(0 0 32px rgba(37,99,235,0.25));
 }
 
 .oi-denied-title {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 700;
-  color: #fff;
-  margin: 0 0 12px;
+  color: #ffffff;
+  margin: 0 0 14px;
+  position: relative;
+  letter-spacing: -0.02em;
 }
 
 .oi-denied-msg {
   font-size: 15px;
-  color: rgba(255,255,255,0.65);
-  line-height: 1.6;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.7;
+  margin: 0 0 24px;
+  max-width: 380px;
+  position: relative;
+}
+
+.oi-denied-account {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 24px;
+  padding: 8px 18px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.oi-denied-account .fa {
+  color: rgba(255,255,255,0.4);
+}
+
+.oi-denied-account strong {
+  color: rgba(255,255,255,0.85);
+  font-weight: 600;
+}
+
+.oi-denied-contact {
+  font-size: 13px;
+  color: rgba(255,255,255,0.35);
   margin: 0;
+  position: relative;
 }
 
 /* ============================================================

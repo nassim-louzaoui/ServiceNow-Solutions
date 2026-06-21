@@ -1,17 +1,60 @@
 <div class="oi-portal">
 
-  <!-- ACCESS DENIED -->
+  <!-- ACCESS DENIED — Full-screen -->
   <div class="oi-denied" ng-if="c.data.denied">
-    <div class="oi-denied-box">
-      <div class="oi-denied-icon">
-        <i class="fa fa-lock fa-3x"></i>
-      </div>
-      <h2 class="oi-denied-title">Access Restricted</h2>
-      <p class="oi-denied-msg">
-        This portal is restricted to authorised Operations Intelligence users.
-        Contact your administrator to request access.
-      </p>
+    <div class="oi-denied-brand">
+      <i class="fa fa-diamond"></i>
+      <span>Operations Intelligence</span>
     </div>
+    <div class="oi-denied-svg" aria-hidden="true">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 260" width="200" height="216">
+        <!-- Outer decorative ring -->
+        <circle cx="120" cy="122" r="108" fill="none" stroke="#1D4ED8" stroke-width="1.5" opacity="0.18"/>
+        <circle cx="120" cy="122" r="96"  fill="none" stroke="#1D4ED8" stroke-width="1"   opacity="0.12"/>
+        <!-- Tick marks -->
+        <g stroke="#3B82F6" stroke-width="2" stroke-linecap="round" opacity="0.35">
+          <line x1="120" y1="10"  x2="120" y2="22"/>
+          <line x1="120" y1="222" x2="120" y2="234"/>
+          <line x1="10"  y1="122" x2="22"  y2="122"/>
+          <line x1="218" y1="122" x2="230" y2="122"/>
+        </g>
+        <!-- Corner dots -->
+        <g fill="#3B82F6" opacity="0.4">
+          <circle cx="44"  cy="58"  r="3.5"/>
+          <circle cx="28"  cy="122" r="3"/>
+          <circle cx="44"  cy="186" r="3.5"/>
+          <circle cx="196" cy="58"  r="3.5"/>
+          <circle cx="212" cy="122" r="3"/>
+          <circle cx="196" cy="186" r="3.5"/>
+        </g>
+        <!-- Shield body -->
+        <path d="M120 28 L192 58 L192 118 Q192 178 120 210 Q48 178 48 118 L48 58 Z"
+              fill="#0F2044" stroke="#2563EB" stroke-width="2.5" stroke-linejoin="round"/>
+        <!-- Shield inner bevel -->
+        <path d="M120 42 L178 68 L178 118 Q178 168 120 194 Q62 168 62 118 L62 68 Z"
+              fill="none" stroke="#60A5FA" stroke-width="1" opacity="0.3"/>
+        <!-- Lock body -->
+        <rect x="90" y="128" width="60" height="48" rx="8" fill="#2563EB"/>
+        <!-- Lock shine -->
+        <rect x="90" y="128" width="60" height="18" rx="8" fill="#3B82F6" opacity="0.5"/>
+        <!-- Lock shackle -->
+        <path d="M98 128 L98 110 Q98 88 120 88 Q142 88 142 110 L142 128"
+              fill="none" stroke="#60A5FA" stroke-width="10" stroke-linecap="round"/>
+        <!-- Keyhole -->
+        <circle cx="120" cy="147" r="8.5" fill="#0F2044"/>
+        <rect x="116.5" y="147" width="7" height="14" rx="3.5" fill="#0F2044"/>
+      </svg>
+    </div>
+    <h1 class="oi-denied-title">Access Restricted</h1>
+    <p class="oi-denied-msg">
+      This portal is restricted to authorised Operations Intelligence users.
+      Your account does not have a qualifying role assigned.
+    </p>
+    <div class="oi-denied-account" ng-if="c.data.deniedLogin">
+      <i class="fa fa-user-circle"></i>
+      <span>Signed in as <strong>{{c.data.deniedLogin}}</strong></span>
+    </div>
+    <p class="oi-denied-contact">Contact your Operations Intelligence administrator to request access.</p>
   </div>
 
   <!-- PORTAL SHELL -->
@@ -359,10 +402,14 @@
                   <div class="oi-pending-meta">{{action.subject_user}} &middot; {{action.created_at}}</div>
                 </div>
                 <div class="oi-pending-actions">
-                  <button class="oi-btn oi-btn-success oi-btn-sm" type="button">
+                  <button class="oi-btn oi-btn-success oi-btn-sm" type="button"
+                          ng-click="$event.stopPropagation(); c.resolveAction(action, 'approved')"
+                          title="Approve">
                     <i class="fa fa-check"></i>
                   </button>
-                  <button class="oi-btn oi-btn-danger oi-btn-sm" type="button">
+                  <button class="oi-btn oi-btn-danger oi-btn-sm" type="button"
+                          ng-click="$event.stopPropagation(); c.resolveAction(action, 'rejected')"
+                          title="Reject">
                     <i class="fa fa-times"></i>
                   </button>
                 </div>
