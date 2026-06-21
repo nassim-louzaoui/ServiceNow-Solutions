@@ -334,6 +334,33 @@
 
     var ENGINE_UPDATE_SET_NAME = 'Operations Intelligence';
 
+    var _appContextSet = false;
+    function ensureAppContext() {
+        if (_appContextSet) return;
+        var appId = appScopeSysId();
+        if (!appId) return;
+        var u = new GlideRecord('sys_user');
+        u.addQuery('user_name', SVC_USER);
+        u.setLimit(1);
+        u.query();
+        if (!u.next()) return;
+        var uid = u.getUniqueValue();
+        var q = internalRest('GET', '/api/now/table/sys_user_preference', null,
+            { sysparm_query: 'user=' + uid + '^name=apps.current_app',
+              sysparm_fields: 'sys_id,value', sysparm_limit: 1 }, null);
+        var rows = (q.ok && q.body && q.body.result) ? q.body.result : [];
+        if (rows.length) {
+            if (rows[0].value !== appId) {
+                internalRest('PATCH', '/api/now/table/sys_user_preference/' + rows[0].sys_id,
+                    { value: appId }, null, null);
+            }
+        } else {
+            internalRest('POST', '/api/now/table/sys_user_preference',
+                { user: uid, name: 'apps.current_app', value: appId, type: 'string' }, null, null);
+        }
+        _appContextSet = true;
+    }
+
     function ensureEngineUpdateSet() {
         var us = new GlideRecord('sys_update_set');
         us.addQuery('name', ENGINE_UPDATE_SET_NAME);
@@ -532,7 +559,7 @@
         var d  = ctx.data  || {};
         var q  = ctx.query || {};
 
-        if (TRACKED_OPS[o]) ensureEngineUpdateSet();
+        if (TRACKED_OPS[o]) { ensureAppContext(); ensureEngineUpdateSet(); }
         var l  = Math.min(parseInt(ctx.limit, 10) || 100, MAX_LIMIT);
         var dv = !!ctx.display_values;
         var pf = !!ctx.platform;
@@ -986,7 +1013,9 @@
             exN.query();
             if (exN.next()) return { ok: true, skipped: true, reason: 'autonumber exists', sys_id: exN.getUniqueValue() };
             var nRes = tableInsert('sys_number', { category: t, prefix: d.prefix,
-                number: String(d.start || 1001), sys_scope: appScopeSysId() }, false);
+                number: String(d.start || 1001),
+                maximum_digits: String(d.maximum_digits || 7),
+                sys_scope: appScopeSysId() }, false);
             delete nRes._status;
             return nRes;
 
@@ -1533,8 +1562,24 @@
             };
             if (d.script)    aclPayload.script    = d.script;
             if (d.condition) aclPayload.condition = d.condition;
-            if (d.roles)     aclPayload.roles      = d.roles;
             var aclRes = artifactUpsert('sys_security_acl', 'name=' + t + '^operation=' + d.operation, aclPayload, true);
+            if (aclRes.ok && aclRes.sys_id && d.roles && d.roles.length) {
+                var aclRoleLinked = 0;
+                for (var aclRi = 0; aclRi < d.roles.length; aclRi++) {
+                    var aclRoleName = d.roles[aclRi];
+                    var aclRoleId = isSysId(aclRoleName) ? aclRoleName : resolveRole(aclRoleName);
+                    if (!aclRoleId) continue;
+                    var aclLinkQ = platformQuery('sys_security_acl_role',
+                        'sys_security_acl=' + aclRes.sys_id + '^sys_user_role=' + aclRoleId,
+                        ['sys_id'], 1, '', '', false, 0);
+                    var aclLinkRows = (aclLinkQ.ok && aclLinkQ.body && aclLinkQ.body.result) ? aclLinkQ.body.result : [];
+                    if (aclLinkRows.length) continue;
+                    var aclLinkRes = internalRest('POST', '/api/now/table/sys_security_acl_role',
+                        { sys_security_acl: aclRes.sys_id, sys_user_role: aclRoleId }, null, null);
+                    if (aclLinkRes.ok) aclRoleLinked++;
+                }
+                aclRes.roles_linked = aclRoleLinked;
+            }
             return aclRes;
 
         case 'acl.delete':
