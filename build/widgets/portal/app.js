@@ -73,7 +73,7 @@
   var initialState = {
     section: 'workspace',
     sectionData: null,
-    loading: false,
+    loading: true,
     sidebarCollapsed: false,
     mobileOpen: false,
     error: null,
@@ -238,13 +238,16 @@
     }
 
     if (state.authDenied) {
+      var deniedLogin = _bridge && _bridge.data && _bridge.data.deniedLogin ? _bridge.data.deniedLogin : '';
       return h('div', { id: 'oi-root' },
         h(AppContext.Provider, { value: ctx },
           h('div', { className: 'oi-denied' },
             h('div', { className: 'oi-denied-card' },
               h('div', { className: 'oi-denied-icon' }, '🚫'),
               h('h2', { className: 'oi-denied-title' }, 'Access Denied'),
-              h('p', { className: 'oi-denied-desc' }, 'You do not have permission to access Operations Intelligence. Contact your administrator to request access.'),
+              h('p', { className: 'oi-denied-desc' }, 'You do not have permission to access Operations Intelligence.'),
+              deniedLogin ? h('p', { className: 'oi-denied-user' }, 'Signed in as: ' + deniedLogin) : null,
+              h('p', { className: 'oi-denied-hint' }, 'Contact your administrator to request one of the Operations Intelligence roles.'),
               h(ToastContainer, null)
             )
           )
@@ -1418,6 +1421,36 @@
     );
   }
 
+  /* ── Error Boundary ─────────────────────────────────────────── */
+
+  function OIErrorBoundary(props) {
+    React.Component.call(this, props);
+    this.state = { hasError: false, errorMsg: '' };
+  }
+  OIErrorBoundary.prototype = Object.create(React.Component.prototype);
+  OIErrorBoundary.prototype.constructor = OIErrorBoundary;
+  OIErrorBoundary.getDerivedStateFromError = function (err) {
+    return { hasError: true, errorMsg: err ? (err.message || String(err)) : 'Unknown error' };
+  };
+  OIErrorBoundary.prototype.componentDidCatch = function (err, info) {
+    if (typeof console !== 'undefined') { console.error('[OI Portal]', err, info); }
+  };
+  OIErrorBoundary.prototype.render = function () {
+    if (this.state.hasError) {
+      var msg = this.state.errorMsg;
+      return h('div', { className: 'oi-crash' },
+        h('div', { className: 'oi-crash-card' },
+          h('div', { className: 'oi-crash-icon' }, '⚠️'),
+          h('h2', { className: 'oi-crash-title' }, 'Portal Error'),
+          h('p', { className: 'oi-crash-desc' }, 'An unexpected error prevented the Operations Intelligence portal from loading.'),
+          h('code', { className: 'oi-crash-msg' }, msg),
+          h('button', { className: 'oi-btn primary', style: { marginTop: '1.25rem' }, onClick: function () { window.location.reload(); } }, 'Refresh Page')
+        )
+      );
+    }
+    return this.props.children;
+  };
+
   /* ── Mount ───────────────────────────────────────────────────── */
 
   var container = document.getElementById('oi-root');
@@ -1437,6 +1470,6 @@
   }, { once: true });
 
   var root = ReactDOM.createRoot(container);
-  root.render(h(App, null));
+  root.render(h(OIErrorBoundary, null, h(App, null)));
 
 })();
