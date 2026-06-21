@@ -1,0 +1,166 @@
+.oi-eh {
+  padding: 4px 2px 16px;
+  font-family: inherit;
+  color: var(--oi-text, #0F172A);
+}
+
+.oi-eh-header {
+  margin-bottom: 14px;
+}
+
+.oi-eh-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.oi-eh-sub {
+  font-size: 0.82rem;
+  color: var(--oi-muted, #64748B);
+  margin-top: 3px;
+}
+
+.oi-eh-error,
+.oi-eh-empty {
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--oi-surface, #F8FAFC);
+  border: 1px solid #E2E8F0;
+  color: var(--oi-muted, #64748B);
+  font-size: 0.88rem;
+}
+
+.oi-eh-list {
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--oi-surface, #FFFFFF);
+}
+
+.oi-eh-row-wrap + .oi-eh-row-wrap {
+  border-top: 1px solid #F1F5F9;
+}
+
+.oi-eh-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  cursor: pointer;
+  font-size: 0.84rem;
+}
+
+.oi-eh-row:hover {
+  background: #F8FAFC;
+}
+
+.oi-eh-row-open {
+  background: #F8FAFC;
+}
+
+.oi-eh-chevron {
+  color: var(--oi-muted, #94A3B8);
+  flex: 0 0 14px;
+}
+
+.oi-eh-ref {
+  font-weight: 600;
+  flex: 0 0 96px;
+}
+
+.oi-eh-auto {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.oi-eh-test {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  background: #E0E7FF;
+  color: var(--oi-primary, #6366F1);
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin-left: 6px;
+}
+
+.oi-eh-channel {
+  flex: 0 0 130px;
+  color: var(--oi-muted, #64748B);
+}
+
+.oi-eh-time {
+  flex: 0 0 150px;
+  color: var(--oi-muted, #64748B);
+}
+
+.oi-eh-status {
+  flex: 0 0 auto;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.oi-eh-status-success { background: #DCFCE7; color: var(--oi-success, #16A34A); }
+.oi-eh-status-failed { background: #FEE2E2; color: var(--oi-danger, #DC2626); }
+.oi-eh-status-running { background: #DBEAFE; color: #2563EB; }
+.oi-eh-status-pending { background: #F1F5F9; color: var(--oi-muted, #64748B); }
+.oi-eh-status-awaiting_approval { background: #FEF3C7; color: #B45309; }
+.oi-eh-status-cancelled { background: #F1F5F9; color: var(--oi-muted, #94A3B8); }
+.oi-eh-status-skipped { background: #F1F5F9; color: var(--oi-muted, #94A3B8); }
+
+.oi-eh-detail {
+  padding: 8px 16px 16px 40px;
+  background: #FCFCFD;
+  border-top: 1px solid #F1F5F9;
+}
+
+.oi-eh-loading,
+.oi-eh-denied,
+.oi-eh-nosteps {
+  font-size: 0.82rem;
+  color: var(--oi-muted, #64748B);
+  padding: 8px 0;
+}
+
+.oi-eh-denied {
+  color: var(--oi-danger, #DC2626);
+}
+
+.oi-eh-steptable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.oi-eh-steptable th {
+  text-align: left;
+  color: var(--oi-muted, #64748B);
+  font-weight: 600;
+  padding: 6px 8px;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.oi-eh-steptable td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #F1F5F9;
+  vertical-align: top;
+}
+
+.oi-eh-stepgroup {
+  border: none;
+}
+
+.oi-eh-errrow td {
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.oi-eh-errmsg {
+  color: var(--oi-danger, #DC2626);
+  font-size: 0.76rem;
+}

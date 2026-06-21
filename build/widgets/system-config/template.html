@@ -1,0 +1,63 @@
+<div class="oi-system-config">
+
+  <div class="oi-sc-header">
+    <h2 class="oi-sc-title">System Config Panel</h2>
+  </div>
+
+  <div class="oi-sc-denied" ng-if="!c.data.authorized">
+    <p>{{c.data.message}}</p>
+  </div>
+
+  <div ng-if="c.data.authorized">
+
+    <div class="oi-sc-saved" ng-if="c.data.saved && !c.dirty">
+      Configuration saved.
+    </div>
+
+    <form class="oi-sc-form" ng-submit="c.save()">
+
+      <div class="oi-sc-field">
+        <label class="oi-sc-label" for="oiScTimeout">Copilot Timeout (ms)</label>
+        <input id="oiScTimeout" type="number" min="0" class="oi-sc-input"
+               ng-model="c.form.copilot_timeout_ms" ng-change="c.markDirty()" />
+        <span class="oi-sc-hint">x_infte_ops_int.copilot_timeout_ms</span>
+      </div>
+
+      <div class="oi-sc-field">
+        <label class="oi-sc-label" for="oiScMaxActions">Maximum Flow Actions</label>
+        <input id="oiScMaxActions" type="number" min="0" class="oi-sc-input"
+               ng-model="c.form.max_flow_actions" ng-change="c.markDirty()" />
+        <span class="oi-sc-hint">x_infte_ops_int.max_flow_actions</span>
+      </div>
+
+      <div class="oi-sc-field">
+        <label class="oi-sc-label" for="oiScEndpoint">Copilot API Endpoint</label>
+        <input id="oiScEndpoint" type="text" class="oi-sc-input"
+               ng-model="c.form.copilot_api_endpoint" ng-change="c.markDirty()" />
+        <span class="oi-sc-hint">x_infte_ops_int.copilot_api_endpoint</span>
+      </div>
+
+      <div class="oi-sc-field oi-sc-field--toggle">
+        <div class="oi-sc-toggle-text">
+          <label class="oi-sc-label">Debug Mode</label>
+          <span class="oi-sc-hint">x_infte_ops_int.debug_mode</span>
+        </div>
+        <button type="button" class="oi-sc-toggle"
+                ng-class="{ 'oi-sc-toggle--on': c.form.debug_mode }"
+                ng-click="c.toggleDebug()"
+                aria-pressed="{{c.form.debug_mode}}">
+          <span class="oi-sc-toggle-knob"></span>
+        </button>
+      </div>
+
+      <div class="oi-sc-actions">
+        <button type="submit" class="oi-sc-btn" ng-disabled="!c.dirty">Save</button>
+        <button type="button" class="oi-sc-btn oi-sc-btn--ghost"
+                ng-click="c.reset()" ng-disabled="!c.dirty">Reset</button>
+      </div>
+
+    </form>
+
+  </div>
+
+</div>

@@ -1,0 +1,91 @@
+<div class="maintenance-overlay">
+
+  <!-- Inline SVG illustration — maintenance scene, no external image dependencies -->
+  <div class="oi-maint-svg-wrap" aria-hidden="true">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 190" width="280" height="190">
+      <!-- Scaffolding frame -->
+      <g stroke="#CBD5E1" stroke-width="3" stroke-linecap="round" fill="none">
+        <!-- Vertical poles -->
+        <line x1="72"  y1="178" x2="72"  y2="44"/>
+        <line x1="208" y1="178" x2="208" y2="44"/>
+        <!-- Horizontal beams -->
+        <line x1="72"  y1="44"  x2="208" y2="44"/>
+        <line x1="72"  y1="86"  x2="208" y2="86"/>
+        <line x1="72"  y1="128" x2="208" y2="128"/>
+        <line x1="72"  y1="174" x2="208" y2="174"/>
+        <!-- Diagonal cross-braces (each bay) -->
+        <line x1="72"  y1="44"  x2="140" y2="86"/>
+        <line x1="208" y1="44"  x2="140" y2="86"/>
+        <line x1="72"  y1="86"  x2="140" y2="128"/>
+        <line x1="208" y1="86"  x2="140" y2="128"/>
+        <line x1="72"  y1="128" x2="140" y2="174"/>
+        <line x1="208" y1="128" x2="140" y2="174"/>
+      </g>
+      <!-- Platform planks at beam level 86 -->
+      <rect x="74" y="81" width="134" height="8" rx="2" fill="#E2E8F0" stroke="#CBD5E1" stroke-width="1.5"/>
+
+      <!-- Hard hat centred on top beam -->
+      <g transform="translate(140,33)">
+        <!-- Brim -->
+        <ellipse cx="0" cy="0" rx="29" ry="6.5" fill="#F59E0B" stroke="#D97706" stroke-width="2"/>
+        <!-- Dome -->
+        <path d="M -23 0 Q -23 -24 0 -27 Q 23 -24 23 0 Z" fill="#FBBF24" stroke="#D97706" stroke-width="2"/>
+        <!-- Safety stripe -->
+        <line x1="-27" y1="3" x2="27" y2="3" stroke="#D97706" stroke-width="2.5" stroke-linecap="round"/>
+      </g>
+
+      <!-- Wrench — lower left, rotated -->
+      <g transform="translate(36,160) rotate(-38)">
+        <!-- Handle -->
+        <rect x="-4" y="-4" width="8" height="36" rx="3" fill="#94A3B8" stroke="#64748B" stroke-width="1.5"/>
+        <!-- Open-end head -->
+        <g transform="translate(0,-17)">
+          <circle cx="0" cy="0" r="11" fill="none" stroke="#94A3B8" stroke-width="7"/>
+          <circle cx="0" cy="0" r="4.5" fill="#F1F5F9"/>
+        </g>
+      </g>
+
+      <!-- Screwdriver — lower right, rotated -->
+      <g transform="translate(244,156) rotate(32)">
+        <!-- Handle -->
+        <rect x="-6.5" y="-15" width="13" height="22" rx="5" fill="#FCA5A5" stroke="#F87171" stroke-width="1.5"/>
+        <!-- Shaft -->
+        <rect x="-2" y="7" width="4" height="30" fill="#94A3B8" stroke="#64748B" stroke-width="1"/>
+        <!-- Flat-head tip -->
+        <rect x="-4.5" y="36" width="9" height="3.5" rx="1" fill="#475569"/>
+      </g>
+
+      <!-- Warning diamond — centre of middle bay -->
+      <g transform="translate(140,107)">
+        <polygon points="0,-15 17,0 0,15 -17,0" fill="#FEF3C7" stroke="#F59E0B" stroke-width="2"/>
+        <!-- Exclamation mark -->
+        <rect x="-2" y="-8" width="4" height="10" rx="1.5" fill="#D97706"/>
+        <circle cx="0" cy="7.5" r="2.5" fill="#D97706"/>
+      </g>
+    </svg>
+  </div>
+
+  <!-- Title -->
+  <h2 class="oi-maint-title">{{c.data.title}}</h2>
+
+  <!-- Message -->
+  <p class="oi-maint-message">{{c.data.message}}</p>
+
+  <!-- Estimated return — only shown when set and not yet elapsed -->
+  <p ng-if="c.returnLabel" class="oi-maint-return">
+    <span class="oi-return-icon" aria-hidden="true">&#9201;</span>
+    {{c.returnLabel}}
+  </p>
+
+  <!-- Admin quick-clear — visible to admin users only -->
+  <div ng-if="c.data.isAdmin" class="oi-maint-admin-bar">
+    <button class="oi-clear-btn"
+            ng-click="c.clearSection()"
+            ng-disabled="c.clearing">
+      <span ng-if="!c.clearing">&#128295; Clear This Section</span>
+      <span ng-if="c.clearing">Clearing&#8230;</span>
+    </button>
+    <span ng-if="c.clearError" class="oi-clear-error" role="alert">{{c.clearError}}</span>
+  </div>
+
+</div>

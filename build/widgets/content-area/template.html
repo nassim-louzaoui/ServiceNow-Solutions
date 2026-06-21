@@ -14,8 +14,8 @@
   <div ng-if="!c.activeInMaintenance()" class="oi-content-sections" ng-switch="c.activeSection">
 
     <div ng-switch-when="workspace" class="oi-section oi-section--workspace">
-      <widget id="workspace-automation-panel"></widget>
-      <widget id="deliverable-type-tiles"></widget>
+      <widget id="workspace-automation"></widget>
+      <widget id="deliverable-tiles"></widget>
       <widget id="deliverable-cards"></widget>
     </div>
 
@@ -25,7 +25,7 @@
     </div>
 
     <div ng-switch-when="studio" class="oi-section oi-section--studio">
-      <widget id="creator-studio-panel"></widget>
+      <widget id="creator-studio"></widget>
     </div>
 
     <div ng-switch-when="governance" class="oi-section oi-section--governance">

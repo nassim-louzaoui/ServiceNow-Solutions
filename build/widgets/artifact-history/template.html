@@ -1,0 +1,40 @@
+<div class="oi-arthist">
+  <h2 class="oi-section-title">Artifact History</h2>
+
+  <div class="oi-empty" ng-if="data.artifacts.length === 0">
+    You have not requested any deliverables yet.
+  </div>
+
+  <div class="oi-list">
+    <div class="oi-art" ng-repeat="a in data.artifacts"
+         ng-class="{ 'oi-clickable': a.is_draft }"
+         ng-click="a.is_draft && c.resume(a)">
+      <div class="oi-art-main">
+        <div class="oi-art-head">
+          <span class="oi-row-number">{{a.number}}</span>
+          <span class="oi-art-name">{{a.display_name}}</span>
+          <span class="oi-badge oi-badge-type">{{a.artifact_type}}</span>
+        </div>
+        <div class="oi-art-desc" ng-if="a.description">{{a.description}}</div>
+        <div class="oi-art-meta">
+          <span ng-if="a.owner_group">Group: {{a.owner_group}}</span>
+          <span>Updated: {{a.updated_at}}</span>
+        </div>
+        <div class="oi-art-reason" ng-if="a.status === 'draft' && a.rejected_reason">
+          Returned for revision: {{a.rejected_reason}}
+        </div>
+      </div>
+      <div class="oi-art-side">
+        <span class="oi-badge"
+              ng-class="{
+                'oi-badge-draft': a.status === 'draft',
+                'oi-badge-pending': a.status === 'pending_approval',
+                'oi-badge-active': a.status === 'active',
+                'oi-badge-inactive': a.status === 'inactive',
+                'oi-badge-archived': a.status === 'archived'
+              }">{{c.label(a.status)}}</span>
+        <span class="oi-resume-hint" ng-if="a.is_draft">Click to resume</span>
+      </div>
+    </div>
+  </div>
+</div>

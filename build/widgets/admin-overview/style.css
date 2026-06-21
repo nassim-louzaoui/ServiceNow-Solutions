@@ -1,0 +1,246 @@
+.oi-admin-overview {
+  background: var(--oi-surface, #FFFFFF);
+  color: var(--oi-text, #0F172A);
+  padding: 24px;
+  border-radius: 12px;
+}
+
+.oi-ao-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.oi-ao-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.oi-ao-subtitle {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+}
+
+.oi-ao-refresh {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: transparent;
+  color: var(--oi-muted, #64748B);
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.oi-ao-refresh:hover {
+  color: var(--oi-primary, #4338CA);
+  border-color: var(--oi-primary, #4338CA);
+}
+
+.oi-ao-denied,
+.oi-ao-empty {
+  color: var(--oi-muted, #64748B);
+  font-size: 0.95rem;
+  padding: 12px 0;
+}
+
+.oi-ao-metrics {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+}
+
+.oi-ao-card {
+  flex: 1 1 130px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border-radius: 10px;
+  background: rgba(67, 56, 202, 0.06);
+}
+
+.oi-ao-card-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--oi-primary, #4338CA);
+}
+
+.oi-ao-card-label {
+  font-size: 0.78rem;
+  color: var(--oi-muted, #64748B);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.oi-ao-tree {
+  margin-bottom: 28px;
+}
+
+.oi-ao-tree-list,
+.oi-ao-tree-children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.oi-ao-tree-children {
+  padding-left: 22px;
+  border-left: 1px solid rgba(15, 23, 42, 0.08);
+  margin-left: 8px;
+}
+
+.oi-ao-tree-node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.oi-ao-tree-toggle {
+  border: none;
+  background: transparent;
+  color: var(--oi-muted, #64748B);
+  cursor: pointer;
+  font-size: 0.8rem;
+  width: 18px;
+  padding: 0;
+}
+
+.oi-ao-tree-spacer {
+  width: 18px;
+  text-align: center;
+  color: var(--oi-muted, #64748B);
+}
+
+.oi-ao-tree-name {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.oi-ao-tree-meta {
+  font-size: 0.78rem;
+  color: var(--oi-muted, #64748B);
+}
+
+.oi-ao-search-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.oi-ao-search-input {
+  flex: 1 1 auto;
+  padding: 9px 12px;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: var(--oi-text, #0F172A);
+  background: var(--oi-surface, #FFFFFF);
+}
+
+.oi-ao-search-input:focus {
+  outline: none;
+  border-color: var(--oi-primary, #4338CA);
+}
+
+.oi-ao-search-btn,
+.oi-ao-search-clear {
+  border: none;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.oi-ao-search-btn {
+  background: var(--oi-primary, #4338CA);
+  color: #FFFFFF;
+}
+
+.oi-ao-search-clear {
+  background: rgba(15, 23, 42, 0.06);
+  color: var(--oi-muted, #64748B);
+}
+
+.oi-ao-tabs {
+  display: inline-flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding: 4px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.oi-ao-tab {
+  border: none;
+  background: transparent;
+  color: var(--oi-muted, #64748B);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.oi-ao-tab--active {
+  background: var(--oi-surface, #FFFFFF);
+  color: var(--oi-primary, #4338CA);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.oi-ao-table-wrap {
+  overflow-x: auto;
+}
+
+.oi-ao-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.oi-ao-table th,
+.oi-ao-table td {
+  text-align: left;
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  white-space: nowrap;
+}
+
+.oi-ao-table th {
+  color: var(--oi-muted, #64748B);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+}
+
+.oi-ao-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: rgba(15, 23, 42, 0.08);
+  color: var(--oi-text, #0F172A);
+  text-transform: capitalize;
+}
+
+.oi-ao-badge--success,
+.oi-ao-badge--active,
+.oi-ao-badge--published {
+  background: rgba(22, 163, 74, 0.14);
+  color: var(--oi-success, #16A34A);
+}
+
+.oi-ao-badge--failed,
+.oi-ao-badge--rejected,
+.oi-ao-badge--cancelled {
+  background: rgba(220, 38, 38, 0.14);
+  color: var(--oi-danger, #DC2626);
+}

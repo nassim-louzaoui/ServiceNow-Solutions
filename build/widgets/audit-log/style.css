@@ -1,0 +1,140 @@
+.oi-audit-log {
+  background: var(--oi-surface, #FFFFFF);
+  color: var(--oi-text, #0F172A);
+  padding: 24px;
+  border-radius: 12px;
+}
+
+.oi-al-header {
+  margin-bottom: 20px;
+}
+
+.oi-al-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.oi-al-denied,
+.oi-al-empty {
+  color: var(--oi-muted, #64748B);
+  font-size: 0.95rem;
+  padding: 12px 0;
+}
+
+.oi-al-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: flex-end;
+  padding: 16px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.03);
+  margin-bottom: 16px;
+}
+
+.oi-al-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 160px;
+}
+
+.oi-al-filter-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--oi-muted, #64748B);
+  margin: 0;
+}
+
+.oi-al-input {
+  padding: 8px 10px;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--oi-text, #0F172A);
+  background: var(--oi-surface, #FFFFFF);
+}
+
+.oi-al-input:focus {
+  outline: none;
+  border-color: var(--oi-primary, #4338CA);
+}
+
+.oi-al-filter-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.oi-al-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--oi-primary, #4338CA);
+  color: #FFFFFF;
+}
+
+.oi-al-btn--ghost {
+  background: rgba(15, 23, 42, 0.06);
+  color: var(--oi-muted, #64748B);
+}
+
+.oi-al-count {
+  font-size: 0.8rem;
+  color: var(--oi-muted, #64748B);
+  margin-bottom: 8px;
+}
+
+.oi-al-table-wrap {
+  overflow-x: auto;
+}
+
+.oi-al-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.oi-al-table th,
+.oi-al-table td {
+  text-align: left;
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  vertical-align: top;
+}
+
+.oi-al-table th {
+  color: var(--oi-muted, #64748B);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+}
+
+.oi-al-when {
+  white-space: nowrap;
+  color: var(--oi-muted, #64748B);
+}
+
+.oi-al-key {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 6px;
+  background: rgba(67, 56, 202, 0.1);
+  color: var(--oi-primary, #4338CA);
+  font-weight: 600;
+  font-size: 0.78rem;
+  font-family: monospace;
+}
+
+.oi-al-details {
+  font-family: monospace;
+  font-size: 0.78rem;
+  color: var(--oi-text, #0F172A);
+  word-break: break-word;
+}
