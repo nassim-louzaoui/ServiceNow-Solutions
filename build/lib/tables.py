@@ -44,7 +44,7 @@ AUTONUMBER = {
 # self references resolve cleanly.
 
 TABLES = [
-    ("person", "Person", [
+    ("person", "Personnel Record", [
         ("user", "ref:sys_user", "User", {"mandatory": True}),
         ("onboarded_by", "ref:person", "Onboarded By", {}),
         ("onboarded_at", "dt", "Onboarded At", {}),
@@ -62,7 +62,7 @@ TABLES = [
         ("created_at", "dt", "Created At", {}),
         ("status", "choice", "Status", {"max_length": 40}),
     ]),
-    ("group", "Group", [
+    ("group", "Operations Group", [
         ("name", "str:200", "Name", {"mandatory": True}),
         ("description", "txt", "Description", {}),
         ("type", "choice", "Type", {"max_length": 40}),
@@ -72,7 +72,7 @@ TABLES = [
         ("created_at", "dt", "Created At", {}),
         ("status", "choice", "Status", {"max_length": 40}),
     ]),
-    ("group_member", "Group Member", [
+    ("group_member", "Group Membership", [
         ("group", "ref:group", "Group", {"mandatory": True}),
         ("member", "ref:person", "Member", {"mandatory": True}),
         ("group_role", "choice", "Group Role", {"max_length": 40}),
@@ -103,7 +103,7 @@ TABLES = [
         ("active", "bool", "Active", {"default": "true"}),
         ("created_by_person", "ref:person", "Created By", {}),
     ]),
-    ("approved_flow", "Approved Flow", [
+    ("approved_flow", "Approved Automation Flow", [
         ("flow_sys_id", "str:40", "Flow Sys ID", {}),
         ("display_name", "str:200", "Display Name", {"mandatory": True}),
         ("description", "txt", "Description", {}),
@@ -112,7 +112,7 @@ TABLES = [
         ("approved_by", "ref:person", "Approved By", {}),
         ("approved_at", "dt", "Approved At", {}),
     ]),
-    ("automation", "Automation", [
+    ("automation", "Automation Definition", [
         ("number", "str:40", "Number", {"read_only": True}),
         ("name", "str:200", "Name", {"mandatory": True}),
         ("short_description", "str:255", "Short Description", {}),
@@ -155,7 +155,7 @@ TABLES = [
         ("on_failure", "choice", "On Failure", {"max_length": 40}),
         ("active", "bool", "Active", {"default": "true"}),
     ]),
-    ("automation_input", "Automation Input", [
+    ("automation_input", "Automation Input Parameter", [
         ("automation", "ref:automation", "Automation", {"mandatory": True}),
         ("order", "int", "Order", {}),
         ("label", "str:255", "Label", {}),
@@ -165,7 +165,7 @@ TABLES = [
         ("required", "bool", "Required", {"default": "false"}),
         ("validation_regex", "str:255", "Validation Regex", {}),
     ]),
-    ("group_automation", "Group Automation", [
+    ("group_automation", "Group Automation Assignment", [
         ("group", "ref:group", "Group", {"mandatory": True}),
         ("automation", "ref:automation", "Automation", {"mandatory": True}),
         ("added_by", "ref:person", "Added By", {}),
@@ -175,7 +175,7 @@ TABLES = [
         ("approved_at", "dt", "Approved At", {}),
         ("rejected_reason", "txt", "Rejected Reason", {}),
     ]),
-    ("execution", "Execution", [
+    ("execution", "Automation Execution", [
         ("number", "str:40", "Number", {"read_only": True}),
         ("automation", "ref:automation", "Automation", {}),
         ("automation_version", "int", "Automation Version", {}),
