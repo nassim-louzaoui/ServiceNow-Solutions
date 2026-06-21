@@ -118,11 +118,131 @@
   /* ── Reducer ─────────────────────────────────────────────────── */
 
   var NAV_ITEMS = [
-    { id: 'workspace',   label: 'Workspace',             icon: 'workspace'  },
-    { id: 'activity',    label: 'My Activity',           icon: 'activity'   },
-    { id: 'studio',      label: 'Operations Studio',     icon: 'studio'     },
-    { id: 'governance',  label: 'Operations Governance', icon: 'governance' },
-    { id: 'command',     label: 'Operations Command',    icon: 'command'    }
+    { id: 'workspace',    label: 'Workspace',             icon: 'workspace'  },
+    { id: 'deliverables', label: 'My Deliverables',       icon: 'document'   },
+    { id: 'studio',       label: 'Operations Studio',     icon: 'studio'     },
+    { id: 'governance',   label: 'Operations Governance', icon: 'governance' },
+    { id: 'command',      label: 'Operations Command',    icon: 'command'    }
+  ];
+
+  var _msgId = 0;
+
+  var SYSTEM_FLOWS = [
+    {
+      id: 'report_builder',
+      name: 'Report Builder',
+      desc: 'Build a custom report from any ServiceNow table.',
+      icon: 'document',
+      color: '#00BF6F',
+      steps: [
+        { key: 'name', label: 'Report Name', question: 'What would you like to name this report?', type: 'text', placeholder: 'e.g. Monthly Incident Summary' },
+        { key: 'table', label: 'Source Table', question: 'Which table should the report be built from?', type: 'choice', choices: [
+          { value: 'incident', label: 'Incidents' },
+          { value: 'change_request', label: 'Change Requests' },
+          { value: 'problem', label: 'Problems' },
+          { value: 'task', label: 'Tasks' },
+          { value: 'sc_request', label: 'Service Requests' }
+        ]},
+        { key: 'report_type', label: 'Report Type', question: 'What type of report would you like?', type: 'choice', choices: [
+          { value: 'list', label: 'List Report' },
+          { value: 'pie', label: 'Pie Chart' },
+          { value: 'bar', label: 'Bar Chart' },
+          { value: 'trend', label: 'Trend Chart' },
+          { value: 'pivot', label: 'Pivot Table' }
+        ]},
+        { key: 'group_by', label: 'Group By', question: 'How should the data be grouped?', type: 'choice', choices: [
+          { value: 'assignment_group', label: 'Assignment Group' },
+          { value: 'state', label: 'State' },
+          { value: 'priority', label: 'Priority' },
+          { value: 'category', label: 'Category' },
+          { value: 'assigned_to', label: 'Assigned To' }
+        ]},
+        { key: 'conditions', label: 'Conditions', question: 'Any specific conditions to filter the data? Type "none" to skip.', type: 'text', placeholder: 'e.g. Priority is 1-Critical, or type "none"' }
+      ]
+    },
+    {
+      id: 'dashboard_builder',
+      name: 'Dashboard Builder',
+      desc: 'Create a performance dashboard for any focus area.',
+      icon: 'workspace',
+      color: '#293E40',
+      steps: [
+        { key: 'name', label: 'Dashboard Name', question: 'What would you like to call this dashboard?', type: 'text', placeholder: 'e.g. IT Operations Overview' },
+        { key: 'focus_area', label: 'Focus Area', question: 'What is the primary focus area for this dashboard?', type: 'choice', choices: [
+          { value: 'incidents', label: 'Incident Management' },
+          { value: 'changes', label: 'Change Management' },
+          { value: 'service_requests', label: 'Service Requests' },
+          { value: 'problems', label: 'Problem Management' },
+          { value: 'general', label: 'General Operations' }
+        ]},
+        { key: 'timeframe', label: 'Timeframe', question: 'What time period should the dashboard cover?', type: 'choice', choices: [
+          { value: 'last_7_days', label: 'Last 7 Days' },
+          { value: 'last_30_days', label: 'Last 30 Days' },
+          { value: 'last_90_days', label: 'Last 90 Days' },
+          { value: 'current_month', label: 'Current Month' },
+          { value: 'current_year', label: 'Current Year' }
+        ]},
+        { key: 'visibility', label: 'Visibility', question: 'Who should be able to see this dashboard?', type: 'choice', choices: [
+          { value: 'private', label: 'Private — Only Me' },
+          { value: 'team', label: 'My Groups' },
+          { value: 'organization', label: 'All Operations Intelligence Users' }
+        ]}
+      ]
+    },
+    {
+      id: 'data_alert',
+      name: 'Data Alert',
+      desc: 'Monitor a table and receive email alerts when conditions match.',
+      icon: 'warning_icon',
+      color: '#E57323',
+      steps: [
+        { key: 'name', label: 'Alert Name', question: 'What would you like to call this alert?', type: 'text', placeholder: 'e.g. Critical Incidents Alert' },
+        { key: 'table', label: 'Source Table', question: 'Which table should be monitored?', type: 'choice', choices: [
+          { value: 'incident', label: 'Incidents' },
+          { value: 'change_request', label: 'Change Requests' },
+          { value: 'problem', label: 'Problems' },
+          { value: 'task', label: 'Tasks' },
+          { value: 'sc_request', label: 'Service Requests' }
+        ]},
+        { key: 'conditions', label: 'Alert Conditions', question: 'Describe the conditions that should trigger this alert:', type: 'text', placeholder: 'e.g. Priority is 1-Critical and State is New' },
+        { key: 'frequency', label: 'Check Frequency', question: 'How often should this alert check for matching records?', type: 'choice', choices: [
+          { value: 'hourly', label: 'Every Hour' },
+          { value: 'twice_daily', label: 'Twice Daily' },
+          { value: 'daily', label: 'Once Daily' },
+          { value: 'weekly', label: 'Weekly' }
+        ]},
+        { key: 'recipients', label: 'Recipients', question: 'Who should receive this alert? Enter email addresses separated by commas:', type: 'text', placeholder: 'e.g. admin@company.com, team@company.com' }
+      ]
+    },
+    {
+      id: 'notification_rule',
+      name: 'Notification Rule',
+      desc: 'Send automatic notifications when specific events occur.',
+      icon: 'send',
+      color: '#00BF6F',
+      steps: [
+        { key: 'name', label: 'Rule Name', question: 'What would you like to call this notification rule?', type: 'text', placeholder: 'e.g. New Priority 1 Incident Alert' },
+        { key: 'table', label: 'Source Table', question: 'Which table should trigger notifications?', type: 'choice', choices: [
+          { value: 'incident', label: 'Incidents' },
+          { value: 'change_request', label: 'Change Requests' },
+          { value: 'problem', label: 'Problems' },
+          { value: 'task', label: 'Tasks' }
+        ]},
+        { key: 'trigger_event', label: 'Trigger Event', question: 'When should the notification be sent?', type: 'choice', choices: [
+          { value: 'insert', label: 'When a new record is created' },
+          { value: 'update', label: 'When a record is updated' },
+          { value: 'state_change', label: 'When the state changes' },
+          { value: 'priority_change', label: 'When priority changes' }
+        ]},
+        { key: 'recipients', label: 'Recipients', question: 'Who should receive these notifications?', type: 'choice', choices: [
+          { value: 'assigned_to', label: 'Assigned Person' },
+          { value: 'watch_list', label: 'Watch List' },
+          { value: 'group', label: 'Assignment Group' },
+          { value: 'custom', label: 'Custom Email List' }
+        ]},
+        { key: 'message', label: 'Message Template', question: 'What should the notification message say?', type: 'text', placeholder: 'e.g. New Priority 1 incident: ${short_description}' }
+      ]
+    }
   ];
 
   var initialState = {
@@ -370,12 +490,12 @@
     }
     var data = props.sectionData || {};
     switch (props.section) {
-      case 'workspace':   return h(WorkspaceSection, { data: data });
-      case 'activity':    return h(ActivitySection, { data: data });
-      case 'studio':      return h(StudioSection, { data: data });
-      case 'governance':  return h(GovernanceSection, { data: data });
-      case 'command':     return h(CommandSection, { data: data });
-      default:            return h(WorkspaceSection, { data: data });
+      case 'workspace':    return h(WorkspaceSection, { data: data });
+      case 'deliverables': return h(DeliverablesSection, { data: data });
+      case 'studio':       return h(StudioSection, { data: data });
+      case 'governance':   return h(GovernanceSection, { data: data });
+      case 'command':      return h(CommandSection, { data: data });
+      default:             return h(WorkspaceSection, { data: data });
     }
   }
 
@@ -384,80 +504,333 @@
   function WorkspaceSection(props) {
     var ctx = React.useContext(AppContext);
     var data = props.data;
-    var automations = data.automations || [];
+    var groupAutomations = data.automations || [];
 
-    var messagesResult = React.useState([
-      { role: 'assistant', text: 'Welcome. I can run automations, check execution status, list your available tools, or answer questions about Operations Intelligence. Type "help" for all commands.' }
-    ]);
+    var TYPE_LABELS_WS = { report: 'Report', dashboard: 'Dashboard', data_alert: 'Data Alert', notification_rule: 'Notification Rule' };
+
+    var chatEndRef = React.useRef(null);
+
+    var messagesResult = React.useState([{
+      id: 0, role: 'assistant', type: 'text',
+      text: 'Welcome to Operations Intelligence. Select a flow from the catalog to build a report, dashboard, data alert, or notification rule — or type a question and I will assist you.',
+      choices: null, choiceSelected: null, result: null
+    }]);
     var messages = messagesResult[0];
     var setMessages = messagesResult[1];
 
-    var inputResult = React.useState('');
-    var wsInput = inputResult[0];
-    var setWsInput = inputResult[1];
+    var wsInputResult = React.useState('');
+    var wsInput = wsInputResult[0];
+    var setWsInput = wsInputResult[1];
 
     var chatBusyResult = React.useState(false);
     var chatBusy = chatBusyResult[0];
     var setChatBusy = chatBusyResult[1];
 
-    var busyResult = React.useState({});
-    var busy = busyResult[0];
-    var setBusy = busyResult[1];
+    var flowStateResult = React.useState({ mode: 'idle', flow: null, step: 0, collected: {} });
+    var flowState = flowStateResult[0];
+    var setFlowState = flowStateResult[1];
 
-    var searchResult = React.useState('');
-    var search = searchResult[0];
-    var setSearch = searchResult[1];
+    var autoTriggerBusyResult = React.useState({});
+    var autoTriggerBusy = autoTriggerBusyResult[0];
+    var setAutoTriggerBusy = autoTriggerBusyResult[1];
 
-    var filtered = search
-      ? automations.filter(function (a) {
-          var q = search.toLowerCase();
-          return (a.name || '').toLowerCase().indexOf(q) !== -1 ||
-                 (a.short_description || '').toLowerCase().indexOf(q) !== -1 ||
-                 (a.owner_group || '').toLowerCase().indexOf(q) !== -1;
-        })
-      : automations;
+    React.useEffect(function() {
+      if (chatEndRef.current) { chatEndRef.current.scrollIntoView({ behavior: 'smooth' }); }
+    }, [messages, chatBusy]);
 
-    function sendMessage() {
+    function nextId() { _msgId += 1; return _msgId; }
+
+    function makeMsg(role, text, choices, type, result) {
+      return { id: nextId(), role: role, text: text || '', choices: choices || null, choiceSelected: null, type: type || 'text', result: result || null };
+    }
+
+    function appendMsg(msg) {
+      setMessages(function(prev) { return prev.concat([msg]); });
+    }
+
+    function addAssistantDelayed(text, choices, type, result) {
+      var delay = 350 + Math.min((text || '').length * 7, 900);
+      setChatBusy(true);
+      setTimeout(function() {
+        setChatBusy(false);
+        appendMsg(makeMsg('assistant', text, choices, type, result));
+      }, delay);
+    }
+
+    function buildSummaryText(flow, collected) {
+      var lines = ['Here is a summary of your ' + flow.name + ':'];
+      var si;
+      for (si = 0; si < flow.steps.length; si++) {
+        var step = flow.steps[si];
+        var val = collected[step.key] || '(not set)';
+        var displayVal = val;
+        if (step.choices) {
+          var ci;
+          for (ci = 0; ci < step.choices.length; ci++) {
+            if (step.choices[ci].value === val) { displayVal = step.choices[ci].label; break; }
+          }
+        }
+        lines.push('  ' + step.label + ': ' + displayVal);
+      }
+      lines.push('');
+      lines.push('Shall I create this for you?');
+      return lines.join('\n');
+    }
+
+    function startFlow(flow) {
+      var firstStep = flow.steps[0];
+      setFlowState({ mode: 'gathering', flow: flow, step: 0, collected: {} });
+      appendMsg(makeMsg('assistant',
+        'Let\'s build your ' + flow.name + '.\n\n' + firstStep.question,
+        firstStep.type === 'choice' ? firstStep.choices : null,
+        'text', null
+      ));
+    }
+
+    function cancelFlow() {
+      setFlowState({ mode: 'idle', flow: null, step: 0, collected: {} });
+      addAssistantDelayed('Flow cancelled. Select a flow from the catalog or ask me a question.', null, 'text', null);
+    }
+
+    function advanceFlow(fs, value, displayLabel) {
+      var flow = fs.flow;
+      var step = fs.step;
+      var newCollected = {};
+      var k;
+      for (k in fs.collected) { if (fs.collected.hasOwnProperty(k)) { newCollected[k] = fs.collected[k]; } }
+      newCollected[flow.steps[step].key] = value;
+      appendMsg(makeMsg('user', displayLabel, null, 'text', null));
+      var nextStep = step + 1;
+      if (nextStep < flow.steps.length) {
+        var nxtDef = flow.steps[nextStep];
+        setFlowState({ mode: 'gathering', flow: flow, step: nextStep, collected: newCollected });
+        addAssistantDelayed(nxtDef.question, nxtDef.type === 'choice' ? nxtDef.choices : null, 'text', null);
+      } else {
+        setFlowState({ mode: 'confirming', flow: flow, step: nextStep, collected: newCollected });
+        addAssistantDelayed(buildSummaryText(flow, newCollected), null, 'confirm', null);
+      }
+    }
+
+    function handleChoiceClick(msgId, value, label, fs) {
+      setMessages(function(prev) {
+        return prev.map(function(m) {
+          if (m.id === msgId) { return Object.assign({}, m, { choiceSelected: value }); }
+          return m;
+        });
+      });
+      if (fs.mode === 'gathering') { advanceFlow(fs, value, label); }
+    }
+
+    function handleTextSubmit() {
       var q = wsInput.trim();
       if (!q || chatBusy) return;
-      var newMsgs = messages.concat([{ role: 'user', text: q }]);
-      setMessages(newMsgs);
       setWsInput('');
+      if (flowState.mode === 'gathering') {
+        advanceFlow(flowState, q, q);
+      } else {
+        appendMsg(makeMsg('user', q, null, 'text', null));
+        setChatBusy(true);
+        ctx.callServer({ action: 'assistant_query', query: q }, function(d, err) {
+          setChatBusy(false);
+          var reply = (d && d.reply) || 'I could not process that request.';
+          appendMsg(makeMsg('assistant', reply, null, err ? 'error' : 'text', null));
+        });
+      }
+    }
+
+    function confirmCreate() {
+      var fs = flowState;
+      setFlowState(Object.assign({}, fs, { mode: 'creating' }));
       setChatBusy(true);
-      ctx.callServer({ action: 'assistant_query', query: q }, function (d, err) {
+      ctx.callServer({
+        action: 'create_deliverable',
+        flow_id: fs.flow.id,
+        collected: JSON.stringify(fs.collected)
+      }, function(d, err) {
         setChatBusy(false);
-        if (err) {
-          setMessages(newMsgs.concat([{ role: 'assistant', text: 'Error: ' + err, type: 'error' }]));
+        var result = d && d.deliverable_result;
+        if (err || !result || !result.ok) {
+          appendMsg(makeMsg('assistant', 'Something went wrong: ' + (err || (result && result.error) || 'Unknown error') + '. Please try again.', null, 'error', null));
+          setFlowState({ mode: 'idle', flow: null, step: 0, collected: {} });
           return;
         }
-        var reply = (d && d.reply) || 'I could not process that request.';
-        setMessages(newMsgs.concat([{ role: 'assistant', text: reply, type: d && d.type }]));
+        var typeLabel = TYPE_LABELS_WS[result.type] || result.type;
+        appendMsg(makeMsg('assistant', 'Your ' + typeLabel + ' has been created and saved to My Deliverables.', null, 'result', {
+          name: result.name,
+          type: result.type,
+          type_label: typeLabel,
+          url: result.url || ''
+        }));
+        setFlowState({ mode: 'idle', flow: null, step: 0, collected: {} });
       });
     }
 
-    function triggerAuto(auto) {
-      var b = Object.assign({}, busy);
+    function triggerGroupAuto(auto) {
+      var b = Object.assign({}, autoTriggerBusy);
       b[auto.sys_id] = true;
-      setBusy(b);
-      ctx.callServer({ action: 'trigger_automation', automation_sys_id: auto.sys_id, group_sys_id: auto.owner_group_sys_id }, function (d, err) {
-        var b2 = Object.assign({}, busy);
+      setAutoTriggerBusy(b);
+      ctx.callServer({ action: 'trigger_automation', automation_sys_id: auto.sys_id, group_sys_id: auto.owner_group_sys_id }, function(d, err) {
+        var b2 = Object.assign({}, autoTriggerBusy);
         b2[auto.sys_id] = false;
-        setBusy(b2);
+        setAutoTriggerBusy(b2);
         if (err) { ctx.toast(err, 'error'); return; }
         var result = d && d.triggered;
         if (result && result.ok) {
           ctx.toast('Triggered: ' + (result.number || auto.name), 'success');
-          setMessages(messages.concat([
-            { role: 'user', text: 'Run ' + auto.name },
-            { role: 'assistant', text: 'Automation "' + auto.name + '" triggered successfully. Execution ' + (result.number || '') + ' is now ' + (result.status || 'running') + '.', type: 'success' }
-          ]));
+          addAssistantDelayed('Automation "' + auto.name + '" triggered. Execution ' + (result.number || '') + ' is now ' + (result.status || 'running') + '.', null, 'text', null);
         } else {
           ctx.toast((result && result.error) || 'Failed to trigger.', 'error');
         }
       });
     }
 
+    var fs = flowState;
+    var catalogContent;
+    if (fs.mode !== 'idle') {
+      var totalSteps = fs.flow ? fs.flow.steps.length : 0;
+      var doneSteps  = Math.min(fs.step, totalSteps);
+      var pct = totalSteps > 0 ? Math.round((doneSteps / totalSteps) * 100) : 0;
+      catalogContent = h('div', { className: 'oi-ws-flow-active' },
+        h('div', { className: 'oi-ws-flow-active-hdr' },
+          h('div', { className: 'oi-ws-flow-active-icon', style: { background: fs.flow ? (fs.flow.color || '#00BF6F') : '#00BF6F' } },
+            h(OIIcon, { name: fs.flow ? fs.flow.icon : 'document', size: 16, fill: '#FFFFFF' })
+          ),
+          h('div', { className: 'oi-ws-flow-active-body' },
+            h('div', { className: 'oi-ws-flow-active-name' }, fs.flow ? fs.flow.name : ''),
+            h('div', { className: 'oi-ws-flow-active-step' },
+              fs.mode === 'confirming' ? 'Review' :
+              fs.mode === 'creating'   ? 'Creating...' :
+              ('Step ' + (doneSteps + 1) + ' of ' + totalSteps)
+            )
+          ),
+          h('button', { className: 'oi-icon-btn', title: 'Cancel flow', onClick: cancelFlow },
+            h(OIIcon, { name: 'close', size: 16 })
+          )
+        ),
+        h('div', { className: 'oi-progress-bar' },
+          h('div', { className: 'oi-progress-fill', style: { width: pct + '%' } })
+        ),
+        fs.flow
+          ? h('div', { className: 'oi-flow-steps-preview' },
+              fs.flow.steps.map(function(step, idx) {
+                var isDone    = idx < doneSteps;
+                var isCurrent = idx === doneSteps && fs.mode === 'gathering';
+                var colVal = fs.collected[step.key];
+                var dispVal = colVal;
+                if (colVal && step.choices) {
+                  var ci;
+                  for (ci = 0; ci < step.choices.length; ci++) {
+                    if (step.choices[ci].value === colVal) { dispVal = step.choices[ci].label; break; }
+                  }
+                }
+                return h('div', { key: step.key, className: 'oi-flow-step-item' + (isDone ? ' done' : isCurrent ? ' current' : '') },
+                  h('div', { className: 'oi-flow-step-dot' }),
+                  h('div', { className: 'oi-flow-step-info' },
+                    h('div', { className: 'oi-flow-step-label' }, step.label),
+                    isDone && dispVal ? h('div', { className: 'oi-flow-step-val' }, dispVal) : null
+                  )
+                );
+              })
+            )
+          : null
+      );
+    } else {
+      catalogContent = h('div', { className: 'oi-ws-catalog-body' },
+        h('div', { className: 'oi-catalog-section' },
+          h('div', { className: 'oi-catalog-section-hdr' }, 'System Automations'),
+          h('div', { className: 'oi-flow-list' },
+            SYSTEM_FLOWS.map(function(flow) {
+              return h('div', {
+                key: flow.id,
+                className: 'oi-flow-item',
+                onClick: function() { startFlow(flow); }
+              },
+                h('div', { className: 'oi-flow-item-icon', style: { background: flow.color } },
+                  h(OIIcon, { name: flow.icon, size: 16, fill: '#FFFFFF' })
+                ),
+                h('div', { className: 'oi-flow-item-body' },
+                  h('div', { className: 'oi-flow-item-name' }, flow.name),
+                  h('div', { className: 'oi-flow-item-desc' }, flow.desc)
+                ),
+                h('div', { className: 'oi-flow-item-arrow' },
+                  h(OIIcon, { name: 'chevron_right', size: 14, fill: '#DCDCDC' })
+                )
+              );
+            })
+          )
+        ),
+        groupAutomations.length > 0
+          ? h('div', { className: 'oi-catalog-section' },
+              h('div', { className: 'oi-catalog-section-hdr' }, 'Group Automations'),
+              h('div', { className: 'oi-flow-list' },
+                groupAutomations.map(function(auto) {
+                  var isBusy = !!autoTriggerBusy[auto.sys_id];
+                  var capturedAuto = auto;
+                  return h('div', { key: auto.sys_id, className: 'oi-flow-item' },
+                    h('div', { className: 'oi-flow-item-icon', style: { background: auto.category_color || '#00BF6F' } },
+                      h(OIIcon, { name: 'automation', size: 16, fill: '#FFFFFF' })
+                    ),
+                    h('div', { className: 'oi-flow-item-body' },
+                      h('div', { className: 'oi-flow-item-name' }, auto.name),
+                      h('div', { className: 'oi-flow-item-desc' }, auto.short_description || auto.owner_group || '')
+                    ),
+                    h('button', {
+                      className: 'oi-btn primary xs',
+                      disabled: isBusy,
+                      onClick: function(e) { e.stopPropagation(); triggerGroupAuto(capturedAuto); }
+                    }, isBusy ? h('div', { className: 'oi-spinner sm' }) : h(OIIcon, { name: 'play', size: 12 }))
+                  );
+                })
+              )
+            )
+          : null
+      );
+    }
+
+    var currentStepDef = (fs.mode === 'gathering' && fs.flow) ? fs.flow.steps[fs.step] : null;
+    var isChoiceStep = !!(currentStepDef && currentStepDef.type === 'choice');
+    var inputArea;
+    if (fs.mode === 'confirming') {
+      inputArea = h('div', { className: 'oi-chat-confirm-area' },
+        h('button', { className: 'oi-btn primary', onClick: confirmCreate },
+          h(OIIcon, { name: 'check', size: 16 }), ' Yes, create it'
+        ),
+        h('button', { className: 'oi-btn ghost', onClick: cancelFlow }, 'Start Over')
+      );
+    } else if (fs.mode === 'creating') {
+      inputArea = h('div', { className: 'oi-chat-confirm-area' },
+        h('div', { className: 'oi-spinner sm' }),
+        h('span', { style: { color: '#6E6E6E', fontSize: '0.9375rem' } }, 'Creating your deliverable...')
+      );
+    } else {
+      inputArea = h('div', { className: 'oi-chat-input-area' },
+        h('input', {
+          className: 'oi-input',
+          value: wsInput,
+          placeholder: isChoiceStep
+            ? 'Select an option from the buttons above...'
+            : (currentStepDef ? (currentStepDef.placeholder || 'Type your answer...') : 'Ask a question...'),
+          disabled: chatBusy || isChoiceStep,
+          onChange: function(e) { setWsInput(e.target.value); },
+          onKeyDown: function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTextSubmit(); } }
+        }),
+        h('button', {
+          className: 'oi-btn primary',
+          disabled: chatBusy || !wsInput.trim() || isChoiceStep,
+          onClick: handleTextSubmit
+        }, chatBusy ? h('div', { className: 'oi-spinner sm' }) : h(OIIcon, { name: 'send', size: 16 }))
+      );
+    }
+
     return h('div', { className: 'oi-section oi-workspace-layout' },
+      h('div', { className: 'oi-ws-catalog-panel' },
+        h('div', { className: 'oi-ws-catalog-head' },
+          h('div', { className: 'oi-ws-catalog-title' },
+            fs.mode !== 'idle' && fs.flow ? fs.flow.name : 'Automation Catalog'
+          )
+        ),
+        catalogContent
+      ),
       h('div', { className: 'oi-ws-assistant-panel' },
         h('div', { className: 'oi-ws-assistant-head' },
           h('div', { className: 'oi-ws-assistant-icon-wrap' },
@@ -469,100 +842,60 @@
           )
         ),
         h('div', { className: 'oi-chat-messages' },
-          messages.map(function (m, i) {
-            return h('div', { key: i, className: 'oi-chat-msg ' + m.role + (m.type === 'error' ? ' error' : '') },
-              h('div', { className: 'oi-chat-bubble' }, m.text)
+          messages.map(function(m) {
+            var capturedFs = fs;
+            if (m.role === 'user') {
+              return h('div', { key: m.id, className: 'oi-chat-msg user' },
+                h('div', { className: 'oi-chat-bubble' }, m.text)
+              );
+            }
+            return h('div', { key: m.id, className: 'oi-chat-msg assistant' + (m.type === 'error' ? ' error' : '') },
+              h('div', { className: 'oi-chat-bubble' },
+                m.type === 'result'
+                  ? h('div', { className: 'oi-result-card' },
+                      h('div', { className: 'oi-result-card-icon' },
+                        h(OIIcon, { name: 'check', size: 20, fill: '#00BF6F' })
+                      ),
+                      h('div', { className: 'oi-result-card-body' },
+                        h('div', { className: 'oi-result-card-name' }, m.result.name),
+                        h('div', { className: 'oi-result-card-type' }, m.result.type_label || m.result.type),
+                        m.result.url
+                          ? h('a', { className: 'oi-result-card-link', href: m.result.url, target: '_blank' }, 'Open in ServiceNow')
+                          : h('span', { className: 'oi-result-card-type', style: { color: '#6E6E6E' } }, 'Saved to My Deliverables')
+                      )
+                    )
+                  : m.text
+              ),
+              m.choices && m.choices.length > 0
+                ? h('div', { className: 'oi-chat-choices' },
+                    m.choices.map(function(c) {
+                      var sel      = m.choiceSelected === c.value;
+                      var inactive = m.choiceSelected != null;
+                      var capturedC     = c;
+                      var capturedMsgId = m.id;
+                      return h('button', {
+                        key: c.value,
+                        className: 'oi-choice-btn' + (sel ? ' selected' : '') + (inactive && !sel ? ' dimmed' : ''),
+                        disabled: inactive,
+                        onClick: function() { if (!inactive) { handleChoiceClick(capturedMsgId, capturedC.value, capturedC.label, capturedFs); } }
+                      }, c.label);
+                    })
+                  )
+                : null
             );
           }),
-          chatBusy ? h('div', { className: 'oi-chat-msg assistant' },
-            h('div', { className: 'oi-chat-bubble oi-typing' },
-              h('span', { className: 'oi-dot' }),
-              h('span', { className: 'oi-dot' }),
-              h('span', { className: 'oi-dot' })
-            )
-          ) : null
-        ),
-        h('div', { className: 'oi-chat-input-area' },
-          h('input', {
-            className: 'oi-input',
-            value: wsInput,
-            placeholder: 'Ask me to run an automation, check status, list tools...',
-            disabled: chatBusy,
-            onChange: function (e) { setWsInput(e.target.value); },
-            onKeyDown: function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
-          }),
-          h('button', {
-            className: 'oi-btn primary',
-            disabled: chatBusy || !wsInput.trim(),
-            onClick: sendMessage
-          }, chatBusy ? h('div', { className: 'oi-spinner sm' }) : h(OIIcon, { name: 'send', size: 16 }))
-        )
-      ),
-      h('div', { className: 'oi-ws-catalog-panel' },
-        h('div', { className: 'oi-ws-catalog-head' },
-          h('div', null,
-            h('div', { className: 'oi-ws-catalog-title' }, 'Available Automations'),
-            h('span', { className: 'oi-ws-catalog-count' }, automations.length + ' available')
-          ),
-          h('div', { className: 'oi-search-wrap' },
-            h('span', { className: 'oi-search-icon' }, h(OIIcon, { name: 'search', size: 14 })),
-            h('input', {
-              className: 'oi-search-input',
-              type: 'text',
-              placeholder: 'Search...',
-              value: search,
-              onChange: function (e) { setSearch(e.target.value); }
-            })
-          )
-        ),
-        h('div', { className: 'oi-ws-catalog-body' },
-          automations.length === 0
-            ? h('div', { className: 'oi-empty' },
-                h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'automation', size: 40, fill: '#DCDCDC' })),
-                h('div', { className: 'oi-empty-title' }, 'No automations available'),
-                h('div', { className: 'oi-empty-sub' }, 'Contact your administrator to be added to a group with published automations.')
+          chatBusy
+            ? h('div', { className: 'oi-chat-msg assistant' },
+                h('div', { className: 'oi-chat-bubble oi-typing' },
+                  h('span', { className: 'oi-dot' }),
+                  h('span', { className: 'oi-dot' }),
+                  h('span', { className: 'oi-dot' })
+                )
               )
-            : filtered.length === 0
-              ? h('div', { className: 'oi-empty' },
-                  h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'search', size: 40, fill: '#DCDCDC' })),
-                  h('div', { className: 'oi-empty-title' }, 'No results'),
-                  h('div', { className: 'oi-empty-sub' }, 'No automations match your search.')
-                )
-              : h('div', { className: 'oi-auto-list' },
-                  filtered.map(function (auto) {
-                    var isBusy = !!busy[auto.sys_id];
-                    return h('div', { key: auto.sys_id, className: 'oi-auto-item' },
-                      h('div', { className: 'oi-auto-item-accent', style: { background: auto.category_color || '#00BF6F' } }),
-                      h('div', { className: 'oi-auto-item-icon' },
-                        h(OIIcon, { name: 'automation', size: 18, fill: auto.category_color || '#00BF6F' })
-                      ),
-                      h('div', { className: 'oi-auto-item-body' },
-                        h('div', { className: 'oi-auto-item-name' }, auto.name),
-                        auto.short_description
-                          ? h('div', { className: 'oi-auto-item-desc' }, auto.short_description)
-                          : null,
-                        h('div', { className: 'oi-auto-item-meta' },
-                          h('span', null, auto.owner_group || ''),
-                          auto.usage_count
-                            ? h('span', null, ' · ' + auto.usage_count + ' runs')
-                            : null
-                        )
-                      ),
-                      h('button', {
-                        className: 'oi-btn primary sm',
-                        disabled: isBusy,
-                        onClick: function () { triggerAuto(auto); }
-                      }, isBusy
-                        ? h('span', { className: 'oi-spinner sm' })
-                        : h('span', { style: { display: 'flex', alignItems: 'center', gap: '0.25rem' } },
-                            h(OIIcon, { name: 'play', size: 14 }),
-                            'Run'
-                          )
-                      )
-                    );
-                  })
-                )
-        )
+            : null,
+          h('div', { ref: chatEndRef })
+        ),
+        inputArea
       )
     );
   }
@@ -575,124 +908,129 @@
     );
   }
 
-  /* ── Activity Section ────────────────────────────────────────── */
+  /* ── Deliverables Section ───────────────────────────────────── */
 
-  function ActivitySection(props) {
+  function DeliverablesSection(props) {
     var ctx = React.useContext(AppContext);
     var data = props.data;
-    var executions = data.executions || [];
+    var allDeliverables = data.deliverables || [];
 
-    var selectedResult = React.useState(null);
-    var selectedEx = selectedResult[0];
-    var setSelectedEx = selectedResult[1];
+    var TYPE_LABELS = { report: 'Report', dashboard: 'Dashboard', data_alert: 'Data Alert', notification_rule: 'Notification Rule' };
+    var TYPE_ICONS  = { report: 'document', dashboard: 'workspace', data_alert: 'warning_icon', notification_rule: 'send' };
+    var TYPE_COLORS = { report: '#00BF6F', dashboard: '#293E40', data_alert: '#E57323', notification_rule: '#00BF6F' };
 
-    var stepLogResult = React.useState(null);
-    var stepLog = stepLogResult[0];
-    var setStepLog = stepLogResult[1];
+    var FILTERS = [
+      { key: 'all',               label: 'All' },
+      { key: 'report',            label: 'Reports' },
+      { key: 'dashboard',         label: 'Dashboards' },
+      { key: 'data_alert',        label: 'Data Alerts' },
+      { key: 'notification_rule', label: 'Notification Rules' }
+    ];
 
-    var loadingLogResult = React.useState(false);
-    var loadingLog = loadingLogResult[0];
-    var setLoadingLog = loadingLogResult[1];
+    var filterResult = React.useState('all');
+    var filter = filterResult[0];
+    var setFilter = filterResult[1];
 
-    function selectExecution(ex) {
-      setSelectedEx(ex);
-      setStepLog(null);
-      if (!ex || !ex.sys_id) return;
-      setLoadingLog(true);
-      ctx.callServer({ action: 'step_log', execution_sys_id: ex.sys_id }, function (d, err) {
-        setLoadingLog(false);
+    var sortResult = React.useState('newest');
+    var sort = sortResult[0];
+    var setSort = sortResult[1];
+
+    var deliverablesResult = React.useState(allDeliverables);
+    var deliverables = deliverablesResult[0];
+    var setDeliverables = deliverablesResult[1];
+
+    var filtered = filter === 'all'
+      ? deliverables
+      : deliverables.filter(function(d) { return d.artifact_type === filter; });
+
+    var sorted = filtered.slice().sort(function(a, b) {
+      if (sort === 'name') { return (a.display_name || '').localeCompare(b.display_name || ''); }
+      if (sort === 'type') { return (a.artifact_type || '').localeCompare(b.artifact_type || ''); }
+      return 0;
+    });
+
+    function deleteDeliverable(item) {
+      ctx.callServer({ action: 'delete_deliverable', artifact_sys_id: item.sys_id }, function(d, err) {
         if (err) { ctx.toast(err, 'error'); return; }
-        setStepLog((d && d.stepLog) || []);
+        var result = d && d.deleted_deliverable;
+        if (result && result.ok) {
+          ctx.toast(item.display_name + ' deleted.', 'success');
+          setDeliverables(deliverables.filter(function(dl) { return dl.sys_id !== item.sys_id; }));
+        } else {
+          ctx.toast((result && result.error) || 'Failed to delete.', 'error');
+        }
       });
     }
 
     return h('div', { className: 'oi-section' },
       h('div', { className: 'oi-toolbar' },
         h('div', { className: 'oi-toolbar-left' },
-          h('h1', { className: 'oi-section-title' }, 'My Activity'),
-          h('span', { style: { fontSize: '0.75rem', color: '#6E6E6E' } }, executions.length + ' execution' + (executions.length === 1 ? '' : 's'))
-        )
-      ),
-      h('div', { className: 'oi-split' },
-        h('div', { className: 'oi-list-pane' },
-          h('div', { className: 'oi-card' },
-            h('div', { className: 'oi-card-hdr' },
-              h('span', { className: 'oi-card-title' }, 'Execution Log')
-            ),
-            executions.length === 0
-              ? h('div', { className: 'oi-empty' },
-                  h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'document', size: 40, fill: '#DCDCDC' })),
-                  h('div', { className: 'oi-empty-title' }, 'No executions yet'),
-                  h('div', { className: 'oi-empty-sub' }, 'Trigger an automation to see results here.')
-                )
-              : h('table', { className: 'oi-table clickable' },
-                  h('thead', null,
-                    h('tr', null,
-                      h('th', null, 'Automation'),
-                      h('th', null, 'Status'),
-                      h('th', null, 'Group'),
-                      h('th', null, 'Channel'),
-                      h('th', null, 'Triggered')
-                    )
-                  ),
-                  h('tbody', null,
-                    executions.map(function (ex, i) {
-                      return h('tr', {
-                        key: ex.sys_id || i,
-                        className: selectedEx && selectedEx.sys_id === ex.sys_id ? 'selected' : '',
-                        onClick: function () { selectExecution(ex); }
-                      },
-                        h('td', null, h('span', { className: 'oi-td-primary' }, ex.automation_name || 'Unnamed')),
-                        h('td', null, h(Badge, { cls: statusClass(ex.status) }, ex.status || 'unknown')),
-                        h('td', null, h('span', { className: 'oi-td-muted' }, ex.group_name || '')),
-                        h('td', null, h('span', { className: 'oi-td-mono' }, ex.channel || '')),
-                        h('td', null, h('span', { className: 'oi-td-muted' }, relTime(ex.triggered_at)))
-                      );
-                    })
-                  )
-                )
+          h('h1', { className: 'oi-section-title' }, 'My Deliverables'),
+          h('span', { style: { fontSize: '0.875rem', color: '#6E6E6E' } },
+            deliverables.length + ' deliverable' + (deliverables.length === 1 ? '' : 's')
           )
         ),
-        selectedEx
-          ? h('div', { className: 'oi-detail-pane' },
-              h('div', { className: 'oi-detail-hdr' },
-                h('span', { className: 'oi-detail-title' }, selectedEx.automation_name || selectedEx.name || 'Execution'),
-                h('button', { className: 'oi-icon-btn', onClick: function () { setSelectedEx(null); setStepLog(null); } }, h(OIIcon, { name: 'close', size: 18 }))
-              ),
-              h('div', { className: 'oi-detail-meta' },
-                h(Badge, { cls: statusClass(selectedEx.status) }, selectedEx.status || 'unknown'),
-                h('span', { className: 'oi-td-muted' }, relTime(selectedEx.triggered_at)),
-                selectedEx.group_name ? h('span', { className: 'oi-tag' }, selectedEx.group_name) : null,
-                selectedEx.channel ? h('span', { className: 'oi-tag' }, selectedEx.channel) : null
-              ),
-              h('div', { className: 'oi-detail-body' },
-                h('div', { className: 'oi-detail-sec-hdr' }, h('span', null, 'Step Log')),
-                loadingLog
-                  ? h('div', { className: 'oi-spinner-center' }, h('div', { className: 'oi-spinner' }))
-                  : stepLog && stepLog.length > 0
-                    ? h('div', { className: 'oi-timeline' },
-                        stepLog.map(function (step, i) {
-                          var cls = statusClass(step.status);
-                          return h('div', { key: i, className: 'oi-tl-item ' + cls },
-                            h('div', { className: 'oi-tl-side' },
-                              h('div', { className: 'oi-tl-dot' }),
-                              h('div', { className: 'oi-tl-line' })
-                            ),
-                            h('div', { className: 'oi-tl-content' },
-                              h('div', { className: 'oi-tl-name' }, step.name || 'Step ' + (i + 1)),
-                              step.message ? h('div', { className: 'oi-tl-msg' }, step.message) : null,
-                              step.duration ? h('div', { className: 'oi-tl-dur' }, step.duration) : null
-                            )
-                          );
-                        })
-                      )
-                    : stepLog
-                      ? h('div', { className: 'oi-empty-inline' }, 'No step log available.')
-                      : h('div', { className: 'oi-empty-inline' }, 'Loading step log...')
-              )
+        h('div', { className: 'oi-toolbar-right' },
+          h('select', {
+            className: 'oi-select',
+            value: sort,
+            style: { width: 'auto' },
+            onChange: function(e) { setSort(e.target.value); }
+          },
+            h('option', { value: 'newest' }, 'Newest First'),
+            h('option', { value: 'name' }, 'Name A–Z'),
+            h('option', { value: 'type' }, 'By Type')
+          )
+        )
+      ),
+      h('div', { className: 'oi-filter-chips' },
+        FILTERS.map(function(f) {
+          return h('button', {
+            key: f.key,
+            className: 'oi-filter-chip' + (filter === f.key ? ' active' : ''),
+            onClick: function() { setFilter(f.key); }
+          }, f.label);
+        })
+      ),
+      deliverables.length === 0
+        ? h('div', { className: 'oi-empty' },
+            h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'document', size: 48, fill: '#DCDCDC' })),
+            h('div', { className: 'oi-empty-title' }, 'No deliverables yet'),
+            h('div', { className: 'oi-empty-sub' }, 'Use the Workspace to build reports, dashboards, data alerts, and notification rules.')
+          )
+        : sorted.length === 0
+          ? h('div', { className: 'oi-empty' },
+              h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'search', size: 40, fill: '#DCDCDC' })),
+              h('div', { className: 'oi-empty-title' }, 'No results'),
+              h('div', { className: 'oi-empty-sub' }, 'No deliverables match the selected filter.')
             )
-          : null
-      )
+          : h('div', { className: 'oi-deliverables-grid' },
+              sorted.map(function(item) {
+                var typeColor = TYPE_COLORS[item.artifact_type] || '#00BF6F';
+                var typeIcon  = TYPE_ICONS[item.artifact_type]  || 'document';
+                var typeLabel = TYPE_LABELS[item.artifact_type] || item.artifact_type;
+                var capturedItem = item;
+                return h('div', { key: item.sys_id, className: 'oi-deliverable-card' },
+                  h('div', { className: 'oi-deliverable-card-top', style: { background: typeColor } },
+                    h(OIIcon, { name: typeIcon, size: 22, fill: '#FFFFFF' })
+                  ),
+                  h('div', { className: 'oi-deliverable-card-body' },
+                    h('div', { className: 'oi-deliverable-card-name' }, item.display_name),
+                    h('span', { className: 'oi-badge neutral', style: { marginBottom: '0.375rem' } }, typeLabel),
+                    h('div', { className: 'oi-deliverable-card-date' }, item.created_at || '')
+                  ),
+                  h('div', { className: 'oi-deliverable-card-foot' },
+                    item.target_url
+                      ? h('a', { className: 'oi-btn ghost xs', href: item.target_url, target: '_blank' }, 'Open')
+                      : h('span', { style: { flex: '1' } }),
+                    h('button', {
+                      className: 'oi-btn danger xs',
+                      onClick: function() { deleteDeliverable(capturedItem); }
+                    }, h(OIIcon, { name: 'remove', size: 12 }), ' Delete')
+                  )
+                );
+              })
+            )
     );
   }
 
@@ -1394,7 +1732,7 @@
 
     var MAINTENANCE_SECTIONS = [
       { key: 'workspace',  label: 'Workspace',             desc: 'Disable the Workspace section for all users.',             prop: 'x_infte_ops_int.maintenance.workspace' },
-      { key: 'activity',   label: 'My Activity',            desc: 'Disable the My Activity section for all users.',            prop: 'x_infte_ops_int.maintenance.activity' },
+      { key: 'deliverables', label: 'My Deliverables',       desc: 'Disable the My Deliverables section for all users.',       prop: 'x_infte_ops_int.maintenance.deliverables' },
       { key: 'studio',     label: 'Operations Studio',      desc: 'Disable the Operations Studio section for all users.',      prop: 'x_infte_ops_int.maintenance.studio' },
       { key: 'governance', label: 'Operations Governance',  desc: 'Disable the Operations Governance section for all users.',  prop: 'x_infte_ops_int.maintenance.governance' }
     ];

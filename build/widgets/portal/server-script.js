@@ -118,28 +118,104 @@
         return { automations: automations };
     }
 
-    function loadActivity(personSysId) {
-        var executions = [];
-        if (!personSysId) { return { executions: executions }; }
-        var eGr = new GlideRecord('x_infte_ops_int_execution');
-        eGr.addQuery('triggered_by', personSysId);
-        eGr.orderByDesc('triggered_at');
-        eGr.setLimit(50);
-        eGr.query();
-        while (eGr.next()) {
-            executions.push({
-                sys_id:          '' + eGr.getUniqueValue(),
-                number:          '' + eGr.getValue('number'),
-                automation_name: '' + eGr.getDisplayValue('automation'),
-                group_name:      '' + eGr.getDisplayValue('group'),
-                status:          '' + eGr.getValue('status'),
-                channel:         '' + eGr.getValue('channel'),
-                triggered_at:    '' + eGr.getDisplayValue('triggered_at'),
-                completed_at:    '' + eGr.getDisplayValue('completed_at'),
-                is_test:         eGr.getValue('is_test') === '1' || eGr.getValue('is_test') === 'true'
-            });
-        }
-        return { executions: executions };
+    function loadDeliverables(personSysId) {
+        var deliverables = [];
+        if (!personSysId) { return { deliverables: deliverables }; }
+        try {
+            var dGr = new GlideRecord('x_infte_ops_int_managed_artifact');
+            dGr.addQuery('created_by_person', personSysId);
+            dGr.addQuery('status', '!=', 'archived');
+            dGr.orderByDesc('sys_created_on');
+            dGr.setLimit(100);
+            dGr.query();
+            while (dGr.next()) {
+                var artifactType = '' + dGr.getValue('artifact_type');
+                var targetSysId  = '' + (dGr.getValue('target_sys_id') || '');
+                var targetUrl    = '';
+                if (targetSysId) {
+                    if (artifactType === 'report')    { targetUrl = '/sys_report.do?sys_id=' + targetSysId; }
+                    if (artifactType === 'dashboard') { targetUrl = '/pa_dashboards.do?sys_id=' + targetSysId; }
+                }
+                deliverables.push({
+                    sys_id:        '' + dGr.getUniqueValue(),
+                    display_name:  '' + (dGr.getValue('display_name') || 'Unnamed'),
+                    artifact_type: artifactType,
+                    status:        '' + (dGr.getValue('status') || 'active'),
+                    target_sys_id: targetSysId,
+                    target_url:    targetUrl,
+                    created_at:    '' + dGr.getDisplayValue('sys_created_on')
+                });
+            }
+        } catch (e) { deliverables = []; }
+        return { deliverables: deliverables };
+    }
+
+    function createManagedArtifact(name, artifactType, personSysId, targetSysId, configObj) {
+        try {
+            var aRec = new GlideRecord('x_infte_ops_int_managed_artifact');
+            aRec.initialize();
+            aRec.setValue('display_name', name);
+            aRec.setValue('artifact_type', artifactType);
+            aRec.setValue('created_by_person', personSysId);
+            aRec.setValue('status', 'active');
+            if (targetSysId) { aRec.setValue('target_sys_id', targetSysId); }
+            if (configObj) { try { aRec.setValue('config', JSON.stringify(configObj)); } catch (ce) {} }
+            var newId = '' + aRec.insert();
+            return newId || null;
+        } catch (e) { return null; }
+    }
+
+    function createReport(collected, personSysId, userSysId) {
+        var rName    = '' + (collected.name || 'Untitled Report');
+        var rTable   = '' + (collected.table || 'incident');
+        var rType    = '' + (collected.report_type || 'list');
+        var rGroupBy = '' + (collected.group_by || '');
+        try {
+            var rRec = new GlideRecord('sys_report');
+            rRec.initialize();
+            rRec.setValue('title', rName);
+            rRec.setValue('table', rTable);
+            rRec.setValue('type', rType);
+            if (rGroupBy && rGroupBy !== 'none') { rRec.setValue('field', rGroupBy); }
+            rRec.setValue('user', userSysId);
+            rRec.setValue('is_published', false);
+            var rSysId = '' + rRec.insert();
+            if (!rSysId) { return { ok: false, error: 'Failed to create report record.' }; }
+            var aId = createManagedArtifact(rName, 'report', personSysId, rSysId, collected);
+            return { ok: true, name: rName, type: 'report', sys_id: rSysId, url: '/sys_report.do?sys_id=' + rSysId, artifact_sys_id: aId };
+        } catch (e) { return { ok: false, error: '' + e }; }
+    }
+
+    function createDashboard(collected, personSysId, userSysId) {
+        var dName = '' + (collected.name || 'Untitled Dashboard');
+        try {
+            var dRec = new GlideRecord('pa_dashboards');
+            dRec.initialize();
+            dRec.setValue('name', dName);
+            dRec.setValue('owner', userSysId);
+            var dSysId = '' + dRec.insert();
+            if (!dSysId) { return { ok: false, error: 'Failed to create dashboard record.' }; }
+            var aId = createManagedArtifact(dName, 'dashboard', personSysId, dSysId, collected);
+            return { ok: true, name: dName, type: 'dashboard', sys_id: dSysId, url: '/pa_dashboards.do?sys_id=' + dSysId, artifact_sys_id: aId };
+        } catch (e) { return { ok: false, error: '' + e }; }
+    }
+
+    function createDataAlert(collected, personSysId) {
+        var aName = '' + (collected.name || 'Untitled Alert');
+        try {
+            var aId = createManagedArtifact(aName, 'data_alert', personSysId, null, collected);
+            if (!aId) { return { ok: false, error: 'Failed to create alert record.' }; }
+            return { ok: true, name: aName, type: 'data_alert', sys_id: aId, url: '', artifact_sys_id: aId };
+        } catch (e) { return { ok: false, error: '' + e }; }
+    }
+
+    function createNotificationRule(collected, personSysId) {
+        var rName = '' + (collected.name || 'Untitled Notification Rule');
+        try {
+            var aId = createManagedArtifact(rName, 'notification_rule', personSysId, null, collected);
+            if (!aId) { return { ok: false, error: 'Failed to create notification rule record.' }; }
+            return { ok: true, name: rName, type: 'notification_rule', sys_id: aId, url: '', artifact_sys_id: aId };
+        } catch (e) { return { ok: false, error: '' + e }; }
     }
 
     function loadStudio(personSysId) {
@@ -336,7 +412,7 @@
 
         var maintenancePropNames = [
             'x_infte_ops_int.maintenance.workspace',
-            'x_infte_ops_int.maintenance.activity',
+            'x_infte_ops_int.maintenance.deliverables',
             'x_infte_ops_int.maintenance.studio',
             'x_infte_ops_int.maintenance.governance'
         ];
@@ -424,7 +500,7 @@
 
     var allSections = [
         { id: 'workspace',  label: 'Workspace',             icon: 'fa-th-large', roles: ['admin','leadership','creator','user'] },
-        { id: 'activity',   label: 'My Activity',           icon: 'fa-history',  roles: ['admin','leadership','creator','user'] },
+        { id: 'deliverables', label: 'My Deliverables',     icon: 'fa-cube',     roles: ['admin','leadership','creator','user'] },
         { id: 'studio',     label: 'Operations Studio',     icon: 'fa-code',     roles: ['admin','creator'] },
         { id: 'governance', label: 'Operations Governance', icon: 'fa-shield',   roles: ['admin','leadership'] },
         { id: 'command',    label: 'Operations Command',    icon: 'fa-terminal', roles: ['admin'] }
@@ -446,8 +522,8 @@
         var section = '' + input.section;
         if (section === 'workspace') {
             data.sectionData = loadWorkspace(data.userGroups);
-        } else if (section === 'activity') {
-            data.sectionData = loadActivity(data.personSysId);
+        } else if (section === 'deliverables') {
+            data.sectionData = loadDeliverables(data.personSysId);
         } else if (section === 'studio') {
             if (hasCreator || hasAdmin) {
                 data.sectionData = loadStudio(data.personSysId);
@@ -932,6 +1008,38 @@
         } catch (rmErr) {
             data.member_removed = false;
         }
+        return;
+    }
+
+    if (input.action === 'create_deliverable') {
+        var cdFlowId   = '' + (input.flow_id || '');
+        var cdCollected = {};
+        try { cdCollected = JSON.parse('' + (input.collected || '{}')); } catch (e) { cdCollected = {}; }
+        var cdResult;
+        if (cdFlowId === 'report_builder') {
+            cdResult = createReport(cdCollected, data.personSysId, userSysId);
+        } else if (cdFlowId === 'dashboard_builder') {
+            cdResult = createDashboard(cdCollected, data.personSysId, userSysId);
+        } else if (cdFlowId === 'data_alert') {
+            cdResult = createDataAlert(cdCollected, data.personSysId);
+        } else if (cdFlowId === 'notification_rule') {
+            cdResult = createNotificationRule(cdCollected, data.personSysId);
+        } else {
+            cdResult = { ok: false, error: 'Unknown flow type.' };
+        }
+        data.deliverable_result = cdResult;
+        return;
+    }
+
+    if (input.action === 'delete_deliverable') {
+        var ddSysId = '' + input.artifact_sys_id;
+        var ddRec = new GlideRecord('x_infte_ops_int_managed_artifact');
+        if (!ddRec.get(ddSysId)) { data.deleted_deliverable = { ok: false, error: 'Deliverable not found.' }; return; }
+        var ddOwner = '' + ddRec.getValue('created_by_person');
+        if (!hasAdmin && ddOwner !== data.personSysId) { data.deleted_deliverable = { ok: false, error: 'Access denied.' }; return; }
+        ddRec.setValue('status', 'archived');
+        ddRec.update();
+        data.deleted_deliverable = { ok: true };
         return;
     }
 
