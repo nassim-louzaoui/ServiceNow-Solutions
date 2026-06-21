@@ -2,13 +2,39 @@
 
     // Direct role check — bypasses gs.hasRole() admin-override so platform admins
     // without an explicit OI role are treated as unauthorized.
-    function oiRole(uSysId, roleName) {
-        var hr = new GlideRecord('sys_user_has_role');
-        hr.addQuery('user', uSysId);
-        hr.addQuery('role.name', roleName);
-        hr.setLimit(1);
-        hr.query();
-        return hr.next();
+    // Uses sys_id lookup (not dot-walk) because addQuery dot-notation is
+    // unsupported in SP widget server script scope and throws in Rhino.
+    function getOiRoles(uSysId) {
+        var result  = { admin: false, leadership: false, creator: false, user: false };
+        var nameMap = {
+            'x_infte_ops_int.admin':      'admin',
+            'x_infte_ops_int.leadership': 'leadership',
+            'x_infte_ops_int.creator':    'creator',
+            'x_infte_ops_int.user':       'user'
+        };
+        // Step 1: resolve the four role sys_ids in one query
+        var idToKey = {};
+        var rGr     = new GlideRecord('sys_user_role');
+        rGr.addQuery('name', 'IN', 'x_infte_ops_int.admin,x_infte_ops_int.leadership,x_infte_ops_int.creator,x_infte_ops_int.user');
+        rGr.query();
+        while (rGr.next()) {
+            var rn = '' + rGr.getValue('name');
+            if (nameMap[rn]) { idToKey['' + rGr.getUniqueValue()] = nameMap[rn]; }
+        }
+        // Step 2: check which of those roles the user holds
+        var ids = [];
+        var k;
+        for (k in idToKey) { if (idToKey.hasOwnProperty(k)) { ids.push(k); } }
+        if (!ids.length) { return result; }
+        var hrGr = new GlideRecord('sys_user_has_role');
+        hrGr.addQuery('user', uSysId);
+        hrGr.addQuery('role', 'IN', ids.join(','));
+        hrGr.query();
+        while (hrGr.next()) {
+            var rid = '' + hrGr.getValue('role');
+            if (idToKey[rid]) { result[idToKey[rid]] = true; }
+        }
+        return result;
     }
 
     data.denied         = false;
@@ -24,10 +50,11 @@
 
     var userSysId = gs.getUserID();
 
-    var hasAdmin      = oiRole(userSysId, 'x_infte_ops_int.admin');
-    var hasLeadership = oiRole(userSysId, 'x_infte_ops_int.leadership');
-    var hasCreator    = oiRole(userSysId, 'x_infte_ops_int.creator');
-    var hasUser       = oiRole(userSysId, 'x_infte_ops_int.user');
+    var oiRoles       = getOiRoles(userSysId);
+    var hasAdmin      = oiRoles.admin;
+    var hasLeadership = oiRoles.leadership;
+    var hasCreator    = oiRoles.creator;
+    var hasUser       = oiRoles.user;
 
     if (!hasAdmin && !hasLeadership && !hasCreator && !hasUser) {
         data.denied = true;
