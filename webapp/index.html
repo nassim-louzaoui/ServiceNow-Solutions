@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Operations Intelligence</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <script>
+      window.__OI_INIT__ = {
+        denied: false,
+        userName: "Dev User",
+        userInitials: "DU",
+        userRole: "admin",
+        sections: [
+          { id: "workspace",  label: "Workspace",  icon: "fa-tachometer-alt" },
+          { id: "activity",   label: "Activity",   icon: "fa-history" },
+          { id: "studio",     label: "Studio",     icon: "fa-robot" },
+          { id: "governance", label: "Governance", icon: "fa-shield-alt" },
+          { id: "command",    label: "Command",    icon: "fa-terminal" }
+        ],
+        userGroups: [
+          { sys_id: "dev-group-1", name: "Operations Team" },
+          { sys_id: "dev-group-2", name: "Support Team" }
+        ],
+        initialSection: "workspace",
+        sectionData: {
+          stats: { persons: 12, automations: 8, executions_today: 34, groups: 3 },
+          executions: [
+            { sys_id: "ex1", number: "EX0001001", automation_name: "Daily Health Check", group_name: "Operations Team", status: "success", triggered_at: new Date(Date.now() - 3600000).toISOString() },
+            { sys_id: "ex2", number: "EX0001002", automation_name: "Incident Triage",   group_name: "Support Team",     status: "running", triggered_at: new Date(Date.now() - 1800000).toISOString() },
+            { sys_id: "ex3", number: "EX0001003", automation_name: "Compliance Audit",  group_name: "Operations Team", status: "failed",  triggered_at: new Date(Date.now() - 7200000).toISOString() }
+          ],
+          pending_actions: [
+            { sys_id: "pa1", type: "Enrollment Request", description: "John Smith requests access", subject_user_name: "john.smith", created: new Date(Date.now() - 600000).toISOString() }
+          ]
+        }
+      };
+    </script>
+  </head>
+  <body>
+    <div id="oi-root" style="min-height:100vh;"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
