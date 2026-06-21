@@ -44,14 +44,14 @@ def build():
         "title": "Operations Intelligence",
         "url_suffix": "operations_intelligence",
         "theme": theme_id,
-        "default_page": "main",
-        "homepage": "main",
+        "default_page": "oi_main",
+        "homepage": "oi_main",
     })
     log.append("portal: %s %s" % ("ok" if portal.get("ok") else "FAIL",
                                   portal.get("sys_id", str(portal)[:120])))
 
-    for pid, title in [("main", "Operations Intelligence"),
-                       ("onboarding", "Operations Intelligence Onboarding")]:
+    for pid, title in [("oi_main", "Operations Intelligence"),
+                       ("oi_onboarding", "Operations Intelligence Onboarding")]:
         pg = ec.op("artifact.sp_page", data={"id": pid, "title": title, "draft": False})
         log.append("page %-12s %s %s" % (pid, "ok" if pg.get("ok") else "FAIL",
                                          pg.get("sys_id", str(pg)[:120])))
