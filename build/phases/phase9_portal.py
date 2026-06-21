@@ -13,19 +13,37 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 import engine_client as ec
 
 THEME_CSS = """:root {
-  --oi-primary: #1565C0;
-  --oi-primary-dark: #0D47A1;
-  --oi-accent: #00838F;
-  --oi-bg: #F4F6F8;
+  --oi-navy: #0B2A4A;
+  --oi-primary: #1F7BB6;
+  --oi-primary-dark: #0D5B8E;
+  --oi-accent: #00AEE8;
+  --oi-bg: #F0F3F8;
   --oi-surface: #FFFFFF;
-  --oi-text: #1A2027;
-  --oi-muted: #5A6772;
+  --oi-text: #1B2541;
+  --oi-muted: #6B7A99;
   --oi-danger: #C62828;
-  --oi-success: #2E7D32;
+  --oi-success: #1B7E36;
+  --oi-warning: #B45309;
+  --oi-border: #D8E0EE;
 }
-body { background: var(--oi-bg); color: var(--oi-text); font-family: 'Segoe UI', Roboto, sans-serif; }
-.oi-card { background: var(--oi-surface); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); padding: 16px; }
-.oi-navbar { background: var(--oi-primary-dark); color: #fff; }
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  background: var(--oi-bg);
+  color: var(--oi-text);
+  font-family: 'Source Sans Pro', 'Segoe UI', Roboto, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+}
+.oi-card {
+  background: var(--oi-surface);
+  border: 1px solid var(--oi-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,32,96,0.06);
+  padding: 20px;
+}
+a { color: var(--oi-primary); }
+a:hover { color: var(--oi-primary-dark); }
 """
 
 

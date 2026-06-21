@@ -1,49 +1,65 @@
 <div class="oi-content-area">
 
   <div ng-if="c.activeInMaintenance()" class="oi-content-maintenance" role="status">
-    <div class="oi-maint-inline">
-      <span class="oi-maint-inline-icon" aria-hidden="true">&#128295;</span>
-      <h2 class="oi-maint-inline-title">{{c.maintenanceTitle()}}</h2>
-      <p class="oi-maint-inline-message">{{c.data.maintenanceMessage}}</p>
-      <p ng-if="c.data.maintenanceReturnAt" class="oi-maint-inline-return">
+    <div class="oi-maint-card">
+      <span class="oi-maint-icon" aria-hidden="true">&#9888;</span>
+      <h2 class="oi-maint-title">{{c.maintenanceTitle()}}</h2>
+      <p class="oi-maint-message">{{c.data.maintenanceMessage}}</p>
+      <p ng-if="c.data.maintenanceReturnAt" class="oi-maint-return">
         Estimated return: {{c.data.maintenanceReturnAt}}
       </p>
     </div>
   </div>
 
-  <div ng-if="!c.activeInMaintenance()" class="oi-content-sections" ng-switch="c.activeSection">
+  <div ng-if="!c.activeInMaintenance()">
 
-    <div ng-switch-when="workspace" class="oi-section oi-section--workspace">
-      <widget id="workspace-automation"></widget>
-      <widget id="deliverable-tiles"></widget>
-      <widget id="deliverable-cards"></widget>
+    <div class="oi-content-header">
+      <div>
+        <h1 class="oi-content-header-title">{{c.sectionLabel(c.activeSection)}}</h1>
+        <p class="oi-content-header-subtitle">{{c.sectionSubtitle(c.activeSection)}}</p>
+      </div>
     </div>
 
-    <div ng-switch-when="activity" class="oi-section oi-section--activity">
-      <widget id="execution-history"></widget>
-      <widget id="artifact-history"></widget>
-    </div>
+    <div class="oi-content-body">
+      <div class="oi-content-sections" ng-switch="c.activeSection">
 
-    <div ng-switch-when="studio" class="oi-section oi-section--studio">
-      <widget id="creator-studio"></widget>
-    </div>
+        <div ng-switch-when="workspace" class="oi-section oi-section--workspace">
+          <widget id="x_infte_ops_int_workspace_automation"></widget>
+          <widget id="x_infte_ops_int_deliverable_tiles"></widget>
+          <widget id="x_infte_ops_int_deliverable_cards"></widget>
+        </div>
 
-    <div ng-switch-when="governance" class="oi-section oi-section--governance">
-      <widget id="pending-approvals"></widget>
-      <widget id="group-manager"></widget>
-      <widget id="flow-oversight"></widget>
-      <widget id="group-metrics"></widget>
-    </div>
+        <div ng-switch-when="activity" class="oi-section oi-section--activity">
+          <widget id="x_infte_ops_int_execution_history"></widget>
+          <widget id="x_infte_ops_int_artifact_history"></widget>
+        </div>
 
-    <div ng-switch-when="command" class="oi-section oi-section--command">
-      <widget id="admin-overview"></widget>
-      <widget id="audit-log-viewer"></widget>
-      <widget id="system-config-panel"></widget>
-      <widget id="maintenance-control-panel"></widget>
-    </div>
+        <div ng-switch-when="studio" class="oi-section oi-section--studio">
+          <widget id="x_infte_ops_int_creator_studio"></widget>
+        </div>
 
-    <div ng-switch-default class="oi-section oi-section--empty">
-      <p class="oi-content-empty">Select a section to begin.</p>
+        <div ng-switch-when="governance" class="oi-section oi-section--governance">
+          <widget id="x_infte_ops_int_pending_approvals"></widget>
+          <widget id="x_infte_ops_int_group_manager"></widget>
+          <widget id="x_infte_ops_int_flow_oversight"></widget>
+          <widget id="x_infte_ops_int_group_metrics"></widget>
+        </div>
+
+        <div ng-switch-when="command" class="oi-section oi-section--command">
+          <widget id="x_infte_ops_int_admin_overview"></widget>
+          <widget id="x_infte_ops_int_audit_log"></widget>
+          <widget id="x_infte_ops_int_system_config"></widget>
+          <widget id="x_infte_ops_int_maintenance_control_pane"></widget>
+        </div>
+
+        <div ng-switch-default class="oi-section oi-section--empty">
+          <div class="oi-content-empty">
+            <span class="oi-content-empty-icon" aria-hidden="true">&#9670;</span>
+            <p class="oi-content-empty-text">Select a section from the navigation bar to begin.</p>
+          </div>
+        </div>
+
+      </div>
     </div>
 
   </div>

@@ -9,33 +9,33 @@
     <span ng-if="!c.collapsed" aria-hidden="true">&#9002;</span>
   </button>
 
-  <div class="oi-assistant-body" ng-if="!c.collapsed">
+  <div class="oi-assistant-top-bar">
+    <span class="oi-assistant-status-dot" title="Operations Assistant is active"></span>
+    <h2 class="oi-assistant-title">Operations Assistant</h2>
+  </div>
 
-    <header class="oi-assistant-header">
-      <span class="oi-assistant-icon" aria-hidden="true">&#9679;</span>
-      <h2 class="oi-assistant-title">Operations Assistant</h2>
-    </header>
+  <div class="oi-assistant-body" ng-if="!c.collapsed">
 
     <div class="oi-assistant-welcome">
       <p class="oi-assistant-greeting">{{c.data.welcome.message}}</p>
       <p ng-if="c.data.welcome.pending_approvals > 0" class="oi-assistant-badge">
-        {{c.data.welcome.pending_approvals}} pending approval(s)
+        &#9888; {{c.data.welcome.pending_approvals}} pending approval(s)
       </p>
     </div>
 
-    <!-- Operations Assistant Virtual Agent embed placeholder.
-         In the deployed portal this hosts <sn-va-web-client-embed>
-         wired with the session variables shown below. -->
-    <div class="oi-va-embed-placeholder"
-         data-page-id="{{c.data.pageId}}"
-         data-active-section="{{c.activeSection}}"
-         data-pre-intent="{{c.preIntent}}">
-      <p class="oi-va-placeholder-label">[ Operations Assistant — Virtual Agent embed ]</p>
-      <dl class="oi-va-placeholder-meta">
-        <dt>page_id</dt><dd>{{c.data.pageId}}</dd>
-        <dt>active_section</dt><dd>{{c.activeSection}}</dd>
-        <dt>pre_intent</dt><dd>{{ c.preIntent || '(none)' }}</dd>
-      </dl>
+    <div class="oi-va-area">
+      <p class="oi-va-area-label">Virtual Agent</p>
+      <div class="oi-va-embed-placeholder"
+           data-page-id="{{c.data.pageId}}"
+           data-active-section="{{c.activeSection}}"
+           data-pre-intent="{{c.preIntent}}">
+        <span class="oi-va-placeholder-icon" aria-hidden="true">&#9679;</span>
+        <p class="oi-va-placeholder-label">Operations Assistant<br>Virtual Agent</p>
+        <dl class="oi-va-placeholder-meta">
+          <dt>Section</dt><dd>{{c.activeSection || 'workspace'}}</dd>
+          <dt>Intent</dt><dd>{{ c.preIntent || '—' }}</dd>
+        </dl>
+      </div>
     </div>
 
   </div>

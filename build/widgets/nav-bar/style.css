@@ -2,11 +2,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
-  height: 60px;
-  background: var(--oi-surface, #FFFFFF);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-  color: var(--oi-text, #0F172A);
+  padding: 0 28px;
+  height: 64px;
+  background: #0B2A4A;
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  position: relative;
+  z-index: 100;
 }
 
 .oi-nav-brand {
@@ -16,21 +18,32 @@
   font-weight: 700;
   font-size: 1.05rem;
   white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 220px;
 }
 
 .oi-nav-logo {
-  color: var(--oi-primary, #4338CA);
-  font-size: 1.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: #00AEE8;
+  color: #FFFFFF;
+  font-size: 0.9rem;
+  flex-shrink: 0;
 }
 
 .oi-nav-brand-text {
-  color: var(--oi-text, #0F172A);
+  color: #FFFFFF;
+  letter-spacing: 0.01em;
 }
 
 .oi-nav-links {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -48,33 +61,36 @@
   gap: 6px;
   border: none;
   background: transparent;
-  color: var(--oi-muted, #64748B);
-  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.88rem;
   font-weight: 600;
-  padding: 8px 16px;
-  border-radius: 8px;
+  padding: 7px 14px;
+  border-radius: 6px;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
+  letter-spacing: 0.01em;
 }
 
 .oi-nav-link:hover {
-  background: rgba(67, 56, 202, 0.08);
-  color: var(--oi-text, #0F172A);
+  background: rgba(255, 255, 255, 0.1);
+  color: #FFFFFF;
 }
 
 .oi-nav-link--active {
-  background: var(--oi-primary, #4338CA);
+  background: rgba(255, 255, 255, 0.18);
   color: #FFFFFF;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2) inset;
 }
 
 .oi-nav-link--active:hover {
-  background: var(--oi-primary, #4338CA);
+  background: rgba(255, 255, 255, 0.22);
   color: #FFFFFF;
 }
 
-.oi-nav-wrench {
-  font-size: 0.85rem;
+.oi-nav-maint-icon {
+  font-size: 0.8rem;
   line-height: 1;
+  opacity: 0.85;
 }
 
 .oi-nav-profile {
@@ -82,6 +98,9 @@
   align-items: center;
   gap: 10px;
   white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 160px;
+  justify-content: flex-end;
 }
 
 .oi-nav-avatar {
@@ -91,10 +110,12 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: var(--oi-primary, #4338CA);
+  background: #00AEE8;
   color: #FFFFFF;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
+  flex-shrink: 0;
+  letter-spacing: 0.03em;
 }
 
 .oi-nav-user {
@@ -104,20 +125,25 @@
 }
 
 .oi-nav-user-name {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 600;
-  color: var(--oi-text, #0F172A);
+  color: #FFFFFF;
 }
 
 .oi-nav-user-role {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   text-transform: capitalize;
-  color: var(--oi-muted, #64748B);
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.02em;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 900px) {
   .oi-nav-brand-text { display: none; }
+  .oi-nav-brand { min-width: auto; }
+  .oi-nav-profile { min-width: auto; }
+}
+
+@media (max-width: 640px) {
   .oi-nav-user { display: none; }
-  .oi-nav-links { gap: 0; }
-  .oi-nav-link { padding: 8px 10px; }
+  .oi-nav-link { padding: 7px 10px; font-size: 0.82rem; }
 }

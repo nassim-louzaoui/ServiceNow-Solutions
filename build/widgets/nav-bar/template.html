@@ -1,4 +1,4 @@
-<nav class="oi-nav-bar" role="navigation" aria-label="Operations Intelligence sections">
+<nav class="oi-nav-bar" role="navigation" aria-label="Operations Intelligence navigation">
 
   <div class="oi-nav-brand">
     <span class="oi-nav-logo" aria-hidden="true">&#9670;</span>
@@ -14,9 +14,9 @@
               aria-current="{{ c.isActive(section.id) ? 'page' : 'false' }}">
         <span class="oi-nav-label">{{section.label}}</span>
         <span ng-if="section.in_maintenance"
-              class="oi-nav-wrench"
+              class="oi-nav-maint-icon"
               title="{{section.label}} is under maintenance"
-              aria-label="{{section.label}} is under maintenance">&#128295;</span>
+              aria-label="{{section.label}} is under maintenance">&#9888;</span>
       </button>
     </li>
   </ul>

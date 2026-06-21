@@ -7,6 +7,31 @@ api.controller = function($scope, $rootScope, $interval, spUtil) {
 
     c.maintenanceSections = c.data.maintenanceSections || [];
 
+    var SECTION_LABELS = {
+        workspace:  'Workspace',
+        activity:   'My Activity',
+        studio:     'Studio',
+        governance: 'Governance',
+        command:    'Command Center'
+    };
+
+    var SECTION_SUBTITLES = {
+        workspace:  'Overview of your automations and deliverables',
+        activity:   'Review your recent execution history and artifacts',
+        studio:     'Design and manage automation definitions',
+        governance: 'Manage approvals, groups, and flow oversight',
+        command:    'System administration and platform configuration'
+    };
+
+    c.sectionLabel = function(sectionId) {
+        var labels = c.data.sectionLabels || {};
+        return labels[sectionId] || SECTION_LABELS[sectionId] || 'Operations Intelligence';
+    };
+
+    c.sectionSubtitle = function(sectionId) {
+        return SECTION_SUBTITLES[sectionId] || '';
+    };
+
     c.isInMaintenance = function(sectionId) {
         if (!sectionId) {
             return false;
@@ -22,11 +47,6 @@ api.controller = function($scope, $rootScope, $interval, spUtil) {
             return !(c.data.isAdmin && c.activeSection === 'command');
         }
         return false;
-    };
-
-    c.sectionLabel = function(sectionId) {
-        var labels = c.data.sectionLabels || {};
-        return labels[sectionId] || 'This Section';
     };
 
     c.maintenanceTitle = function() {

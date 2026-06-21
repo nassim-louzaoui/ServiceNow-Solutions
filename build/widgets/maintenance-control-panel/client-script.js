@@ -1,9 +1,4 @@
-// ── Client Controller: maintenance-control-panel ───────────
-// Manages the per-section toggle grid, entire-app toggle,
-// message/return-time inputs, and the gated Export XML button.
-// All state changes call MaintenanceManager via GlideAjax.
-// ──────────────────────────────────────────────────────────────
-function($scope, $window, $timeout) {
+api.controller = function($scope, $window, $timeout) {
     var c = this;
 
     // ── Section definitions (order = display order) ───────────
