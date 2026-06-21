@@ -1,0 +1,41 @@
+person                   +8 fields (was missing 8)
+reporting_relationship   +6 fields (was missing 6)
+group                    +8 fields (was missing 8)
+group_member             +6 fields (was missing 6)
+onboarding_request       +13 fields (was missing 13)
+automation_category      +6 fields (was missing 6)
+approved_flow            +7 fields (was missing 7)
+automation               +21 fields (was missing 21)
+automation_version       +7 fields (was missing 7)
+automation_step          +9 fields (was missing 9)
+automation_input         +8 fields (was missing 8)
+group_automation         +8 fields (was missing 8)
+execution                +11 fields (was missing 11)
+execution_step_log       +9 fields (was missing 9)
+automation_schedule      +8 fields (was missing 8)
+use_case_request         +14 fields (was missing 14)
+creator_credential       +6 fields (was missing 6)
+pending_action           +14 fields (was missing 14)
+managed_artifact         +17 fields (was missing 17)
+--- verification ---
+person                   MISSING ['active', 'copilot_enabled', 'delegation_rights', 'invitation_sent_at', 'onboarded_at', 'onboarded_by', 'onboarding_status', 'user']
+reporting_relationship   MISSING ['created_at', 'created_by_person', 'direct_report', 'leader', 'relationship_type', 'status']
+group                    MISSING ['created_at', 'created_by_person', 'description', 'name', 'owner', 'parent_group', 'status', 'type']
+group_member             MISSING ['added_at', 'added_by', 'group', 'group_role', 'member', 'status']
+onboarding_request       MISSING ['completed_at', 'decline_reason', 'delegation_rights', 'expiry_at', 'group_role', 'initiated_by', 'invited_at', 'nominee', 'number', 're_invitation_count', 'status', 'system_role', 'target_group']
+automation_category      MISSING ['active', 'color', 'created_by_person', 'description', 'icon', 'name']
+approved_flow            MISSING ['active', 'approved_at', 'approved_by', 'description', 'display_name', 'flow_sys_id', 'input_variables']
+automation               MISSING ['active', 'approved_at', 'approved_by', 'base_automation', 'browsable', 'category', 'created_by_person', 'description', 'estimated_time_saved', 'name', 'number', 'owner_group', 'rejected_at', 'rejected_by', 'rejected_reason', 'short_description', 'status', 'submitted_at', 'trigger_phrases', 'usage_count', 'version']
+automation_version       MISSING ['automation', 'published_at', 'published_by', 'snapshot_inputs', 'snapshot_steps', 'snapshot_trigger_phrases', 'version_number']
+automation_step          MISSING ['action_type', 'active', 'automation', 'branch_false_step', 'branch_true_step', 'configuration', 'name', 'on_failure', 'order']
+automation_input         MISSING ['automation', 'choices', 'field_name', 'input_type', 'label', 'order', 'required', 'validation_regex']
+group_automation         MISSING ['added_at', 'added_by', 'approval_status', 'approved_at', 'approved_by', 'automation', 'group', 'rejected_reason']
+execution                MISSING ['automation', 'automation_version', 'channel', 'completed_at', 'group', 'input_values', 'is_test', 'number', 'status', 'triggered_at', 'triggered_by']
+execution_step_log       MISSING ['action_type', 'completed_at', 'error_message', 'execution', 'output', 'started_at', 'status', 'step_name', 'step_order']
+automation_schedule      MISSING ['active', 'automation', 'created_at', 'cron_expression', 'run_at', 'schedule_type', 'sysauto_sys_id', 'timezone']
+use_case_request         MISSING ['additional_groups', 'copilot_enhanced', 'copilot_phrases_applied', 'description', 'number', 'resulting_automation', 'reviewed_at', 'reviewed_by', 'status', 'structured_spec', 'submitted_at', 'submitted_by', 'target_group', 'title']
+creator_credential       MISSING ['connected_at', 'github_pat', 'last_validated_at', 'last_validation_result', 'token_status', 'user']
+pending_action           MISSING ['action_type', 'actioned_at', 'actioned_by', 'assigned_to', 'created_at', 'deadline_at', 'notes', 'number', 'related_artifact', 'related_automation', 'related_group', 'resolution', 'status', 'subject_user']
+managed_artifact         MISSING ['approval_required', 'approved_at', 'approved_by', 'artifact_sys_ids', 'artifact_type', 'copilot_assisted', 'copilot_spec_applied', 'created_at', 'created_by_person', 'creation_spec', 'description', 'display_name', 'number', 'owner_group', 'rejected_reason', 'status', 'updated_at']
+Tables fully built: 0 / 19
+RESULT: GAPS REMAIN

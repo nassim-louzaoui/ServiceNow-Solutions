@@ -102,7 +102,7 @@
             _fieldCache[tbl] = [];
             var dd = new GlideRecord('sys_dictionary');
             dd.addQuery('name', tbl);
-            dd.addQuery('element', 'ISNOTEMPTY');
+            dd.addNotNullQuery('element');
             dd.query();
             while (dd.next()) _fieldCache[tbl].push(dd.getValue('element'));
         }
@@ -798,7 +798,7 @@
             if (!t) return { _status: 400, ok: false, error: 'table required' };
             var sfGr = new GlideRecord('sys_dictionary');
             sfGr.addQuery('name', t);
-            sfGr.addQuery('element', 'ISNOTEMPTY');
+            sfGr.addNotNullQuery('element');
             sfGr.orderBy('element');
             sfGr.query();
             var sfFields = [];
@@ -822,7 +822,7 @@
             if (!t) return { _status: 400, ok: false, error: 'table required' };
             var tsFieldGr = new GlideRecord('sys_dictionary');
             tsFieldGr.addQuery('name', t);
-            tsFieldGr.addQuery('element', 'ISNOTEMPTY');
+            tsFieldGr.addNotNullQuery('element');
             tsFieldGr.orderBy('element');
             tsFieldGr.query();
             var tsFields = [];
