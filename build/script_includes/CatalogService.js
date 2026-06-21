@@ -4,7 +4,6 @@ CatalogService.prototype = {
         this.SCOPE = 'x_infte_ops_int';
         this.AUTOMATION_TABLE = 'x_infte_ops_int_automation';
         this.AUTOMATION_VERSION_TABLE = 'x_infte_ops_int_automation_version';
-        this.GROUP_AUTOMATION_TABLE = 'x_infte_ops_int_group_automation';
         this.USE_CASE_REQUEST_TABLE = 'x_infte_ops_int_use_case_request';
         this.PERSON_TABLE = 'x_infte_ops_int_person';
         this.TOPIC_TABLE = 'sys_cs_topic';
@@ -104,19 +103,8 @@ CatalogService.prototype = {
         auto.setValue('base_automation', '' + automationSysId);
         auto.update();
 
-        var ga = new GlideRecord(this.GROUP_AUTOMATION_TABLE);
-        ga.initialize();
-        if (scopeSysId) {
-            ga.setValue('sys_scope', scopeSysId);
-        }
-        ga.setValue('group', ownerGroupSysId);
-        ga.setValue('automation', '' + automationSysId);
-        if (createdByPersonSysId) {
-            ga.setValue('added_by', createdByPersonSysId);
-        }
-        ga.setValue('added_at', new GlideDateTime().getValue());
-        ga.setValue('approval_status', 'pending');
-        ga.insert();
+        var gm = new GroupManager();
+        gm.addAutomation(ownerGroupSysId, '' + automationSysId, createdByPersonSysId);
 
         ucr.setValue('resulting_automation', '' + automationSysId);
         ucr.setValue('status', 'building');
@@ -198,12 +186,12 @@ CatalogService.prototype = {
         this._createNluIntent(auto);
         this.retrainNLU();
 
-        var ga = new GlideRecord(this.GROUP_AUTOMATION_TABLE);
-        ga.addQuery('automation', automationSysId);
-        ga.query();
-        while (ga.next()) {
-            ga.setValue('approval_status', 'approved');
-            ga.update();
+        var gm = new GroupManager();
+        var grpGr = new GlideRecord('x_infte_ops_int_group');
+        grpGr.addQuery('status', 'active');
+        grpGr.query();
+        while (grpGr.next()) {
+            gm.approveAutomation('' + grpGr.getUniqueValue(), '' + automationSysId, null);
         }
 
         auto.setValue('usage_count', 0);

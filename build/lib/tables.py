@@ -2,13 +2,15 @@
 """
 Operations Intelligence — Data Model Definition
 
-13-table data model. Fields merged from eliminated tables:
+11-table data model. Fields merged from eliminated tables:
   automation: category fields, step/input definitions (JSON), schedule fields
   person:     GitHub credential fields
   execution:  step_log (JSON)
+  group:      members (JSON), automations (JSON)
 
 Eliminated tables: automation_category, automation_step, automation_input,
-  automation_schedule, creator_credential, execution_step_log
+  automation_schedule, creator_credential, execution_step_log,
+  group_member, group_automation
 
 Shorthands:
   str(n)   string, max_length n (default 255)
@@ -41,7 +43,7 @@ AUTONUMBER = {
 }
 
 TABLES = [
-    ("person", "Personnel Record", [
+    ("person", "Operator Profile", [
         ("user",                    "ref:sys_user",  "User",                          {"mandatory": True}),
         ("onboarded_by",            "ref:person",    "Onboarded By",                  {}),
         ("onboarded_at",            "dt",            "Onboarded At",                  {}),
@@ -64,25 +66,19 @@ TABLES = [
         ("created_at",           "dt",         "Created At",    {}),
         ("status",               "choice",     "Status",        {"max_length": 40}),
     ]),
-    ("group", "Operations Group", [
-        ("name",              "str:200",    "Name",        {"mandatory": True}),
-        ("description",       "txt",        "Description", {}),
-        ("type",              "choice",     "Type",        {"max_length": 40}),
-        ("owner",             "ref:person", "Owner",       {}),
-        ("parent_group",      "ref:group",  "Parent Group",{}),
-        ("created_by_person", "ref:person", "Created By",  {}),
-        ("created_at",        "dt",         "Created At",  {}),
-        ("status",            "choice",     "Status",      {"max_length": 40}),
+    ("group", "Operations Team", [
+        ("name",              "str:200",    "Name",              {"mandatory": True}),
+        ("description",       "txt",        "Description",       {}),
+        ("type",              "choice",     "Type",              {"max_length": 40}),
+        ("owner",             "ref:person", "Owner",             {}),
+        ("parent_group",      "ref:group",  "Parent Group",      {}),
+        ("created_by_person", "ref:person", "Created By",        {}),
+        ("created_at",        "dt",         "Created At",        {}),
+        ("status",            "choice",     "Status",            {"max_length": 40}),
+        ("members",           "json",       "Members",           {}),
+        ("automations",       "json",       "Automations",       {}),
     ]),
-    ("group_member", "Group Membership", [
-        ("group",      "ref:group",  "Group",      {"mandatory": True}),
-        ("member",     "ref:person", "Member",     {"mandatory": True}),
-        ("group_role", "choice",     "Group Role", {"max_length": 40}),
-        ("added_by",   "ref:person", "Added By",   {}),
-        ("added_at",   "dt",         "Added At",   {}),
-        ("status",     "choice",     "Status",     {"max_length": 40}),
-    ]),
-    ("onboarding_request", "Onboarding Request", [
+    ("onboarding_request", "Access Request", [
         ("number",               "str:40",     "Number",              {"read_only": True}),
         ("nominee",              "ref:person", "Nominee",             {}),
         ("initiated_by",         "ref:person", "Initiated By",        {}),
@@ -106,7 +102,7 @@ TABLES = [
         ("approved_by",    "ref:person", "Approved By",   {}),
         ("approved_at",    "dt",         "Approved At",   {}),
     ]),
-    ("automation", "Automation Definition", [
+    ("automation", "Automation", [
         ("number",              "str:40",     "Number",                {"read_only": True}),
         ("name",                "str:200",    "Name",                  {"mandatory": True}),
         ("short_description",   "str:255",    "Short Description",     {}),
@@ -139,7 +135,7 @@ TABLES = [
         ("sysauto_sys_id",      "str:40",     "Scheduled Job Sys ID",  {}),
         ("schedule_active",     "bool",       "Schedule Active",       {"default": "false"}),
     ]),
-    ("automation_version", "Automation Version", [
+    ("automation_version", "Version History", [
         ("automation",                 "ref:automation","Automation",              {"mandatory": True}),
         ("version_number",             "int",           "Version Number",          {}),
         ("snapshot_steps",             "json",          "Snapshot Steps",          {}),
@@ -148,17 +144,7 @@ TABLES = [
         ("published_at",               "dt",            "Published At",            {}),
         ("published_by",               "ref:person",    "Published By",            {}),
     ]),
-    ("group_automation", "Group Automation Assignment", [
-        ("group",           "ref:group",       "Group",           {"mandatory": True}),
-        ("automation",      "ref:automation",  "Automation",      {"mandatory": True}),
-        ("added_by",        "ref:person",      "Added By",        {}),
-        ("added_at",        "dt",              "Added At",        {}),
-        ("approval_status", "choice",          "Approval Status", {"max_length": 40}),
-        ("approved_by",     "ref:person",      "Approved By",     {}),
-        ("approved_at",     "dt",              "Approved At",     {}),
-        ("rejected_reason", "txt",             "Rejected Reason", {}),
-    ]),
-    ("execution", "Automation Execution", [
+    ("execution", "Execution Record", [
         ("number",             "str:40",        "Number",             {"read_only": True}),
         ("automation",         "ref:automation","Automation",         {}),
         ("automation_version", "int",           "Automation Version", {}),
@@ -172,7 +158,7 @@ TABLES = [
         ("group",              "ref:group",     "Group",              {}),
         ("step_log",           "json",          "Step Log",           {}),
     ]),
-    ("use_case_request", "Use Case Request", [
+    ("use_case_request", "Build Request", [
         ("number",                   "str:40",        "Number",                      {"read_only": True}),
         ("title",                    "str:255",       "Title",                       {}),
         ("description",              "txt",           "Description",                 {}),
@@ -188,7 +174,7 @@ TABLES = [
         ("reviewed_at",              "dt",            "Reviewed At",                 {}),
         ("resulting_automation",     "ref:automation","Resulting Automation",        {}),
     ]),
-    ("pending_action", "Pending Action", [
+    ("pending_action", "Pending Review", [
         ("number",             "str:40",             "Number",           {"read_only": True}),
         ("action_type",        "choice",             "Action Type",      {"max_length": 60}),
         ("subject_user",       "ref:person",         "Subject User",     {}),
@@ -204,7 +190,7 @@ TABLES = [
         ("resolution",         "choice",             "Resolution",       {"max_length": 40}),
         ("notes",              "txt",                "Notes",            {}),
     ]),
-    ("managed_artifact", "Managed Artifact", [
+    ("managed_artifact", "Managed Deliverable", [
         ("number",               "str:40",         "Number",           {"read_only": True}),
         ("display_name",         "str:255",        "Display Name",     {"mandatory": True}),
         ("description",          "txt",            "Description",      {}),
@@ -240,10 +226,6 @@ _c("group", "type", [
     ("leadership_group", "Leadership Group"), ("custom_group", "Custom Group")])
 _c("group", "status", [
     ("active", "Active"), ("archived", "Archived")])
-_c("group_member", "group_role", [
-    ("creator", "Creator"), ("user", "User")])
-_c("group_member", "status", [
-    ("active", "Active"), ("inactive", "Inactive")])
 _c("onboarding_request", "group_role", [
     ("creator", "Creator"), ("user", "User")])
 _c("onboarding_request", "system_role", [
@@ -257,8 +239,6 @@ _c("automation", "status", [
     ("deprecation_queued", "Deprecation Queued"), ("deprecated", "Deprecated")])
 _c("automation", "schedule_type", [
     ("recurring", "Recurring"), ("one_time", "One Time")])
-_c("group_automation", "approval_status", [
-    ("pending", "Pending"), ("approved", "Approved"), ("rejected", "Rejected")])
 _c("execution", "channel", [
     ("va", "Virtual Agent"), ("portal", "Portal"), ("scheduled", "Scheduled")])
 _c("execution", "status", [

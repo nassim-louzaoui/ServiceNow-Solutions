@@ -56,19 +56,26 @@ TABLES_TO_DELETE = [
     "automation_schedule",
     "creator_credential",
     "execution_step_log",
+    "group_member",
+    "group_automation",
 ]
 
 
 def table_delete(table, sys_id):
     url = "%s/api/now/table/%s/%s" % (ec.INSTANCE, table, sys_id)
-    req = urllib.request.Request(url, method="DELETE")
-    req.add_header("Authorization", ec._AUTH)
-    req.add_header("Accept", "application/json")
-    try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            return r.status
-    except urllib.error.HTTPError as e:
-        return e.code
+    for attempt in range(3):
+        req = urllib.request.Request(url, method="DELETE")
+        req.add_header("Authorization", ec._AUTH)
+        req.add_header("Accept", "application/json")
+        try:
+            with urllib.request.urlopen(req, timeout=90) as r:
+                return r.status
+        except urllib.error.HTTPError as e:
+            return e.code
+        except Exception:
+            import time
+            time.sleep(5 * (attempt + 1))
+    return 0
 
 
 def table_get(table, encoded_query, fields, limit=1):

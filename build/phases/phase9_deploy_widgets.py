@@ -17,6 +17,7 @@ import engine_client as ec
 WIDGETS_DIR = os.path.join(os.path.dirname(__file__), "..", "widgets")
 
 NAMES = {
+    "portal": "Operations Intelligence Portal",
     "nav-bar": "Navigation Bar",
     "content-area": "Content Area",
     "assistant-panel": "Operations Assistant Panel",
@@ -43,6 +44,7 @@ NAMES = {
 # that limit must be declared here with its actual truncated value.
 ID_OVERRIDES = {
     "maintenance-control-panel": "x_infte_ops_int_maintenance_control_pane",
+    "portal": "x_infte_ops_int_portal",
 }
 
 

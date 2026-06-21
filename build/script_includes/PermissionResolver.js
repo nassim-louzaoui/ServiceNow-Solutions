@@ -2,12 +2,11 @@ var PermissionResolver = Class.create();
 PermissionResolver.prototype = {
     initialize: function() {
         this.PERSON_TABLE = 'x_infte_ops_int_person';
-        this.GROUP_TABLE = 'x_infte_ops_int_group';
-        this.GROUP_MEMBER_TABLE = 'x_infte_ops_int_group_member';
-        this.ROLE_ADMIN = 'admin';
+        this.GROUP_TABLE  = 'x_infte_ops_int_group';
+        this.ROLE_OI_ADMIN  = 'x_infte_ops_int.admin';
         this.ROLE_LEADERSHIP = 'x_infte_ops_int.leadership';
-        this.ROLE_CREATOR = 'x_infte_ops_int.creator';
-        this.ROLE_USER = 'x_infte_ops_int.user';
+        this.ROLE_CREATOR    = 'x_infte_ops_int.creator';
+        this.ROLE_USER       = 'x_infte_ops_int.user';
     },
 
     _resolveUserId: function(userSysId) {
@@ -17,9 +16,14 @@ PermissionResolver.prototype = {
         return '' + userSysId;
     },
 
+    _parseJson: function(raw, fallback) {
+        if (!raw) { return fallback; }
+        try { return JSON.parse(raw); } catch (e) { return fallback; }
+    },
+
     getSystemRole: function(userSysId) {
         var uid = this._resolveUserId(userSysId);
-        if (gs.getUser().getUserByID(uid) && this._userHasRole(uid, this.ROLE_ADMIN)) {
+        if (this._userHasRole(uid, this.ROLE_OI_ADMIN)) {
             return 'admin';
         }
         if (this._userHasRole(uid, this.ROLE_LEADERSHIP)) {
@@ -37,9 +41,7 @@ PermissionResolver.prototype = {
             return gs.hasRole(role);
         }
         var gu = gs.getUser().getUserByID(userSysId);
-        if (!gu) {
-            return false;
-        }
+        if (!gu) { return false; }
         return gu.hasRole(role);
     },
 
@@ -63,42 +65,43 @@ PermissionResolver.prototype = {
     getUserGroups: function(userSysId) {
         var groups = [];
         var personSysId = this.getPersonByUser(userSysId);
-        if (!personSysId) {
-            return groups;
-        }
-        var gm = new GlideRecord(this.GROUP_MEMBER_TABLE);
-        gm.addQuery('member', personSysId);
-        gm.addQuery('status', 'active');
-        gm.query();
-        while (gm.next()) {
-            var groupSysId = '' + gm.getValue('group');
-            var groupName = '';
-            var grp = new GlideRecord(this.GROUP_TABLE);
-            if (grp.get(groupSysId)) {
-                groupName = '' + grp.getValue('name');
+        if (!personSysId) { return groups; }
+
+        var grp = new GlideRecord(this.GROUP_TABLE);
+        grp.addQuery('status', 'active');
+        grp.query();
+        while (grp.next()) {
+            var members = this._parseJson('' + grp.getValue('members'), []);
+            var i;
+            for (i = 0; i < members.length; i++) {
+                if ('' + members[i].person_sys_id === '' + personSysId &&
+                        members[i].status !== 'inactive') {
+                    groups.push({
+                        group_sys_id: '' + grp.getUniqueValue(),
+                        group_name:   '' + grp.getValue('name'),
+                        group_role:   '' + (members[i].group_role || 'user')
+                    });
+                    break;
+                }
             }
-            groups.push({
-                group_sys_id: groupSysId,
-                group_name: groupName,
-                group_role: '' + gm.getValue('group_role')
-            });
         }
         return groups;
     },
 
     getGroupRole: function(userSysId, groupSysId) {
         var personSysId = this.getPersonByUser(userSysId);
-        if (!personSysId) {
-            return null;
-        }
-        var gm = new GlideRecord(this.GROUP_MEMBER_TABLE);
-        gm.addQuery('member', personSysId);
-        gm.addQuery('group', groupSysId);
-        gm.addQuery('status', 'active');
-        gm.setLimit(1);
-        gm.query();
-        if (gm.next()) {
-            return '' + gm.getValue('group_role');
+        if (!personSysId) { return null; }
+
+        var grp = new GlideRecord(this.GROUP_TABLE);
+        if (!grp.get(groupSysId)) { return null; }
+
+        var members = this._parseJson('' + grp.getValue('members'), []);
+        var i;
+        for (i = 0; i < members.length; i++) {
+            if ('' + members[i].person_sys_id === '' + personSysId &&
+                    members[i].status !== 'inactive') {
+                return '' + (members[i].group_role || 'user');
+            }
         }
         return null;
     },
@@ -109,20 +112,12 @@ PermissionResolver.prototype = {
 
     canManageGroup: function(userSysId, groupSysId) {
         var uid = this._resolveUserId(userSysId);
-        if (this._userHasRole(uid, this.ROLE_ADMIN)) {
-            return true;
-        }
-        if (!this._userHasRole(uid, this.ROLE_LEADERSHIP)) {
-            return false;
-        }
+        if (this._userHasRole(uid, this.ROLE_OI_ADMIN)) { return true; }
+        if (!this._userHasRole(uid, this.ROLE_LEADERSHIP)) { return false; }
         var personSysId = this.getPersonByUser(uid);
-        if (!personSysId) {
-            return false;
-        }
+        if (!personSysId) { return false; }
         var grp = new GlideRecord(this.GROUP_TABLE);
-        if (!grp.get(groupSysId)) {
-            return false;
-        }
+        if (!grp.get(groupSysId)) { return false; }
         return '' + grp.getValue('owner') === '' + personSysId;
     },
 

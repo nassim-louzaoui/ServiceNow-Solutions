@@ -2,9 +2,13 @@ var GroupManager = Class.create();
 GroupManager.prototype = {
     initialize: function() {
         this.PERSON_TABLE = 'x_infte_ops_int_person';
-        this.GROUP_TABLE = 'x_infte_ops_int_group';
-        this.GROUP_MEMBER_TABLE = 'x_infte_ops_int_group_member';
+        this.GROUP_TABLE  = 'x_infte_ops_int_group';
         this.ROLE_CREATOR = 'x_infte_ops_int.creator';
+    },
+
+    _parseJson: function(raw, fallback) {
+        if (!raw) { return fallback; }
+        try { return JSON.parse(raw); } catch (e) { return fallback; }
     },
 
     createGroup: function(name, description, type, ownerPersonSysId, parentGroupSysId, createdByPersonSysId) {
@@ -24,86 +28,68 @@ GroupManager.prototype = {
         var gr = new GlideRecord(this.GROUP_TABLE);
         gr.initialize();
         gr.setValue('name', name);
-        if (description) {
-            gr.setValue('description', description);
-        }
+        if (description) { gr.setValue('description', description); }
         gr.setValue('type', type || 'custom_group');
-        if (ownerPersonSysId) {
-            gr.setValue('owner', ownerPersonSysId);
-        }
-        if (parentGroupSysId) {
-            gr.setValue('parent_group', parentGroupSysId);
-        }
-        if (createdByPersonSysId) {
-            gr.setValue('created_by_person', createdByPersonSysId);
-        }
+        if (ownerPersonSysId) { gr.setValue('owner', ownerPersonSysId); }
+        if (parentGroupSysId) { gr.setValue('parent_group', parentGroupSysId); }
+        if (createdByPersonSysId) { gr.setValue('created_by_person', createdByPersonSysId); }
         gr.setValue('created_at', new GlideDateTime().getValue());
         gr.setValue('status', 'active');
+        gr.setValue('members', '[]');
+        gr.setValue('automations', '[]');
         var sysId = gr.insert();
-        if (sysId) {
-            gs.info('x_infte_ops_int GroupManager created group ' + name + ' (' + sysId + ')');
-        }
         return sysId ? '' + sysId : null;
     },
 
     addMember: function(groupSysId, personSysId, groupRole, addedByPersonSysId) {
         if (!groupSysId || !personSysId) {
             gs.error('x_infte_ops_int GroupManager.addMember missing group or person');
-            return null;
+            return false;
         }
         var role = groupRole || 'user';
+        var gr = new GlideRecord(this.GROUP_TABLE);
+        if (!gr.get(groupSysId)) { return false; }
 
-        var existing = new GlideRecord(this.GROUP_MEMBER_TABLE);
-        existing.addQuery('group', groupSysId);
-        existing.addQuery('member', personSysId);
-        existing.addQuery('status', 'active');
-        existing.setLimit(1);
-        existing.query();
-        var memberSysId;
-        if (existing.next()) {
-            memberSysId = '' + existing.getUniqueValue();
-            if (existing.getValue('group_role') !== role) {
-                existing.setValue('group_role', role);
-                existing.update();
+        var members = this._parseJson('' + gr.getValue('members'), []);
+        var i;
+        var found = false;
+        for (i = 0; i < members.length; i++) {
+            if ('' + members[i].person_sys_id === '' + personSysId) {
+                members[i].group_role = role;
+                members[i].status = 'active';
+                found = true;
+                break;
             }
-        } else {
-            var gm = new GlideRecord(this.GROUP_MEMBER_TABLE);
-            gm.initialize();
-            gm.setValue('group', groupSysId);
-            gm.setValue('member', personSysId);
-            gm.setValue('group_role', role);
-            if (addedByPersonSysId) {
-                gm.setValue('added_by', addedByPersonSysId);
-            }
-            gm.setValue('added_at', new GlideDateTime().getValue());
-            gm.setValue('status', 'active');
-            memberSysId = gm.insert();
-            memberSysId = memberSysId ? '' + memberSysId : null;
         }
+        if (!found) {
+            members.push({
+                person_sys_id: '' + personSysId,
+                group_role:    role,
+                added_by:      '' + (addedByPersonSysId || ''),
+                added_at:      new GlideDateTime().getValue(),
+                status:        'active'
+            });
+        }
+        gr.setValue('members', JSON.stringify(members));
+        gr.update();
 
         if (role === 'creator') {
             this._ensureCreatorSystemRole(personSysId);
         }
-        return memberSysId;
+        return true;
     },
 
     _ensureCreatorSystemRole: function(personSysId) {
         var person = new GlideRecord(this.PERSON_TABLE);
-        if (!person.get(personSysId)) {
-            return false;
-        }
+        if (!person.get(personSysId)) { return false; }
         var userSysId = '' + person.getValue('user');
-        if (!userSysId) {
-            return false;
-        }
+        if (!userSysId) { return false; }
+
         var roleGr = new GlideRecord('sys_user_role');
         roleGr.addQuery('name', this.ROLE_CREATOR);
         roleGr.setLimit(1);
         roleGr.query();
-        if (!roleGr.next()) {
-            gs.error('x_infte_ops_int GroupManager could not find role ' + this.ROLE_CREATOR);
-            return false;
-        }
+        if (!roleGr.next()) { return false; }
         var roleSysId = '' + roleGr.getUniqueValue();
 
         var existing = new GlideRecord('sys_user_has_role');
@@ -111,62 +97,119 @@ GroupManager.prototype = {
         existing.addQuery('role', roleSysId);
         existing.setLimit(1);
         existing.query();
-        if (existing.next()) {
-            return true;
-        }
+        if (existing.next()) { return true; }
+
         var has = new GlideRecord('sys_user_has_role');
         has.initialize();
         has.setValue('user', userSysId);
         has.setValue('role', roleSysId);
         has.insert();
-        gs.info('x_infte_ops_int GroupManager granted creator system role to user ' + userSysId);
         return true;
     },
 
     removeMember: function(groupSysId, personSysId) {
-        if (!groupSysId || !personSysId) {
-            return false;
-        }
-        var gm = new GlideRecord(this.GROUP_MEMBER_TABLE);
-        gm.addQuery('group', groupSysId);
-        gm.addQuery('member', personSysId);
-        gm.addQuery('status', 'active');
-        gm.query();
+        if (!groupSysId || !personSysId) { return false; }
+        var gr = new GlideRecord(this.GROUP_TABLE);
+        if (!gr.get(groupSysId)) { return false; }
+
+        var members = this._parseJson('' + gr.getValue('members'), []);
         var updated = false;
-        while (gm.next()) {
-            gm.setValue('status', 'inactive');
-            gm.update();
-            updated = true;
+        var i;
+        for (i = 0; i < members.length; i++) {
+            if ('' + members[i].person_sys_id === '' + personSysId && members[i].status !== 'inactive') {
+                members[i].status = 'inactive';
+                updated = true;
+            }
+        }
+        if (updated) {
+            gr.setValue('members', JSON.stringify(members));
+            gr.update();
         }
         return updated;
     },
 
     getMembers: function(groupSysId) {
-        var members = [];
-        if (!groupSysId) {
-            return members;
+        if (!groupSysId) { return []; }
+        var gr = new GlideRecord(this.GROUP_TABLE);
+        if (!gr.get(groupSysId)) { return []; }
+
+        var members = this._parseJson('' + gr.getValue('members'), []);
+        var result = [];
+        var i;
+        for (i = 0; i < members.length; i++) {
+            if (members[i].status !== 'inactive') {
+                var personName = '';
+                var pGr = new GlideRecord(this.PERSON_TABLE);
+                if (pGr.get(members[i].person_sys_id)) {
+                    personName = '' + pGr.getDisplayValue('user');
+                }
+                result.push({
+                    person_sys_id: '' + members[i].person_sys_id,
+                    person_name:   personName,
+                    group_role:    '' + (members[i].group_role || 'user'),
+                    added_at:      '' + (members[i].added_at || '')
+                });
+            }
         }
-        var gm = new GlideRecord(this.GROUP_MEMBER_TABLE);
-        gm.addQuery('group', groupSysId);
-        gm.addQuery('status', 'active');
-        gm.query();
-        while (gm.next()) {
-            members.push({
-                member_record_sys_id: '' + gm.getUniqueValue(),
-                person_sys_id: '' + gm.getValue('member'),
-                person_name: '' + gm.getDisplayValue('member'),
-                group_role: '' + gm.getValue('group_role'),
-                added_at: '' + gm.getValue('added_at')
-            });
+        return result;
+    },
+
+    addAutomation: function(groupSysId, automationSysId, addedByPersonSysId) {
+        if (!groupSysId || !automationSysId) { return false; }
+        var gr = new GlideRecord(this.GROUP_TABLE);
+        if (!gr.get(groupSysId)) { return false; }
+
+        var automations = this._parseJson('' + gr.getValue('automations'), []);
+        var i;
+        for (i = 0; i < automations.length; i++) {
+            if ('' + automations[i].automation_sys_id === '' + automationSysId) {
+                automations[i].approval_status = 'pending';
+                gr.setValue('automations', JSON.stringify(automations));
+                gr.update();
+                return true;
+            }
         }
-        return members;
+        automations.push({
+            automation_sys_id: '' + automationSysId,
+            approval_status:   'pending',
+            added_by:          '' + (addedByPersonSysId || ''),
+            added_at:          new GlideDateTime().getValue(),
+            approved_by:       '',
+            approved_at:       '',
+            rejected_reason:   ''
+        });
+        gr.setValue('automations', JSON.stringify(automations));
+        gr.update();
+        return true;
+    },
+
+    approveAutomation: function(groupSysId, automationSysId, approvedByPersonSysId) {
+        if (!groupSysId || !automationSysId) { return false; }
+        var gr = new GlideRecord(this.GROUP_TABLE);
+        if (!gr.get(groupSysId)) { return false; }
+
+        var automations = this._parseJson('' + gr.getValue('automations'), []);
+        var updated = false;
+        var i;
+        for (i = 0; i < automations.length; i++) {
+            if ('' + automations[i].automation_sys_id === '' + automationSysId) {
+                automations[i].approval_status = 'approved';
+                automations[i].approved_by = '' + (approvedByPersonSysId || '');
+                automations[i].approved_at = new GlideDateTime().getValue();
+                updated = true;
+                break;
+            }
+        }
+        if (updated) {
+            gr.setValue('automations', JSON.stringify(automations));
+            gr.update();
+        }
+        return updated;
     },
 
     getChildGroups: function(parentGroupSysId) {
         var children = [];
-        if (!parentGroupSysId) {
-            return children;
-        }
+        if (!parentGroupSysId) { return children; }
         var gr = new GlideRecord(this.GROUP_TABLE);
         gr.addQuery('parent_group', parentGroupSysId);
         gr.addQuery('status', '!=', 'archived');
@@ -174,8 +217,8 @@ GroupManager.prototype = {
         while (gr.next()) {
             children.push({
                 group_sys_id: '' + gr.getUniqueValue(),
-                name: '' + gr.getValue('name'),
-                type: '' + gr.getValue('type'),
+                name:   '' + gr.getValue('name'),
+                type:   '' + gr.getValue('type'),
                 status: '' + gr.getValue('status')
             });
         }
@@ -183,32 +226,23 @@ GroupManager.prototype = {
     },
 
     archiveGroup: function(groupSysId) {
-        if (!groupSysId) {
-            return false;
-        }
+        if (!groupSysId) { return false; }
         var gr = new GlideRecord(this.GROUP_TABLE);
-        if (!gr.get(groupSysId)) {
-            return false;
-        }
+        if (!gr.get(groupSysId)) { return false; }
         gr.setValue('status', 'archived');
         gr.update();
-        gs.info('x_infte_ops_int GroupManager archived group ' + groupSysId);
         return true;
     },
 
     getLeadershipGroupFor: function(leaderPersonSysId) {
-        if (!leaderPersonSysId) {
-            return null;
-        }
+        if (!leaderPersonSysId) { return null; }
         var gr = new GlideRecord(this.GROUP_TABLE);
         gr.addQuery('owner', leaderPersonSysId);
         gr.addQuery('type', 'leadership_group');
         gr.addQuery('status', 'active');
         gr.setLimit(1);
         gr.query();
-        if (gr.next()) {
-            return '' + gr.getUniqueValue();
-        }
+        if (gr.next()) { return '' + gr.getUniqueValue(); }
         return null;
     },
 
