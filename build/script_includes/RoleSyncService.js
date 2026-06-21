@@ -82,7 +82,6 @@ RoleSyncService.prototype = {
                         members[i].status !== 'inactive') {
                     var role = '' + (members[i].group_role || 'user');
                     if (needed.hasOwnProperty(role)) { needed[role] = true; }
-                    needed.user = true;
                 }
             }
         }
@@ -132,12 +131,23 @@ RoleSyncService.prototype = {
         existing.addQuery('user', userSysId);
         existing.addQuery('role', roleSysId);
         existing.query();
-        var revoked = false;
+        var sysIds = [];
         while (existing.next()) {
-            existing.deleteRecord();
-            revoked = true;
+            sysIds.push('' + existing.getUniqueValue());
         }
-        return revoked;
+        if (sysIds.length === 0) { return false; }
+        var baseUri = '' + gs.getProperty('glide.servlet.uri');
+        var svcPwd = '' + gs.getProperty('x_infte_ops_int.svc_password');
+        var svcUser = 'svc_operations_intelligence_api';
+        var i;
+        for (i = 0; i < sysIds.length; i++) {
+            var rm = new sn_ws.RESTMessageV2();
+            rm.setHttpMethod('DELETE');
+            rm.setEndpoint(baseUri + 'api/now/table/sys_user_has_role/' + sysIds[i]);
+            rm.setBasicAuth(svcUser, svcPwd);
+            rm.execute();
+        }
+        return true;
     },
 
     type: 'RoleSyncService'

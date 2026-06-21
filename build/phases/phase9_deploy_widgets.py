@@ -55,20 +55,32 @@ def build():
     composed_client_script = react_js + "\n" + reactdom_js + "\n" + app_js + "\n\n" + bridge_js
     composed_css = read_widget("style.css")
 
+    server_script = read_widget("server-script.js")
     data = {
         "id":            PORTAL_ID,
         "name":          PORTAL_NAME,
         "template":      template,
-        "server_script": read_widget("server-script.js"),
+        "server_script": server_script,
         "client_script": composed_client_script,
         "css":           composed_css,
         "active":        True,
     }
     r = ec.op("artifact.widget", data=data)
-    if r.get("ok"):
-        print("%-34s -> %s (%s)" % (PORTAL_NAME, PORTAL_ID, r.get("action", "ok")))
-    else:
-        print("FAIL: %s" % str(r)[:200])
+    if not r.get("ok"):
+        print("FAIL artifact.widget: %s" % str(r)[:200])
+        return [r]
+    print("%-34s -> %s (%s)" % (PORTAL_NAME, PORTAL_ID, r.get("action", "ok")))
+    widget_sys_id = r.get("sys_id", "")
+    if widget_sys_id and server_script:
+        r2 = ec.op("rest.call", data={
+            "method": "PATCH",
+            "path": "/api/now/table/sp_widget/" + widget_sys_id,
+            "body": {"script": server_script},
+        })
+        if r2.get("ok") and r2.get("status") in (200, 200.0):
+            print("  %-32s -> server script deployed (%d bytes)" % ("", len(server_script)))
+        else:
+            print("  WARN: server script REST deploy failed: %s" % str(r2)[:120])
     return [r]
 
 
