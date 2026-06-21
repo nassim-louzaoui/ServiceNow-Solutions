@@ -192,6 +192,10 @@
 
     React.useEffect(function () {
       function startApp() {
+        if (_bridge && _bridge.data && _bridge.data.denied) {
+          dispatch({ type: 'SET_AUTH_DENIED', payload: true });
+          return;
+        }
         dispatch({ type: 'SET_LOADING', payload: true });
         callServer({ action: 'load_section', section: 'workspace' }, function (data, err) {
           if (err) { dispatch({ type: 'SET_ERROR', payload: err }); return; }
