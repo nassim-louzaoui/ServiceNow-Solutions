@@ -8,6 +8,52 @@
 
   var h = React.createElement;
 
+  function OIIcon(props) {
+    var size = props.size || 18;
+    var paths = {
+      workspace:  'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z',
+      activity:   'M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z',
+      studio:     'M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z',
+      governance: 'M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z',
+      command:    'M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z',
+      user:       'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
+      group:      'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z',
+      search:     'M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z',
+      close:      'M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z',
+      play:       'M8 5v14l11-7z',
+      check:      'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z',
+      plus:       'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z',
+      remove:     'M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z',
+      error_icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z',
+      warning_icon: 'M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z',
+      info_icon:  'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z',
+      lock:       'M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z',
+      denied:     'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zM4 12c0-4.42 3.58-8 8-8 1.85 0 3.55.63 4.9 1.69L5.69 16.9C4.63 15.55 4 13.85 4 12zm8 8c-1.85 0-3.55-.63-4.9-1.69L18.31 7.1C19.37 8.45 20 10.15 20 12c0 4.42-3.58 8-8 8z',
+      automation: 'M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z',
+      refresh:    'M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z',
+      collapse:   'M11.67 3.87L9.9 2.1 0 12l9.9 9.9 1.77-1.77L3.54 12z',
+      expand:     'M12.33 3.87l1.77-1.77L24 12l-9.9 9.9-1.77-1.77L20.46 12z',
+      document:   'M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z',
+      chevron_right: 'M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z',
+      menu:       'M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z',
+      approve:    'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14l-4-4 1.41-1.41L10 13.17l6.59-6.59L18 8l-8 8z',
+      reject:     'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z',
+      person_add: 'M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
+      toggle_on:  'M17 7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h10c2.76 0 5-2.24 5-5s-2.24-5-5-5zm0 8c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z',
+      toggle_off: 'M17 7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h10c2.76 0 5-2.24 5-5s-2.24-5-5-5zm-10 8c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z'
+    };
+    var d = paths[props.name] || paths['command'];
+    return h('svg', {
+      xmlns: 'http://www.w3.org/2000/svg',
+      width: size,
+      height: size,
+      viewBox: '0 0 24 24',
+      fill: props.fill || 'currentColor',
+      'aria-hidden': 'true',
+      style: { display: 'inline-block', verticalAlign: 'middle', flexShrink: '0' }
+    }, h('path', { d: d }));
+  }
+
   var _bridge = null;
   var _onBridgeReady = null;
   var _toastId = 0;
@@ -63,11 +109,11 @@
   /* ── Reducer ─────────────────────────────────────────────────── */
 
   var NAV_ITEMS = [
-    { id: 'workspace',   label: 'Workspace',    icon: '\u{1F4CA}' },
-    { id: 'activity',    label: 'My Activity',  icon: '⚡' },
-    { id: 'studio',      label: 'Studio',       icon: '\u{1F6E0}' },
-    { id: 'governance',  label: 'Governance',   icon: '\u{1F465}' },
-    { id: 'command',     label: 'Command',      icon: '⚙️' }
+    { id: 'workspace',   label: 'Workspace',    icon: 'workspace'  },
+    { id: 'activity',    label: 'My Activity',  icon: 'activity'   },
+    { id: 'studio',      label: 'Studio',       icon: 'studio'     },
+    { id: 'governance',  label: 'Governance',   icon: 'governance' },
+    { id: 'command',     label: 'Command',      icon: 'command'    }
   ];
 
   var initialState = {
@@ -194,7 +240,7 @@
         h(AppContext.Provider, { value: ctx },
           h('div', { className: 'oi-denied' },
             h('div', { className: 'oi-denied-card' },
-              h('div', { className: 'oi-denied-icon' }, '🚫'),
+              h('div', { className: 'oi-denied-icon' }, h(OIIcon, { name: 'denied', size: 48, fill: '#D9534F' })),
               h('h2', { className: 'oi-denied-title' }, 'Access Denied'),
               h('p', { className: 'oi-denied-desc' }, 'You do not have permission to access Operations Intelligence.'),
               deniedLogin ? h('p', { className: 'oi-denied-user' }, 'Signed in as: ' + deniedLogin) : null,
@@ -232,7 +278,7 @@
             h('div', { className: 'oi-content' },
               state.error
                 ? h('div', { className: 'oi-error-banner' },
-                    h('span', null, '⚠️'),
+                    h('span', null, h(OIIcon, { name: 'warning_icon', size: 16 })),
                     h('span', null, state.error)
                   )
                 : null,
@@ -258,7 +304,7 @@
 
     return h('aside', { className: 'oi-sidebar' },
       h('div', { className: 'oi-brand' },
-        h('div', { className: 'oi-brand-icon' }, '⚡'),
+        h('div', { className: 'oi-brand-icon' }, h(OIIcon, { name: 'workspace', size: 20, fill: '#fff' })),
         h('span', { className: 'oi-brand-text' }, 'Operations Intelligence')
       ),
       h('nav', { className: 'oi-nav' },
@@ -271,7 +317,7 @@
               dispatch({ type: 'CLOSE_MOBILE' });
             }
           },
-            h('span', { className: 'oi-nav-icon' }, item.icon),
+            h('span', { className: 'oi-nav-icon' }, h(OIIcon, { name: item.icon, size: 18, fill: 'currentColor' })),
             h('span', { className: 'oi-nav-label' }, item.label)
           );
         })
@@ -286,7 +332,7 @@
           className: 'oi-collapse-btn',
           onClick: function () { dispatch({ type: 'TOGGLE_SIDEBAR' }); },
           title: state.sidebarCollapsed ? 'Expand' : 'Collapse'
-        }, state.sidebarCollapsed ? '»' : '«')
+        }, h(OIIcon, { name: state.sidebarCollapsed ? 'expand' : 'collapse', size: 16 }))
       )
     );
   }
@@ -305,18 +351,17 @@
         h('button', {
           className: 'oi-mobile-btn',
           onClick: function () { dispatch({ type: 'TOGGLE_MOBILE' }); }
-        }, '☰'),
+        }, h(OIIcon, { name: 'menu', size: 20 })),
         h('div', { className: 'oi-breadcrumb' },
           h('span', { className: 'oi-breadcrumb-root' }, 'Operations Intelligence'),
-          h('span', { className: 'oi-breadcrumb-sep' }, '►'),
+          h('span', { className: 'oi-breadcrumb-sep' }, h(OIIcon, { name: 'chevron_right', size: 14 })),
           h('span', { className: 'oi-breadcrumb-current' }, props.activeNav.label)
         )
       ),
       h('div', { className: 'oi-topbar-right' },
         props.loading ? h('div', { className: 'oi-topbar-spinner' }, h('div', { className: 'oi-spinner sm' })) : null,
         h('div', { className: 'oi-topbar-user' },
-          h('div', { className: 'oi-topbar-avatar' }, userInitials),
-          h('span', { className: 'oi-topbar-username' }, userName)
+          h('div', { className: 'oi-topbar-avatar' }, userInitials)
         )
       )
     );
@@ -384,11 +429,11 @@
       h('div', { className: 'oi-toolbar' },
         h('div', { className: 'oi-toolbar-left' },
           h('h1', { className: 'oi-section-title' }, 'Workspace'),
-          h('span', { style: { fontSize: '0.8125rem', color: '#6B7B8D' } }, automations.length + ' automation' + (automations.length === 1 ? '' : 's') + ' available')
+          h('span', { style: { fontSize: '0.75rem', color: '#6E6E6E' } }, automations.length + ' automation' + (automations.length === 1 ? '' : 's') + ' available')
         ),
         h('div', { className: 'oi-toolbar-right' },
           h('div', { className: 'oi-search-wrap' },
-            h('span', { className: 'oi-search-icon' }, '⌕'),
+            h('span', { className: 'oi-search-icon' }, h(OIIcon, { name: 'search', size: 14 })),
             h('input', {
               className: 'oi-search-input',
               type: 'text',
@@ -401,13 +446,13 @@
       ),
       automations.length === 0
         ? h('div', { className: 'oi-empty' },
-            h('div', { className: 'oi-empty-icon' }, '⚡'),
+            h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'automation', size: 40, fill: '#DCDCDC' })),
             h('div', { className: 'oi-empty-title' }, 'No automations available'),
             h('div', { className: 'oi-empty-sub' }, 'Contact your administrator to be added to a group with published automations.')
           )
         : filtered.length === 0
           ? h('div', { className: 'oi-empty' },
-              h('div', { className: 'oi-empty-icon' }, '🔍'),
+              h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'search', size: 40, fill: '#DCDCDC' })),
               h('div', { className: 'oi-empty-title' }, 'No results'),
               h('div', { className: 'oi-empty-sub' }, 'No automations match your search.')
             )
@@ -415,17 +460,17 @@
               filtered.map(function (auto) {
                 var isBusy = !!busy[auto.sys_id];
                 return h('div', { key: auto.sys_id, className: 'oi-auto-card', style: { borderTopColor: auto.category_color || '#0072CE' } },
-                  h('div', { className: 'oi-auto-card-icon' }, '⚡'),
+                  h('div', { className: 'oi-auto-card-icon' }, h(OIIcon, { name: 'automation', size: 20, fill: '#0072CE' })),
                   h('div', { className: 'oi-auto-card-name' }, auto.name),
                   h('div', { className: 'oi-auto-card-desc' }, auto.short_description || 'No description.'),
-                  h('div', { className: 'oi-auto-card-owner' }, '👤 ' + (auto.owner_group || 'Unassigned')),
+                  h('div', { className: 'oi-auto-card-owner' }, h(OIIcon, { name: 'user', size: 12 }), ' ' + (auto.owner_group || 'Unassigned')),
                   h('div', { className: 'oi-auto-card-foot' },
                     auto.usage_count != null ? h('span', { className: 'oi-td-muted', style: { fontSize: '0.75rem' } }, auto.usage_count + ' runs') : null,
                     h('button', {
                       className: 'oi-btn primary xs',
                       disabled: isBusy,
                       onClick: function () { triggerAuto(auto); }
-                    }, isBusy ? h('span', { className: 'oi-spinner sm' }) : '▶ Run')
+                    }, isBusy ? h('span', { className: 'oi-spinner sm' }) : [h(OIIcon, { name: 'play', size: 14 }), ' Run'])
                   )
                 );
               })
@@ -476,7 +521,7 @@
       h('div', { className: 'oi-toolbar' },
         h('div', { className: 'oi-toolbar-left' },
           h('h1', { className: 'oi-section-title' }, 'My Activity'),
-          h('span', { style: { fontSize: '0.8125rem', color: '#6B7B8D' } }, executions.length + ' execution' + (executions.length === 1 ? '' : 's'))
+          h('span', { style: { fontSize: '0.75rem', color: '#6E6E6E' } }, executions.length + ' execution' + (executions.length === 1 ? '' : 's'))
         )
       ),
       h('div', { className: 'oi-split' },
@@ -487,7 +532,7 @@
             ),
             executions.length === 0
               ? h('div', { className: 'oi-empty' },
-                  h('div', { className: 'oi-empty-icon' }, '📋'),
+                  h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'document', size: 40, fill: '#DCDCDC' })),
                   h('div', { className: 'oi-empty-title' }, 'No executions yet'),
                   h('div', { className: 'oi-empty-sub' }, 'Trigger an automation to see results here.')
                 )
@@ -523,7 +568,7 @@
           ? h('div', { className: 'oi-detail-pane' },
               h('div', { className: 'oi-detail-hdr' },
                 h('span', { className: 'oi-detail-title' }, selectedEx.automation_name || selectedEx.name || 'Execution'),
-                h('button', { className: 'oi-icon-btn', onClick: function () { setSelectedEx(null); setStepLog(null); } }, '✕')
+                h('button', { className: 'oi-icon-btn', onClick: function () { setSelectedEx(null); setStepLog(null); } }, h(OIIcon, { name: 'close', size: 18 }))
               ),
               h('div', { className: 'oi-detail-meta' },
                 h(Badge, { cls: statusClass(selectedEx.status) }, selectedEx.status || 'unknown'),
@@ -595,7 +640,7 @@
             ? h('div', null,
                 artifacts.length === 0
                   ? h('div', { className: 'oi-empty' },
-                      h('div', { className: 'oi-empty-icon' }, '🗄️'),
+                      h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'document', size: 40, fill: '#DCDCDC' })),
                       h('div', { className: 'oi-empty-title' }, 'No draft artifacts'),
                       h('div', { className: 'oi-empty-sub' }, 'Artifacts you create in draft state will appear here.')
                     )
@@ -625,14 +670,14 @@
             : h('div', { style: { padding: '1.25rem' } },
                 deliverableTypes.length === 0
                   ? h('div', { className: 'oi-empty' },
-                      h('div', { className: 'oi-empty-icon' }, '📋'),
+                      h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'document', size: 40, fill: '#DCDCDC' })),
                       h('div', { className: 'oi-empty-title' }, 'No deliverable types'),
                       h('div', { className: 'oi-empty-sub' }, 'Deliverable types configured in the system will appear here.')
                     )
                   : h('div', { className: 'oi-auto-grid' },
                       deliverableTypes.map(function (dt, i) {
                         return h('div', { key: dt.sys_id || i, className: 'oi-auto-card' },
-                          h('div', { className: 'oi-auto-card-icon' }, '📋'),
+                          h('div', { className: 'oi-auto-card-icon' }, h(OIIcon, { name: 'document', size: 20, fill: '#0072CE' })),
                           h('div', { className: 'oi-auto-card-name' }, dt.name),
                           h('div', { className: 'oi-auto-card-desc' }, dt.icon || '')
                         );
@@ -780,13 +825,13 @@
                             className: 'oi-list-item' + (selectedGroup && selectedGroup.sys_id === g.sys_id ? ' selected' : ''),
                             onClick: function () { selectGroup(g); }
                           },
-                            h('div', { className: 'oi-list-item-icon' }, '👥'),
+                            h('div', { className: 'oi-list-item-icon' }, h(OIIcon, { name: 'group', size: 16 })),
                             h('div', { className: 'oi-list-item-body' },
                               h('div', { className: 'oi-list-item-title' }, g.name),
                               h('div', { className: 'oi-list-item-sub' }, g.description || '')
                             ),
                             h('span', { className: 'oi-list-item-count' }, g.member_count != null ? g.member_count : ''),
-                            h('span', { className: 'oi-list-item-caret' }, '►')
+                            h('span', { className: 'oi-list-item-caret' }, h(OIIcon, { name: 'chevron_right', size: 14 }))
                           );
                         })
                   )
@@ -799,8 +844,8 @@
                           h('button', {
                             className: 'oi-btn ghost xs',
                             onClick: function () { setShowAddMember(true); }
-                          }, '+ Member'),
-                          h('button', { className: 'oi-icon-btn', onClick: function () { setSelectedGroup(null); } }, '✕')
+                          }, h(OIIcon, { name: 'plus', size: 14 }), ' Member'),
+                          h('button', { className: 'oi-icon-btn', onClick: function () { setSelectedGroup(null); } }, h(OIIcon, { name: 'close', size: 18 }))
                         )
                       ),
                       h('div', { className: 'oi-detail-body' },
@@ -814,14 +859,15 @@
                                   return h('div', { key: m.person_sys_id || i, className: 'oi-member-item' },
                                     h('div', { className: 'oi-member-avatar' }, initials(m.person_name || '')),
                                     h('div', { className: 'oi-member-info' },
-                                      h('div', { className: 'oi-member-name' }, m.person_name || m.person_sys_id),
-                                      h('div', { className: 'oi-member-role' }, m.group_role || 'member')
+                                      h('div', { className: 'oi-member-name' }, m.person_name || '—'),
+                                      m.person_email ? h('div', { className: 'oi-member-role' }, m.person_email) : null,
+                                      h('div', { className: 'oi-member-role' }, m.group_role || 'user')
                                     ),
                                     h('button', {
                                       className: 'oi-icon-btn danger',
                                       title: 'Remove',
                                       onClick: function () { removeMember(m.person_sys_id); }
-                                    }, '✕')
+                                    }, h(OIIcon, { name: 'remove', size: 14 }))
                                   );
                                 })
                               )
@@ -833,7 +879,7 @@
               ? h('div', null,
                   persons.length === 0
                     ? h('div', { className: 'oi-empty' },
-                        h('div', { className: 'oi-empty-icon' }, '👤'),
+                        h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'user', size: 40, fill: '#DCDCDC' })),
                         h('div', { className: 'oi-empty-title' }, 'No persons enrolled'),
                         h('div', { className: 'oi-empty-sub' }, 'Enroll a ServiceNow user to grant access.')
                       )
@@ -841,7 +887,7 @@
                         h('thead', null,
                           h('tr', null,
                             h('th', null, 'Name'),
-                            h('th', null, 'Username'),
+                            h('th', null, 'Username / Email'),
                             h('th', null, 'Groups'),
                             h('th', null, 'Status'),
                             h('th', null, '')
@@ -856,7 +902,12 @@
                                   h('span', { className: 'oi-td-primary' }, p.name || '')
                                 )
                               ),
-                              h('td', null, h('span', { className: 'oi-td-mono' }, p.user_name || '')),
+                              h('td', null,
+                                h('div', null,
+                                  h('div', { className: 'oi-td-mono' }, p.user_name || '—'),
+                                  p.email ? h('div', { className: 'oi-td-muted' }, p.email) : null
+                                )
+                              ),
                               h('td', null,
                                 (p.groups || []).map(function (g, gi) {
                                   return h('span', { key: gi, className: 'oi-tag' }, g.group_name);
@@ -877,7 +928,7 @@
               : h('div', { className: 'oi-action-list' },
                   pendingActions.length === 0
                     ? h('div', { className: 'oi-empty' },
-                        h('div', { className: 'oi-empty-icon' }, '✅'),
+                        h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'check', size: 40, fill: '#DCDCDC' })),
                         h('div', { className: 'oi-empty-title' }, 'All clear'),
                         h('div', { className: 'oi-empty-sub' }, 'No pending actions require attention.')
                       )
@@ -893,11 +944,11 @@
                             h('button', {
                               className: 'oi-btn primary xs',
                               onClick: function () { resolveAction(a, 'approved'); }
-                            }, '✓ Approve'),
+                            }, h(OIIcon, { name: 'approve', size: 14 }), ' Approve'),
                             h('button', {
                               className: 'oi-btn danger xs',
                               onClick: function () { resolveAction(a, 'rejected'); }
-                            }, '✕ Reject')
+                            }, h(OIIcon, { name: 'reject', size: 14 }), ' Reject')
                           )
                         );
                       })
@@ -974,7 +1025,7 @@
       h('div', { className: 'oi-modal md' },
         h('div', { className: 'oi-modal-hdr' },
           h('span', { className: 'oi-modal-title' }, 'Create Group'),
-          h('button', { className: 'oi-modal-close', onClick: props.onClose }, '✕')
+          h('button', { className: 'oi-modal-close', onClick: props.onClose }, h(OIIcon, { name: 'close', size: 18 }))
         ),
         h('div', { className: 'oi-modal-body' },
           h('div', { className: 'oi-form-group' },
@@ -1039,7 +1090,7 @@
         if (err) { ctx.toast(err, 'error'); return; }
         if (d && d.member_added) {
           ctx.toast(selectedUser.name + ' added to ' + group.name, 'success');
-          props.onAdded({ person_sys_id: selectedUser.person_sys_id, person_name: selectedUser.name, group_role: 'member' });
+          props.onAdded({ person_sys_id: selectedUser.person_sys_id, person_name: selectedUser.name, person_email: selectedUser.email || '', group_role: 'user' });
           props.onClose();
         } else {
           ctx.toast('Failed to add member.', 'error');
@@ -1051,7 +1102,7 @@
       h('div', { className: 'oi-modal md' },
         h('div', { className: 'oi-modal-hdr' },
           h('span', { className: 'oi-modal-title' }, 'Add Member to ' + group.name),
-          h('button', { className: 'oi-modal-close', onClick: props.onClose }, '✕')
+          h('button', { className: 'oi-modal-close', onClick: props.onClose }, h(OIIcon, { name: 'close', size: 18 }))
         ),
         h('div', { className: 'oi-modal-body' },
           h('div', { className: 'oi-form-group' },
@@ -1070,7 +1121,7 @@
             )
           ),
           results.length > 0
-            ? h('div', { className: 'oi-member-list', style: { maxHeight: '14rem', overflowY: 'auto', border: '1px solid #D8DDE6', borderRadius: '0.375rem' } },
+            ? h('div', { className: 'oi-member-list', style: { maxHeight: '14rem', overflowY: 'auto', border: '1px solid #DCDCDC', borderRadius: '0.375rem' } },
                 results.map(function (u, i) {
                   var sel = selectedUser && selectedUser.sys_id === u.sys_id;
                   return h('button', {
@@ -1083,9 +1134,10 @@
                     h('div', { className: 'oi-member-avatar' }, initials(u.name || '')),
                     h('div', { className: 'oi-member-info' },
                       h('div', { className: 'oi-member-name' }, u.name),
-                      h('div', { className: 'oi-member-role' }, u.user_name + (u.already_enrolled ? '' : ' — not enrolled in Operations Intelligence'))
+                      h('div', { className: 'oi-member-role' }, u.email || u.user_name),
+                      u.already_enrolled ? null : h('div', { className: 'oi-member-role', style: { color: '#E57323' } }, 'Not enrolled — enroll from Persons tab first')
                     ),
-                    sel ? h('span', { style: { color: '#0072CE', fontSize: '0.875rem' } }, '✓') : null
+                    sel ? h('span', { style: { color: '#0072CE' } }, h(OIIcon, { name: 'check', size: 14 })) : null
                   );
                 })
               )
@@ -1156,7 +1208,7 @@
       h('div', { className: 'oi-modal md' },
         h('div', { className: 'oi-modal-hdr' },
           h('span', { className: 'oi-modal-title' }, 'Enroll Person'),
-          h('button', { className: 'oi-modal-close', onClick: props.onClose }, '✕')
+          h('button', { className: 'oi-modal-close', onClick: props.onClose }, h(OIIcon, { name: 'close', size: 18 }))
         ),
         h('div', { className: 'oi-modal-body' },
           h('div', { className: 'oi-form-group' },
@@ -1175,7 +1227,7 @@
             )
           ),
           results.length > 0
-            ? h('div', { className: 'oi-member-list', style: { maxHeight: '14rem', overflowY: 'auto', border: '1px solid #D8DDE6', borderRadius: '0.375rem' } },
+            ? h('div', { className: 'oi-member-list', style: { maxHeight: '14rem', overflowY: 'auto', border: '1px solid #DCDCDC', borderRadius: '0.375rem' } },
                 results.map(function (u, i) {
                   var sel = selectedUser && selectedUser.sys_id === u.sys_id;
                   return h('button', {
@@ -1188,9 +1240,10 @@
                     h('div', { className: 'oi-member-avatar' }, initials(u.name || '')),
                     h('div', { className: 'oi-member-info' },
                       h('div', { className: 'oi-member-name' }, u.name),
-                      h('div', { className: 'oi-member-role' }, u.user_name + (u.already_enrolled ? ' (already enrolled)' : ''))
+                      h('div', { className: 'oi-member-role' }, u.email || u.user_name),
+                      u.already_enrolled ? h('div', { className: 'oi-member-role', style: { color: '#E57323' } }, 'Already enrolled') : null
                     ),
-                    sel ? h('span', { style: { color: '#0072CE', fontSize: '0.875rem' } }, '✓') : null
+                    sel ? h('span', { style: { color: '#0072CE' } }, h(OIIcon, { name: 'check', size: 14 })) : null
                   );
                 })
               )
@@ -1327,7 +1380,7 @@
           ),
           h('div', { className: 'oi-card-body' },
             h('div', { className: 'oi-security-notice' },
-              h('div', { className: 'oi-security-icon' }, '🔒'),
+              h('div', { className: 'oi-security-icon' }, h(OIIcon, { name: 'lock', size: 24, fill: '#0072CE' })),
               h('div', null,
                 h('div', { className: 'oi-security-title' }, 'Credential Storage'),
                 h('p', { className: 'oi-security-desc' },
@@ -1356,17 +1409,18 @@
     var toasts = ctx.state.toasts;
     var dispatch = ctx.dispatch;
 
-    var ICONS = { success: '✓', error: '✕', warning: '⚠️', info: 'ℹ️' };
+    var ICON_NAMES = { success: 'check', error: 'close', warning: 'warning_icon', info: 'info_icon' };
 
     return h('div', { className: 'oi-toasts' },
       toasts.map(function (t) {
+        var iconName = ICON_NAMES[t.type] || ICON_NAMES.info;
         return h('div', { key: t.id, className: 'oi-toast ' + (t.type || 'info') },
-          h('span', { className: 'oi-toast-icon' }, ICONS[t.type] || ICONS.info),
+          h('span', { className: 'oi-toast-icon' }, h(OIIcon, { name: iconName, size: 16 })),
           h('span', { className: 'oi-toast-msg' }, t.message),
           h('button', {
             className: 'oi-toast-close',
             onClick: function () { dispatch({ type: 'POP_TOAST', payload: t.id }); }
-          }, '✕')
+          }, h(OIIcon, { name: 'close', size: 14 }))
         );
       })
     );
@@ -1391,7 +1445,7 @@
       var msg = this.state.errorMsg;
       return h('div', { className: 'oi-crash' },
         h('div', { className: 'oi-crash-card' },
-          h('div', { className: 'oi-crash-icon' }, '⚠️'),
+          h('div', { className: 'oi-crash-icon' }, h(OIIcon, { name: 'error_icon', size: 40, fill: '#D9534F' })),
           h('h2', { className: 'oi-crash-title' }, 'Portal Error'),
           h('p', { className: 'oi-crash-desc' }, 'An unexpected error prevented the Operations Intelligence portal from loading.'),
           h('code', { className: 'oi-crash-msg' }, msg),

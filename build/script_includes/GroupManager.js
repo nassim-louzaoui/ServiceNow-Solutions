@@ -113,13 +113,20 @@ GroupManager.prototype = {
         for (i = 0; i < members.length; i++) {
             if (members[i].status !== 'inactive') {
                 var personName = '';
+                var personEmail = '';
                 var pGr = new GlideRecord(this.PERSON_TABLE);
                 if (pGr.get(members[i].person_sys_id)) {
-                    personName = '' + pGr.getDisplayValue('user');
+                    var userSysId = '' + pGr.getValue('user');
+                    var uGr = new GlideRecord('sys_user');
+                    if (uGr.get(userSysId)) {
+                        personName  = '' + uGr.getValue('name');
+                        personEmail = '' + uGr.getValue('email');
+                    }
                 }
                 result.push({
                     person_sys_id: '' + members[i].person_sys_id,
                     person_name:   personName,
+                    person_email:  personEmail,
                     group_role:    '' + (members[i].group_role || 'user'),
                     added_at:      '' + (members[i].added_at || '')
                 });

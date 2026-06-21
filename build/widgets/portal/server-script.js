@@ -547,18 +547,23 @@
     if (input.action === 'list_persons') {
         if (!hasAdmin && !hasLeadership) { data.persons = []; return; }
         var pListGr = new GlideRecord('x_infte_ops_int_person');
-        pListGr.orderBy('user');
+        pListGr.orderBy('user.name');
         pListGr.query();
         var persons = [];
         while (pListGr.next()) {
             var pSysId   = '' + pListGr.getUniqueValue();
             var pUserSId = '' + pListGr.getValue('user');
-            var pName    = '' + pListGr.getDisplayValue('user');
             var pActive  = ('' + pListGr.getValue('active')) === 'true' || ('' + pListGr.getValue('active')) === '1';
 
             var uRec = new GlideRecord('sys_user');
+            var pName = '';
             var uName = '';
-            if (uRec.get(pUserSId)) { uName = '' + uRec.getValue('user_name'); }
+            var uEmail = '';
+            if (uRec.get(pUserSId)) {
+                pName  = '' + uRec.getValue('name');
+                uName  = '' + uRec.getValue('user_name');
+                uEmail = '' + uRec.getValue('email');
+            }
 
             var pGroups = [];
             var pgGr = new GlideRecord('x_infte_ops_int_group');
@@ -584,6 +589,7 @@
                 sys_id:    pSysId,
                 name:      pName,
                 user_name: uName,
+                email:     uEmail,
                 active:    pActive,
                 groups:    pGroups
             });
