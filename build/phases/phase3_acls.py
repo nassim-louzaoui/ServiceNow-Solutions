@@ -2,21 +2,17 @@
 """
 Phase 3 — Access Control
 
-Implements the documented governance matrix as ServiceNow ACLs in the
-application scope:
+Implements the governance matrix as ServiceNow ACLs in the application scope:
 
   * Table-level read/create/write/delete ACLs granting the roles each table
-    permits. Roles attach through the sys_security_acl_role M2M table (the
-    engine creates the ACL row; this phase links the roles).
-  * Field-level ACLs for the sensitive fields, most importantly
-    creator_credential.github_pat whose read is denied to everyone — including
-    admin — via admin_overrides=false and a script that returns false.
+    permits. Roles attach through the sys_security_acl_role M2M table.
+  * Field-level ACLs for sensitive fields: person.github_pat read is denied to
+    everyone (including platform admin) via admin_overrides=false and a deny
+    script; write is allowed to the creator role only.
 
 Row-level refinements (own row / own groups) are enforced at runtime by
 PermissionResolver (Phase 4); the role tier created here is the primary
-user-facing access surface. "System" operations in the matrix map to admin at
-the ACL tier — in-scope Script Include code operates on its own tables with
-application privilege and is unaffected.
+user-facing access surface.
 
 Idempotent: ACLs upsert by name+operation; role links are checked before insert.
 """
@@ -27,7 +23,7 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 import engine_client as ec
 
-ADMIN = "admin"
+ADMIN = "x_infte_ops_int.admin"
 LEAD = "x_infte_ops_int.leadership"
 CREATOR = "x_infte_ops_int.creator"
 USER = "x_infte_ops_int.user"
@@ -37,28 +33,20 @@ MATRIX = {
     "person":                 {"read": [ADMIN, LEAD, USER], "create": [ADMIN], "write": [ADMIN], "delete": [ADMIN]},
     "reporting_relationship": {"read": [ADMIN, LEAD], "create": [ADMIN, LEAD], "write": [ADMIN, LEAD], "delete": [ADMIN]},
     "group":                  {"read": [ADMIN, LEAD, CREATOR, USER], "create": [ADMIN, LEAD], "write": [ADMIN, LEAD], "delete": [ADMIN]},
-    "group_member":           {"read": [ADMIN, LEAD, USER], "create": [ADMIN], "write": [ADMIN, LEAD], "delete": [ADMIN]},
     "onboarding_request":     {"read": [ADMIN, LEAD, USER], "create": [ADMIN], "write": [ADMIN, USER], "delete": [ADMIN]},
-    "automation_category":    {"read": [], "create": [ADMIN], "write": [ADMIN], "delete": [ADMIN]},
     "approved_flow":          {"read": [ADMIN, LEAD, CREATOR], "create": [ADMIN], "write": [ADMIN], "delete": [ADMIN]},
     "automation":             {"read": [ADMIN, LEAD, CREATOR, USER], "create": [ADMIN, CREATOR], "write": [ADMIN, CREATOR], "delete": [ADMIN]},
     "automation_version":     {"read": [ADMIN, LEAD, CREATOR], "create": [ADMIN], "write": [ADMIN], "delete": [ADMIN]},
-    "automation_step":        {"read": [ADMIN, LEAD, CREATOR, USER], "create": [ADMIN, CREATOR], "write": [ADMIN, CREATOR], "delete": [ADMIN, CREATOR]},
-    "automation_input":       {"read": [ADMIN, LEAD, CREATOR, USER], "create": [ADMIN, CREATOR], "write": [ADMIN, CREATOR], "delete": [ADMIN, CREATOR]},
-    "group_automation":       {"read": [ADMIN, LEAD, CREATOR, USER], "create": [ADMIN], "write": [ADMIN, LEAD], "delete": [ADMIN]},
     "execution":              {"read": [ADMIN, LEAD, USER], "create": [ADMIN, USER], "write": [ADMIN], "delete": [ADMIN]},
-    "execution_step_log":     {"read": [ADMIN, LEAD, USER], "create": [ADMIN], "write": [ADMIN], "delete": [ADMIN]},
-    "automation_schedule":    {"read": [ADMIN, LEAD, CREATOR], "create": [ADMIN, CREATOR], "write": [ADMIN, CREATOR], "delete": [ADMIN, CREATOR]},
     "use_case_request":       {"read": [ADMIN, LEAD, CREATOR], "create": [CREATOR], "write": [ADMIN, CREATOR], "delete": [ADMIN]},
-    "creator_credential":     {"read": [ADMIN, CREATOR], "create": [ADMIN, CREATOR], "write": [ADMIN, CREATOR], "delete": [ADMIN]},
     "pending_action":         {"read": [ADMIN, LEAD], "create": [ADMIN], "write": [ADMIN, LEAD], "delete": [ADMIN]},
     "managed_artifact":       {"read": [ADMIN, LEAD, CREATOR, USER], "create": [ADMIN, CREATOR, USER], "write": [ADMIN, CREATOR], "delete": [ADMIN]},
 }
 
 # Field ACLs: (table_short, field, operation, roles, script, admin_overrides)
 FIELD_ACLS = [
-    ("creator_credential", "github_pat", "read", [], "answer = false;", False),
-    ("creator_credential", "github_pat", "write", [CREATOR], "", True),
+    ("person", "github_pat", "read", [], "answer = false;", False),
+    ("person", "github_pat", "write", [CREATOR], "", True),
     ("execution", "input_values", "read", [ADMIN, LEAD, USER], "", True),
     ("execution", "input_values", "write", [ADMIN], "", True),
     ("use_case_request", "structured_spec", "read", [ADMIN, LEAD, CREATOR], "", True),
@@ -81,6 +69,8 @@ def resolve_roles():
                   encoded_query="name=%s" % token, fields=["sys_id"], limit=1)
         recs = r.get("records", [])
         out[token] = recs[0]["sys_id"] if recs else None
+        if not out[token]:
+            print("  WARN: role %s not found — run phase2 first" % token)
     return out
 
 

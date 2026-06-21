@@ -34,25 +34,43 @@ def table_query(table, encoded_query, fields, limit=None):
     if limit:
         params["sysparm_limit"] = str(limit)
     url = "%s/api/now/table/%s?%s" % (ec.INSTANCE, table, urllib.parse.urlencode(params))
-    req = urllib.request.Request(url)
-    req.add_header("Authorization", ec._AUTH)
-    req.add_header("Accept", "application/json")
-    with urllib.request.urlopen(req, timeout=60) as r:
-        return json.loads(r.read()).get("result", [])
+    for attempt in range(5):
+        req = urllib.request.Request(url)
+        req.add_header("Authorization", ec._AUTH)
+        req.add_header("Accept", "application/json")
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                return json.loads(r.read()).get("result", [])
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                time.sleep(30 * (2 ** attempt))
+                continue
+            raise
+        except Exception:
+            time.sleep(10 * (attempt + 1))
+    return []
 
 
 def table_patch(table, sys_id, payload):
     url = "%s/api/now/table/%s/%s" % (ec.INSTANCE, table, sys_id)
     data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(url, data=data, method="PATCH")
-    req.add_header("Authorization", ec._AUTH)
-    req.add_header("Content-Type", "application/json")
-    req.add_header("Accept", "application/json")
-    try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            return r.status
-    except urllib.error.HTTPError as e:
-        return e.code
+    for attempt in range(5):
+        req = urllib.request.Request(url, data=data, method="PATCH")
+        req.add_header("Authorization", ec._AUTH)
+        req.add_header("Content-Type", "application/json")
+        req.add_header("Accept", "application/json")
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                return r.status
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                wait = 30 * (2 ** attempt)
+                time.sleep(wait)
+                continue
+            return e.code
+        except Exception:
+            time.sleep(10 * (attempt + 1))
+    return 0
 
 
 def build():

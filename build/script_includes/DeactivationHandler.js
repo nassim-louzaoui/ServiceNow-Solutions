@@ -3,11 +3,10 @@ DeactivationHandler.prototype = {
     initialize: function() {
         this.PERSON_TABLE = 'x_infte_ops_int_person';
         this.RELATIONSHIP_TABLE = 'x_infte_ops_int_reporting_relationship';
-        this.GROUP_MEMBER_TABLE = 'x_infte_ops_int_group_member';
-        this.CREATOR_CREDENTIAL_TABLE = 'x_infte_ops_int_creator_credential';
+        this.GROUP_TABLE = 'x_infte_ops_int_group';
         this.PENDING_ACTION_TABLE = 'x_infte_ops_int_pending_action';
         this.ROLE_CREATOR = 'x_infte_ops_int.creator';
-        this.ROLE_ADMIN = 'admin';
+        this.ROLE_ADMIN = 'x_infte_ops_int.admin';
         this.USER_DEACTIVATION_HOURS = 48;
         this.LEADER_REASSIGNMENT_HOURS = 72;
         this.TEMPLATE_USER_DEACTIVATION_ALERT = 'Operations Intelligence - User Deactivation Alert';
@@ -197,14 +196,24 @@ DeactivationHandler.prototype = {
         var userSysId = this._userSysIdForPerson(personSysId);
 
         var gmCount = 0;
-        var gm = new GlideRecord(this.GROUP_MEMBER_TABLE);
-        gm.addQuery('member', personSysId);
-        gm.addQuery('status', 'active');
-        gm.query();
-        while (gm.next()) {
-            gm.setValue('status', 'inactive');
-            gm.update();
-            gmCount++;
+        var groupMgr = new GroupManager();
+        var allGroups = new GlideRecord(this.GROUP_TABLE);
+        allGroups.addQuery('status', 'active');
+        allGroups.query();
+        while (allGroups.next()) {
+            var groupSysId = '' + allGroups.getUniqueValue();
+            var membersRaw = '' + allGroups.getValue('members');
+            var membersArr = [];
+            try { membersArr = JSON.parse(membersRaw); } catch (e) { membersArr = []; }
+            var j;
+            for (j = 0; j < membersArr.length; j++) {
+                if ('' + membersArr[j].person_sys_id === '' + personSysId &&
+                    '' + membersArr[j].status === 'active') {
+                    groupMgr.removeMember(groupSysId, personSysId);
+                    gmCount++;
+                    break;
+                }
+            }
         }
 
         this._revokeCreatorRole(userSysId);
@@ -282,17 +291,14 @@ DeactivationHandler.prototype = {
     },
 
     _revokeCreatorCredential: function(personSysId) {
-        var cred = new GlideRecord(this.CREATOR_CREDENTIAL_TABLE);
-        cred.addQuery('user', personSysId);
-        cred.query();
-        var revoked = false;
-        while (cred.next()) {
-            cred.setValue('token_status', 'revoked');
-            cred.setValue('github_pat', '');
-            cred.update();
-            revoked = true;
+        var person = new GlideRecord(this.PERSON_TABLE);
+        if (!person.get(personSysId)) {
+            return false;
         }
-        return revoked;
+        person.setValue('github_pat', '');
+        person.setValue('token_status', 'revoked');
+        person.update();
+        return true;
     },
 
     _deactivatePerson: function(personSysId) {

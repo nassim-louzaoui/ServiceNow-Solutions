@@ -15,6 +15,7 @@ Table deletions use the Table REST API DELETE on sys_db_object.
 import os
 import sys
 import json
+import time
 import urllib.request
 import urllib.parse
 
@@ -61,20 +62,26 @@ TABLES_TO_DELETE = [
 ]
 
 
+def _backoff(attempt, base=10):
+    time.sleep(base * (2 ** attempt))
+
+
 def table_delete(table, sys_id):
     url = "%s/api/now/table/%s/%s" % (ec.INSTANCE, table, sys_id)
-    for attempt in range(3):
+    for attempt in range(5):
         req = urllib.request.Request(url, method="DELETE")
         req.add_header("Authorization", ec._AUTH)
         req.add_header("Accept", "application/json")
         try:
-            with urllib.request.urlopen(req, timeout=90) as r:
+            with urllib.request.urlopen(req, timeout=180) as r:
                 return r.status
         except urllib.error.HTTPError as e:
+            if e.code == 429:
+                _backoff(attempt, base=30)
+                continue
             return e.code
         except Exception:
-            import time
-            time.sleep(5 * (attempt + 1))
+            _backoff(attempt, base=10)
     return 0
 
 
@@ -85,11 +92,21 @@ def table_get(table, encoded_query, fields, limit=1):
         "sysparm_limit": str(limit),
     })
     url = "%s/api/now/table/%s?%s" % (ec.INSTANCE, table, params)
-    req = urllib.request.Request(url)
-    req.add_header("Authorization", ec._AUTH)
-    req.add_header("Accept", "application/json")
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read()).get("result", [])
+    for attempt in range(5):
+        req = urllib.request.Request(url)
+        req.add_header("Authorization", ec._AUTH)
+        req.add_header("Accept", "application/json")
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                return json.loads(r.read()).get("result", [])
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                _backoff(attempt, base=30)
+                continue
+            raise
+        except Exception:
+            _backoff(attempt, base=10)
+    return []
 
 
 def build():
@@ -111,10 +128,11 @@ def build():
             status = "ok" if r.get("ok") else ("exists" if r.get("exists") else "FAIL")
             log.append("  %-20s.%-28s %s" % (short_name, element, status))
 
-    # ── 2. Delete the 6 eliminated tables ─────────────────────────────────────
+    # ── 2. Delete the 8 eliminated tables ─────────────────────────────────────
     log.append("--- Deleting eliminated tables ---")
     for short_name in TABLES_TO_DELETE:
         full_table = "x_infte_ops_int_%s" % short_name
+        time.sleep(3)
         recs = table_get("sys_db_object",
                          "name=%s^sys_scope=%s" % (full_table, SCOPE_ID),
                          ["sys_id", "name"], limit=1)
@@ -122,6 +140,7 @@ def build():
             log.append("  %-40s not found (already gone)" % full_table)
             continue
         sys_id = recs[0]["sys_id"]
+        time.sleep(3)
         status = table_delete("sys_db_object", sys_id)
         if status in (200, 204):
             log.append("  %-40s deleted (HTTP %d)" % (full_table, status))

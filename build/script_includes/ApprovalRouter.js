@@ -4,7 +4,7 @@ ApprovalRouter.prototype = {
         this.PERSON_TABLE = 'x_infte_ops_int_person';
         this.RELATIONSHIP_TABLE = 'x_infte_ops_int_reporting_relationship';
         this.PENDING_ACTION_TABLE = 'x_infte_ops_int_pending_action';
-        this.ROLE_ADMIN = 'admin';
+        this.ROLE_ADMIN = 'x_infte_ops_int.admin';
         this.MAX_HIERARCHY_DEPTH = 20;
     },
 

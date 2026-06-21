@@ -29,13 +29,22 @@
 
     function _creatorGroupSysIds(personSysId) {
         var ids = [];
-        var gm = new GlideRecord('x_infte_ops_int_group_member');
-        gm.addQuery('member', personSysId);
-        gm.addQuery('group_role', 'creator');
-        gm.addQuery('status', 'active');
-        gm.query();
-        while (gm.next()) {
-            ids.push('' + gm.getValue('group'));
+        var grp = new GlideRecord('x_infte_ops_int_group');
+        grp.addQuery('status', 'active');
+        grp.query();
+        while (grp.next()) {
+            var membersRaw = '' + grp.getValue('members');
+            var membersArr = [];
+            try { membersArr = JSON.parse(membersRaw); } catch (e) { membersArr = []; }
+            var i;
+            for (i = 0; i < membersArr.length; i++) {
+                if ('' + membersArr[i].person_sys_id === '' + personSysId &&
+                    '' + membersArr[i].role === 'creator' &&
+                    '' + membersArr[i].status === 'active') {
+                    ids.push('' + grp.getUniqueValue());
+                    break;
+                }
+            }
         }
         return ids;
     }

@@ -99,15 +99,21 @@
     }
 
     function _memberCount(groupSysId) {
-        var ga = new GlideAggregate('x_infte_ops_int_group_member');
-        ga.addQuery('group', groupSysId);
-        ga.addQuery('status', 'active');
-        ga.addAggregate('COUNT');
-        ga.query();
-        if (ga.next()) {
-            return parseInt(ga.getAggregate('COUNT'), 10) || 0;
+        var grp = new GlideRecord(GROUP_TABLE);
+        if (!grp.get(groupSysId)) {
+            return 0;
         }
-        return 0;
+        var membersRaw = '' + grp.getValue('members');
+        var membersArr = [];
+        try { membersArr = JSON.parse(membersRaw); } catch (e) { membersArr = []; }
+        var count = 0;
+        var i;
+        for (i = 0; i < membersArr.length; i++) {
+            if ('' + membersArr[i].status === 'active') {
+                count++;
+            }
+        }
+        return count;
     }
 
     function _searchExecutions(term) {

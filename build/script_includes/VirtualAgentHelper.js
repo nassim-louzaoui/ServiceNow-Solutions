@@ -2,8 +2,7 @@ var VirtualAgentHelper = Class.create();
 VirtualAgentHelper.prototype = {
     initialize: function() {
         this.PERSON_TABLE = 'x_infte_ops_int_person';
-        this.GROUP_MEMBER_TABLE = 'x_infte_ops_int_group_member';
-        this.GROUP_AUTOMATION_TABLE = 'x_infte_ops_int_group_automation';
+        this.GROUP_TABLE = 'x_infte_ops_int_group';
         this.AUTOMATION_TABLE = 'x_infte_ops_int_automation';
         this.PENDING_ACTION_TABLE = 'x_infte_ops_int_pending_action';
         this.PRE_INTENT_KEY = 'oi_pre_intent';
@@ -67,24 +66,35 @@ VirtualAgentHelper.prototype = {
             return results;
         }
         var seen = {};
-        var ga = new GlideRecord(this.GROUP_AUTOMATION_TABLE);
-        ga.addQuery('group', 'IN', groupIds.join(','));
-        ga.addQuery('approval_status', 'approved');
-        ga.orderByDesc('added_at');
-        ga.query();
-        while (ga.next() && results.length < max) {
-            var automationSysId = '' + ga.getValue('automation');
-            if (seen[automationSysId]) {
+        var grp = new GlideRecord(this.GROUP_TABLE);
+        grp.addQuery('status', 'active');
+        grp.query();
+        while (grp.next() && results.length < max) {
+            var grpSysId = '' + grp.getUniqueValue();
+            if (groupIds.indexOf(grpSysId) === -1) {
                 continue;
             }
-            var auto = new GlideRecord(this.AUTOMATION_TABLE);
-            if (auto.get(automationSysId) && auto.getValue('status') === 'published') {
-                seen[automationSysId] = true;
-                results.push({
-                    sys_id: automationSysId,
-                    name: '' + auto.getValue('name'),
-                    short_description: '' + auto.getValue('short_description')
-                });
+            var automationsRaw = '' + grp.getValue('automations');
+            var automationsArr = [];
+            try { automationsArr = JSON.parse(automationsRaw); } catch (e) { automationsArr = []; }
+            var ai;
+            for (ai = 0; ai < automationsArr.length && results.length < max; ai++) {
+                if ('' + automationsArr[ai].approval_status !== 'approved') {
+                    continue;
+                }
+                var automationSysId = '' + automationsArr[ai].automation_sys_id;
+                if (seen[automationSysId]) {
+                    continue;
+                }
+                var auto = new GlideRecord(this.AUTOMATION_TABLE);
+                if (auto.get(automationSysId) && auto.getValue('status') === 'published') {
+                    seen[automationSysId] = true;
+                    results.push({
+                        sys_id: automationSysId,
+                        name: '' + auto.getValue('name'),
+                        short_description: '' + auto.getValue('short_description')
+                    });
+                }
             }
         }
         return results;
@@ -96,16 +106,27 @@ VirtualAgentHelper.prototype = {
         if (groupIds.length === 0) {
             return false;
         }
-        var ga = new GlideRecord(this.GROUP_AUTOMATION_TABLE);
-        ga.addQuery('automation', automationSysId);
-        ga.addQuery('approval_status', 'approved');
-        ga.addQuery('group', 'IN', groupIds.join(','));
-        ga.query();
-        while (ga.next()) {
-            var auto = new GlideRecord(this.AUTOMATION_TABLE);
-            if (auto.get('' + ga.getValue('automation')) &&
-                auto.getValue('status') === 'published') {
-                return true;
+        var auto = new GlideRecord(this.AUTOMATION_TABLE);
+        if (!auto.get(automationSysId) || auto.getValue('status') !== 'published') {
+            return false;
+        }
+        var grp = new GlideRecord(this.GROUP_TABLE);
+        grp.addQuery('status', 'active');
+        grp.query();
+        while (grp.next()) {
+            var grpSysId = '' + grp.getUniqueValue();
+            if (groupIds.indexOf(grpSysId) === -1) {
+                continue;
+            }
+            var automationsRaw = '' + grp.getValue('automations');
+            var automationsArr = [];
+            try { automationsArr = JSON.parse(automationsRaw); } catch (e) { automationsArr = []; }
+            var ai;
+            for (ai = 0; ai < automationsArr.length; ai++) {
+                if ('' + automationsArr[ai].automation_sys_id === '' + automationSysId &&
+                    '' + automationsArr[ai].approval_status === 'approved') {
+                    return true;
+                }
             }
         }
         return false;

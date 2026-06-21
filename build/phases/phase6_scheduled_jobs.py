@@ -48,12 +48,13 @@ DEACTIVATION_SWEEP = """(function () {
 
 COPILOT_VALIDATION = """(function () {
     var bridge = new CopilotBridge();
-    var cred = new GlideRecord('x_infte_ops_int_creator_credential');
-    cred.addQuery('token_status', 'active');
-    cred.query();
-    while (cred.next()) {
+    var person = new GlideRecord('x_infte_ops_int_person');
+    person.addQuery('token_status', 'active');
+    person.addQuery('active', true);
+    person.query();
+    while (person.next()) {
         if (typeof bridge.validateToken === 'function') {
-            bridge.validateToken(cred.getValue('user'));
+            bridge.validateToken(person.getUniqueValue());
         }
     }
 })();"""

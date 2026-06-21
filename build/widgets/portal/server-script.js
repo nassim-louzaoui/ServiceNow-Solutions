@@ -144,41 +144,43 @@
         var automations = [];
         var seen = {};
 
-        var ga = new GlideRecord('x_infte_ops_int_group_automation');
-        ga.addQuery('group', 'IN', groupIds.join(','));
-        ga.addQuery('approval_status', 'approved');
-        ga.query();
+        var grp = new GlideRecord('x_infte_ops_int_group');
+        grp.addQuery('status', 'active');
+        grp.query();
 
-        while (ga.next()) {
-            var autoSysId = '' + ga.getValue('automation');
-            if (seen[autoSysId]) { continue; }
-            seen[autoSysId] = true;
+        while (grp.next()) {
+            var ownerGroupSysId = '' + grp.getUniqueValue();
+            if (groupIds.indexOf(ownerGroupSysId) === -1) { continue; }
+            var ownerGroupName = '' + grp.getValue('name');
+            var grpAutomationsRaw = '' + grp.getValue('automations');
+            var grpAutomationsArr = [];
+            try { grpAutomationsArr = JSON.parse(grpAutomationsRaw); } catch (e) { grpAutomationsArr = []; }
+            var wi;
+            for (wi = 0; wi < grpAutomationsArr.length; wi++) {
+                if ('' + grpAutomationsArr[wi].approval_status !== 'approved') { continue; }
+                var autoSysId = '' + grpAutomationsArr[wi].automation_sys_id;
+                if (seen[autoSysId]) { continue; }
+                seen[autoSysId] = true;
 
-            var autoRec = new GlideRecord('x_infte_ops_int_automation');
-            if (!autoRec.get(autoSysId)) { continue; }
-            if (autoRec.getValue('status') !== 'published') { continue; }
+                var autoRec = new GlideRecord('x_infte_ops_int_automation');
+                if (!autoRec.get(autoSysId)) { continue; }
+                if (autoRec.getValue('status') !== 'published') { continue; }
 
-            var schedActive = autoRec.getValue('schedule_active') == '1' || autoRec.getValue('schedule_active') === 'true';
+                var schedActive = autoRec.getValue('schedule_active') == '1' || autoRec.getValue('schedule_active') === 'true';
 
-            var ownerGroupSysId = '' + ga.getValue('group');
-            var ownerGroupName  = '';
-            var ogr = new GlideRecord('x_infte_ops_int_group');
-            if (ogr.get(ownerGroupSysId)) {
-                ownerGroupName = '' + ogr.getValue('name');
+                automations.push({
+                    sys_id:            autoSysId,
+                    number:            '' + autoRec.getValue('number'),
+                    name:              '' + autoRec.getValue('name'),
+                    short_description: '' + autoRec.getValue('short_description'),
+                    category_color:    '' + (autoRec.getValue('category_color') || '#0072CE'),
+                    category_icon:     '' + (autoRec.getValue('category_icon')  || 'fa-bolt'),
+                    usage_count:       parseInt('' + autoRec.getValue('usage_count'), 10) || 0,
+                    schedule_active:   schedActive,
+                    owner_group:       ownerGroupName,
+                    owner_group_sys_id: ownerGroupSysId
+                });
             }
-
-            automations.push({
-                sys_id:            autoSysId,
-                number:            '' + autoRec.getValue('number'),
-                name:              '' + autoRec.getValue('name'),
-                short_description: '' + autoRec.getValue('short_description'),
-                category_color:    '' + (autoRec.getValue('category_color') || '#0072CE'),
-                category_icon:     '' + (autoRec.getValue('category_icon')  || 'fa-bolt'),
-                usage_count:       parseInt('' + autoRec.getValue('usage_count'), 10) || 0,
-                schedule_active:   schedActive,
-                owner_group:       ownerGroupName,
-                owner_group_sys_id: ownerGroupSysId
-            });
         }
 
         return { automations: automations };
@@ -296,13 +298,10 @@
             var grpId = '' + grp.getUniqueValue();
 
             var autoCount = 0;
-            var gaAgg = new GlideAggregate('x_infte_ops_int_group_automation');
-            gaAgg.addQuery('group', grpId);
-            gaAgg.addAggregate('COUNT');
-            gaAgg.query();
-            if (gaAgg.next()) {
-                autoCount = parseInt('' + gaAgg.getAggregate('COUNT'), 10) || 0;
-            }
+            var grpAutomationsRaw2 = '' + grp.getValue('automations');
+            var grpAutomationsArr2 = [];
+            try { grpAutomationsArr2 = JSON.parse(grpAutomationsRaw2); } catch (e) { grpAutomationsArr2 = []; }
+            autoCount = grpAutomationsArr2.length;
 
             groups.push({
                 sys_id:     grpId,

@@ -49,50 +49,56 @@
     }
 
     var seen = {};
-    var ga = new GlideRecord('x_infte_ops_int_group_automation');
-    ga.addQuery('group', 'IN', scopedGroupIds.join(','));
-    ga.addQuery('approval_status', 'approved');
-    ga.orderByDesc('added_at');
-    ga.query();
+    var grp = new GlideRecord('x_infte_ops_int_group');
+    grp.addQuery('status', 'active');
+    grp.query();
 
-    while (ga.next()) {
-        var automationSysId = '' + ga.getValue('automation');
-        if (seen[automationSysId]) {
+    while (grp.next()) {
+        var ownerGroupSysId = '' + grp.getUniqueValue();
+        if (scopedGroupIds.indexOf(ownerGroupSysId) === -1) {
             continue;
         }
-        var auto = new GlideRecord('x_infte_ops_int_automation');
-        if (!auto.get(automationSysId)) {
-            continue;
-        }
-        if (auto.getValue('status') !== 'published') {
-            continue;
-        }
-        seen[automationSysId] = true;
+        var ownerGroupName = '' + grp.getValue('name');
+        var automationsRaw = '' + grp.getValue('automations');
+        var automationsArr = [];
+        try { automationsArr = JSON.parse(automationsRaw); } catch (e) { automationsArr = []; }
+        var gi;
+        for (gi = 0; gi < automationsArr.length; gi++) {
+            if ('' + automationsArr[gi].approval_status !== 'approved') {
+                continue;
+            }
+            var automationSysId = '' + automationsArr[gi].automation_sys_id;
+            if (seen[automationSysId]) {
+                continue;
+            }
+            var auto = new GlideRecord('x_infte_ops_int_automation');
+            if (!auto.get(automationSysId)) {
+                continue;
+            }
+            if (auto.getValue('status') !== 'published') {
+                continue;
+            }
+            seen[automationSysId] = true;
 
-        var scheduleActive = auto.getValue('schedule_active') == '1' || auto.getValue('schedule_active') === 'true';
-        var ownerGroupSysId = '' + ga.getValue('group');
-        var ownerGroupName = '';
-        var ogr = new GlideRecord('x_infte_ops_int_group');
-        if (ogr.get(ownerGroupSysId)) {
-            ownerGroupName = '' + ogr.getValue('name');
-        }
+            var scheduleActive = auto.getValue('schedule_active') == '1' || auto.getValue('schedule_active') === 'true';
 
-        var card = {
-            sys_id: automationSysId,
-            number: '' + auto.getValue('number'),
-            name: '' + auto.getValue('name'),
-            short_description: '' + auto.getValue('short_description'),
-            category_color: '' + (auto.getValue('category_color') || '#6366F1'),
-            category_icon: '' + (auto.getValue('category_icon') || ''),
-            usage_count: parseInt('' + auto.getValue('usage_count'), 10) || 0,
-            estimated_time_saved: parseInt('' + auto.getValue('estimated_time_saved'), 10) || 0,
-            trigger_type: scheduleActive ? 'event_driven' : 'on_demand',
-            owner_group: ownerGroupName,
-            owner_group_sys_id: ownerGroupSysId,
-            fired_this_month: scheduleActive ? firedThisMonth(automationSysId) : 0,
-            active: auto.getValue('active') == '1' || auto.getValue('active') === 'true'
-        };
-        data.cards.push(card);
+            var card = {
+                sys_id: automationSysId,
+                number: '' + auto.getValue('number'),
+                name: '' + auto.getValue('name'),
+                short_description: '' + auto.getValue('short_description'),
+                category_color: '' + (auto.getValue('category_color') || '#6366F1'),
+                category_icon: '' + (auto.getValue('category_icon') || ''),
+                usage_count: parseInt('' + auto.getValue('usage_count'), 10) || 0,
+                estimated_time_saved: parseInt('' + auto.getValue('estimated_time_saved'), 10) || 0,
+                trigger_type: scheduleActive ? 'event_driven' : 'on_demand',
+                owner_group: ownerGroupName,
+                owner_group_sys_id: ownerGroupSysId,
+                fired_this_month: scheduleActive ? firedThisMonth(automationSysId) : 0,
+                active: auto.getValue('active') == '1' || auto.getValue('active') === 'true'
+            };
+            data.cards.push(card);
+        }
     }
 
     if (input && input.action === 'flow_detail' && input.automation_sys_id) {

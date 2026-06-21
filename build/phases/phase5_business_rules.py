@@ -27,21 +27,33 @@ BR2 = """(function executeRule(current, previous) {
     var userId = current.triggered_by.nil()
         ? gs.getUserID()
         : current.triggered_by.user.toString();
-    var gaGr = new GlideRecord('x_infte_ops_int_group_automation');
-    gaGr.addQuery('automation', current.getValue('automation'));
-    gaGr.addQuery('approval_status', 'approved');
-    gaGr.orderBy('approved_at');
-    gaGr.query();
-    while (gaGr.next()) {
-        var memGr = new GlideRecord('x_infte_ops_int_group_member');
-        memGr.addQuery('group', gaGr.getValue('group'));
-        memGr.addQuery('member.user', userId);
-        memGr.addQuery('status', 'active');
-        memGr.setLimit(1);
-        memGr.query();
-        if (memGr.next()) {
-            current.setValue('group', gaGr.getValue('group'));
-            break;
+    var personId = new PermissionResolver().getPersonByUser(userId);
+    var grp = new GlideRecord('x_infte_ops_int_group');
+    grp.addQuery('status', 'active');
+    grp.query();
+    var found = false;
+    while (grp.next() && !found) {
+        var automations = [];
+        try { automations = JSON.parse('' + grp.getValue('automations')); } catch(e) {}
+        var autoApproved = false;
+        var ai;
+        for (ai = 0; ai < automations.length; ai++) {
+            if ('' + automations[ai].automation_sys_id === current.getValue('automation') &&
+                automations[ai].approval_status === 'approved') {
+                autoApproved = true;
+                break;
+            }
+        }
+        if (!autoApproved) { continue; }
+        var members = [];
+        try { members = JSON.parse('' + grp.getValue('members')); } catch(e) {}
+        var mi;
+        for (mi = 0; mi < members.length; mi++) {
+            if ('' + members[mi].person_sys_id === personId && members[mi].status === 'active') {
+                current.setValue('group', '' + grp.getUniqueValue());
+                found = true;
+                break;
+            }
         }
     }
 })(current, previous);"""

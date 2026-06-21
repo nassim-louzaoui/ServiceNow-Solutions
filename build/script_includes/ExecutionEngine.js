@@ -3,7 +3,7 @@ ExecutionEngine.prototype = {
     initialize: function() {
         this.AUTOMATION_TABLE    = 'x_infte_ops_int_automation';
         this.EXECUTION_TABLE     = 'x_infte_ops_int_execution';
-        this.GROUP_AUTOMATION_TABLE = 'x_infte_ops_int_group_automation';
+        this.GROUP_TABLE         = 'x_infte_ops_int_group';
         this.PERSON_TABLE        = 'x_infte_ops_int_person';
         this.permissions  = new PermissionResolver();
         this.approvalRouter = new ApprovalRouter();
@@ -67,18 +67,25 @@ ExecutionEngine.prototype = {
     },
 
     _resolveExecutionGroup: function(automationSysId, triggeringUserSysId) {
-        var ga = new GlideRecord(this.GROUP_AUTOMATION_TABLE);
-        ga.addQuery('automation', automationSysId);
-        ga.addQuery('approval_status', 'approved');
-        ga.orderBy('approved_at');
-        ga.query();
-        while (ga.next()) {
-            var candidateGroup = '' + ga.getValue('group');
-            if (!triggeringUserSysId) {
-                return candidateGroup;
-            }
-            if (this.permissions.isMemberOf(triggeringUserSysId, candidateGroup)) {
-                return candidateGroup;
+        var gr = new GlideRecord(this.GROUP_TABLE);
+        gr.addQuery('status', 'active');
+        gr.query();
+        while (gr.next()) {
+            var candidateGroup = '' + gr.getUniqueValue();
+            var automationsRaw = '' + gr.getValue('automations');
+            var automationsArr = [];
+            try { automationsArr = JSON.parse(automationsRaw); } catch (e) { automationsArr = []; }
+            var i;
+            for (i = 0; i < automationsArr.length; i++) {
+                if ('' + automationsArr[i].automation_sys_id === '' + automationSysId &&
+                    '' + automationsArr[i].approval_status === 'approved') {
+                    if (!triggeringUserSysId) {
+                        return candidateGroup;
+                    }
+                    if (this.permissions.isMemberOf(triggeringUserSysId, candidateGroup)) {
+                        return candidateGroup;
+                    }
+                }
             }
         }
         return null;

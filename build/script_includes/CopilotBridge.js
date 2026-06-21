@@ -1,7 +1,7 @@
 var CopilotBridge = Class.create();
 CopilotBridge.prototype = {
     initialize: function() {
-        this.CREATOR_CREDENTIAL_TABLE = 'x_infte_ops_int_creator_credential';
+        this.PERSON_TABLE = 'x_infte_ops_int_person';
         this.DEFAULT_TIMEOUT_MS = 15000;
         this.DEFAULT_ENDPOINT = 'https://api.githubcopilot.com';
         this.MODEL = 'gpt-4o';
@@ -14,12 +14,11 @@ CopilotBridge.prototype = {
         if (!creatorPersonSysId) {
             return false;
         }
-        var cred = new GlideRecord(this.CREATOR_CREDENTIAL_TABLE);
-        cred.addQuery('user', '' + creatorPersonSysId);
-        cred.addQuery('token_status', 'active');
-        cred.setLimit(1);
-        cred.query();
-        return cred.next() ? true : false;
+        var person = new GlideRecord(this.PERSON_TABLE);
+        if (!person.get('' + creatorPersonSysId)) {
+            return false;
+        }
+        return '' + person.getValue('token_status') === 'active';
     },
 
     generatePhrases: function(structuredSpecJson, creatorPersonSysId) {
@@ -112,15 +111,14 @@ CopilotBridge.prototype = {
             return null;
         }
         try {
-            var cred = new GlideRecord(this.CREATOR_CREDENTIAL_TABLE);
-            cred.addQuery('user', '' + creatorPersonSysId);
-            cred.addQuery('token_status', 'active');
-            cred.setLimit(1);
-            cred.query();
-            if (!cred.next()) {
+            var person = new GlideRecord(this.PERSON_TABLE);
+            if (!person.get('' + creatorPersonSysId)) {
                 return null;
             }
-            var element = cred.getElement('github_pat');
+            if ('' + person.getValue('token_status') !== 'active') {
+                return null;
+            }
+            var element = person.getElement('github_pat');
             if (!element) {
                 return null;
             }

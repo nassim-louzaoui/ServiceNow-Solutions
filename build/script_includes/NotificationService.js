@@ -5,8 +5,7 @@ NotificationService.prototype = {
         this.PENDING_ACTION_TABLE = 'x_infte_ops_int_pending_action';
         this.ONBOARDING_REQUEST_TABLE = 'x_infte_ops_int_onboarding_request';
         this.AUTOMATION_TABLE = 'x_infte_ops_int_automation';
-        this.GROUP_AUTOMATION_TABLE = 'x_infte_ops_int_group_automation';
-        this.GROUP_MEMBER_TABLE = 'x_infte_ops_int_group_member';
+        this.GROUP_TABLE = 'x_infte_ops_int_group';
         this.NOTIFY_EVENT = 'x_infte_ops_int.notify';
 
         this.TEMPLATE_ONBOARDING_INVITATION = 'Operations Intelligence - Onboarding Invitation';
@@ -137,17 +136,35 @@ NotificationService.prototype = {
         if (creatorUserSysId) {
             sent[creatorUserSysId] = true;
         }
-        var ga = new GlideRecord(this.GROUP_AUTOMATION_TABLE);
-        ga.addQuery('automation', '' + auto.getUniqueValue());
-        ga.addQuery('approval_status', 'approved');
-        ga.query();
-        while (ga.next()) {
-            var gm = new GlideRecord(this.GROUP_MEMBER_TABLE);
-            gm.addQuery('group', '' + ga.getValue('group'));
-            gm.addQuery('status', 'active');
-            gm.query();
-            while (gm.next()) {
-                var memberUserSysId = this._userSysIdForPerson('' + gm.getValue('member'));
+        var autoSysId = '' + auto.getUniqueValue();
+        var grp = new GlideRecord(this.GROUP_TABLE);
+        grp.addQuery('status', 'active');
+        grp.query();
+        while (grp.next()) {
+            var automationsRaw = '' + grp.getValue('automations');
+            var automationsArr = [];
+            try { automationsArr = JSON.parse(automationsRaw); } catch (e) { automationsArr = []; }
+            var hasApprovedAuto = false;
+            var ai;
+            for (ai = 0; ai < automationsArr.length; ai++) {
+                if ('' + automationsArr[ai].automation_sys_id === autoSysId &&
+                    '' + automationsArr[ai].approval_status === 'approved') {
+                    hasApprovedAuto = true;
+                    break;
+                }
+            }
+            if (!hasApprovedAuto) {
+                continue;
+            }
+            var membersRaw = '' + grp.getValue('members');
+            var membersArr = [];
+            try { membersArr = JSON.parse(membersRaw); } catch (e) { membersArr = []; }
+            var mi;
+            for (mi = 0; mi < membersArr.length; mi++) {
+                if ('' + membersArr[mi].status !== 'active') {
+                    continue;
+                }
+                var memberUserSysId = this._userSysIdForPerson('' + membersArr[mi].person_sys_id);
                 if (memberUserSysId && !sent[memberUserSysId]) {
                     sent[memberUserSysId] = true;
                     this.send(this.TEMPLATE_AUTOMATION_APPROVED, memberUserSysId, context);
