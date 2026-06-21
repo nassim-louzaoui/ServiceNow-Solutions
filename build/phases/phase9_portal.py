@@ -80,7 +80,7 @@ def build():
 
     portal = ec.op("artifact.sp_portal", data={
         "title":      "Operations Intelligence",
-        "url_suffix": "operations_intelligence",
+        "url_suffix": "operations-intelligence",
         "theme":      theme_id,
         "homepage":   main_sys_id,
     })

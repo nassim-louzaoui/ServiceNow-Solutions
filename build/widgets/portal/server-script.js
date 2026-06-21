@@ -106,7 +106,7 @@
                     number:             '' + autoRec.getValue('number'),
                     name:               '' + autoRec.getValue('name'),
                     short_description:  '' + autoRec.getValue('short_description'),
-                    category_color:     '' + (autoRec.getValue('category_color') || '#0072CE'),
+                    category_color:     '' + (autoRec.getValue('category_color') || '#00BF6F'),
                     category_icon:      '' + (autoRec.getValue('category_icon')  || 'fa-bolt'),
                     usage_count:        parseInt('' + autoRec.getValue('usage_count'), 10) || 0,
                     schedule_active:    autoRec.getValue('schedule_active') === '1' || autoRec.getValue('schedule_active') === 'true',
@@ -232,10 +232,13 @@
                 if (members[mci].status !== 'inactive') { activeMemberCount++; }
             }
 
+            var grpType = '' + grpGr.getValue('type');
             groups.push({
                 sys_id:       grpId,
                 name:         '' + grpGr.getValue('name'),
-                type:         '' + grpGr.getValue('type'),
+                description:  '' + (grpGr.getValue('description') || ''),
+                type:         grpType,
+                is_system:    grpType !== 'custom_group',
                 member_count: activeMemberCount
             });
         }
@@ -874,6 +877,23 @@
         } catch (cgErr) {
             data.created_group = { ok: false, error: '' + cgErr };
         }
+        return;
+    }
+
+    if (input.action === 'delete_group') {
+        if (!hasAdmin) { data.deleted_group = { ok: false, error: 'Admin access required.' }; return; }
+        var dgSysId = '' + input.group_sys_id;
+        var dgRec = new GlideRecord('x_infte_ops_int_group');
+        if (!dgRec.get(dgSysId)) { data.deleted_group = { ok: false, error: 'Group not found.' }; return; }
+        var dgType = '' + dgRec.getValue('type');
+        if (dgType !== 'custom_group') {
+            data.deleted_group = { ok: false, error: 'This is a system-managed group and cannot be deleted.' };
+            return;
+        }
+        var dgName = '' + dgRec.getValue('name');
+        dgRec.setValue('status', 'archived');
+        dgRec.update();
+        data.deleted_group = { ok: true, name: dgName };
         return;
     }
 

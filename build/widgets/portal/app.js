@@ -824,6 +824,10 @@
     var showEnroll = showEnrollResult[0];
     var setShowEnroll = showEnrollResult[1];
 
+    var confirmDeleteResult = React.useState(null);
+    var confirmDeleteId = confirmDeleteResult[0];
+    var setConfirmDeleteId = confirmDeleteResult[1];
+
     function loadPersons() {
       ctx.callServer({ action: 'list_persons' }, function (d, err) {
         if (err) { ctx.toast(err, 'error'); return; }
@@ -852,6 +856,20 @@
           setGroupMembers(groupMembers.filter(function (m) { return m.person_sys_id !== personSysId; }));
         } else {
           ctx.toast('Failed to remove member.', 'error');
+        }
+      });
+    }
+
+    function deleteGroup(g) {
+      ctx.callServer({ action: 'delete_group', group_sys_id: g.sys_id }, function (d, err) {
+        if (err) { ctx.toast(err, 'error'); return; }
+        var result = d && d.deleted_group;
+        if (result && result.ok) {
+          ctx.toast('Group "' + g.name + '" deleted.', 'success');
+          setGroups(groups.filter(function (gr) { return gr.sys_id !== g.sys_id; }));
+          if (selectedGroup && selectedGroup.sys_id === g.sys_id) { setSelectedGroup(null); setGroupMembers([]); }
+        } else {
+          ctx.toast((result && result.error) || 'Failed to delete group.', 'error');
         }
       });
     }
@@ -909,18 +927,35 @@
                     groups.length === 0
                       ? h('div', { className: 'oi-empty-inline' }, 'No groups found.')
                       : groups.map(function (g) {
-                          return h('button', {
+                          var confirming = confirmDeleteId === g.sys_id;
+                          return h('div', {
                             key: g.sys_id,
                             className: 'oi-list-item' + (selectedGroup && selectedGroup.sys_id === g.sys_id ? ' selected' : ''),
-                            onClick: function () { selectGroup(g); }
+                            onClick: function () { if (!confirming) selectGroup(g); }
                           },
-                            h('div', { className: 'oi-list-item-icon' }, h(OIIcon, { name: 'group', size: 16 })),
+                            h('div', { className: 'oi-list-item-icon' }, h(OIIcon, { name: 'group', size: 16, fill: g.is_system ? '#6E6E6E' : '#00BF6F' })),
                             h('div', { className: 'oi-list-item-body' },
                               h('div', { className: 'oi-list-item-title' }, g.name),
-                              h('div', { className: 'oi-list-item-sub' }, g.description || '')
+                              h('div', { className: 'oi-list-item-sub' }, g.is_system ? 'System-managed' : (g.member_count + ' member' + (g.member_count === 1 ? '' : 's')))
                             ),
-                            h('span', { className: 'oi-list-item-count' }, g.member_count != null ? g.member_count : ''),
-                            h('span', { className: 'oi-list-item-caret' }, h(OIIcon, { name: 'chevron_right', size: 14 }))
+                            confirming
+                              ? h('div', { className: 'oi-delete-confirm', onClick: function (e) { e.stopPropagation(); } },
+                                  h('span', { className: 'oi-delete-confirm-msg' }, 'Delete group?'),
+                                  h('button', { className: 'oi-btn danger xs', onClick: function (e) { e.stopPropagation(); setConfirmDeleteId(null); deleteGroup(g); } }, 'Delete'),
+                                  h('button', { className: 'oi-btn ghost xs', onClick: function (e) { e.stopPropagation(); setConfirmDeleteId(null); } }, 'Cancel')
+                                )
+                              : h('div', { className: 'oi-list-item-actions', onClick: function (e) { e.stopPropagation(); } },
+                                  h('span', { className: 'oi-list-item-count' }, g.member_count != null ? g.member_count : ''),
+                                  g.is_system
+                                    ? h('span', { className: 'oi-list-item-lock', title: 'System-managed — cannot be deleted' },
+                                        h(OIIcon, { name: 'lock', size: 14, fill: '#DCDCDC' })
+                                      )
+                                    : h('button', {
+                                        className: 'oi-icon-btn danger',
+                                        title: 'Delete group',
+                                        onClick: function (e) { e.stopPropagation(); setConfirmDeleteId(g.sys_id); }
+                                      }, h(OIIcon, { name: 'remove', size: 14 }))
+                                )
                           );
                         })
                   )
@@ -954,7 +989,7 @@
                                     ),
                                     h('button', {
                                       className: 'oi-icon-btn danger',
-                                      title: 'Remove',
+                                      title: 'Remove from this group (person remains enrolled)',
                                       onClick: function () { removeMember(m.person_sys_id); }
                                     }, h(OIIcon, { name: 'remove', size: 14 }))
                                   );
@@ -1006,8 +1041,9 @@
                               h('td', null,
                                 h('button', {
                                   className: 'oi-btn danger xs',
+                                  title: 'Deactivate this person and remove them from all groups',
                                   onClick: function () { unenrollPerson(p, setPersons, persons, ctx); }
-                                }, 'Unenroll')
+                                }, 'Deactivate')
                               )
                             );
                           })
@@ -1357,10 +1393,10 @@
     var sysStats = data.stats || {};
 
     var MAINTENANCE_SECTIONS = [
-      { key: 'workspace',  label: 'Workspace',   desc: 'Disable the Workspace section for all users.', prop: 'x_infte_ops_int.maintenance.workspace' },
-      { key: 'activity',   label: 'My Activity',  desc: 'Disable the My Activity section for all users.', prop: 'x_infte_ops_int.maintenance.activity' },
-      { key: 'studio',     label: 'Studio',       desc: 'Disable the Studio section for all users.', prop: 'x_infte_ops_int.maintenance.studio' },
-      { key: 'governance', label: 'Governance',   desc: 'Disable the Governance section for all users.', prop: 'x_infte_ops_int.maintenance.governance' }
+      { key: 'workspace',  label: 'Workspace',             desc: 'Disable the Workspace section for all users.',             prop: 'x_infte_ops_int.maintenance.workspace' },
+      { key: 'activity',   label: 'My Activity',            desc: 'Disable the My Activity section for all users.',            prop: 'x_infte_ops_int.maintenance.activity' },
+      { key: 'studio',     label: 'Operations Studio',      desc: 'Disable the Operations Studio section for all users.',      prop: 'x_infte_ops_int.maintenance.studio' },
+      { key: 'governance', label: 'Operations Governance',  desc: 'Disable the Operations Governance section for all users.',  prop: 'x_infte_ops_int.maintenance.governance' }
     ];
 
     var initMaint = {};
