@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
 """
-Phase 9d — Build React App and Deploy Portal Widget
+Phase 9 — Deploy Portal Widget
 
-Builds the React application (webapp/), then deploys the single Operations
-Intelligence Portal widget (build/widgets/portal/) as sp_widget
-id=x_infte_ops_int_portal. Idempotent — safe to re-run.
+Deploys the Operations Intelligence Portal widget (build/widgets/portal/)
+as sp_widget id=x_infte_ops_int_portal. Composes:
+  - React 18 UMD (react + react-dom, embedded inline — no CDN)
+  - app.js (plain-JS React application)
+  - client-script.js (minimal AngularJS bridge, appended last)
+Idempotent — safe to re-run.
 """
 import os
-import subprocess
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 import engine_client as ec
 
-REPO_ROOT    = os.path.join(os.path.dirname(__file__), "..", "..")
-WEBAPP_DIR   = os.path.join(REPO_ROOT, "webapp")
 WIDGETS_DIR  = os.path.join(os.path.dirname(__file__), "..", "widgets")
+REACT_DIR    = "/tmp/react18/node_modules"
 PORTAL_ID    = "x_infte_ops_int_portal"
 PORTAL_NAME  = "Operations Intelligence Portal"
 
@@ -28,22 +29,7 @@ def read_widget(fname):
     return ""
 
 
-def build_react():
-    print("Building React application…")
-    result = subprocess.run(
-        ["npm", "run", "build"],
-        cwd=WEBAPP_DIR,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        print("React build FAILED:\n" + result.stdout + result.stderr)
-        sys.exit(1)
-    print("React build complete.")
-
-
-def read_dist(fname):
-    path = os.path.join(WEBAPP_DIR, "dist", fname)
+def read_file(path):
     if os.path.exists(path):
         with open(path) as f:
             return f.read()
@@ -51,19 +37,23 @@ def read_dist(fname):
 
 
 def build():
-    build_react()
+    react_js    = read_file(os.path.join(REACT_DIR, "react/umd/react.production.min.js"))
+    reactdom_js = read_file(os.path.join(REACT_DIR, "react-dom/umd/react-dom.production.min.js"))
+    app_js      = read_widget("app.js")
+    bridge_js   = read_widget("client-script.js")
+    template    = read_widget("template.html")
 
-    bundle_js  = read_dist("oi-portal") or read_dist("oi-portal.js") or read_dist("oi-portal.iife.js")
-    bundle_css = read_dist("webapp.css") or read_dist("oi-portal.css")
-    bridge_js  = read_widget("client-script.js")
-    template   = read_widget("template.html")
-
-    if not bundle_js:
-        print("ERROR: dist/oi-portal.js not found after build.")
+    if not react_js:
+        print("ERROR: react.production.min.js not found at " + REACT_DIR)
+        print("Run: mkdir -p /tmp/react18 && cd /tmp/react18 && npm install react@18.3.1 react-dom@18.3.1")
         sys.exit(1)
 
-    composed_client_script = bundle_js + "\n\n" + bridge_js
-    composed_css = bundle_css if bundle_css else read_widget("style.css")
+    if not app_js:
+        print("ERROR: build/widgets/portal/app.js not found.")
+        sys.exit(1)
+
+    composed_client_script = react_js + "\n" + reactdom_js + "\n" + app_js + "\n\n" + bridge_js
+    composed_css = read_widget("style.css")
 
     data = {
         "id":            PORTAL_ID,
