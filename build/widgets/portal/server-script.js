@@ -132,10 +132,6 @@
                 var artifactType = '' + dGr.getValue('artifact_type');
                 var targetSysId  = '' + (dGr.getValue('target_sys_id') || '');
                 var targetUrl    = '';
-                if (targetSysId) {
-                    if (artifactType === 'report')    { targetUrl = '/sys_report.do?sys_id=' + targetSysId; }
-                    if (artifactType === 'dashboard') { targetUrl = '/pa_dashboards.do?sys_id=' + targetSysId; }
-                }
                 deliverables.push({
                     sys_id:        '' + dGr.getUniqueValue(),
                     display_name:  '' + (dGr.getValue('display_name') || 'Unnamed'),
@@ -268,6 +264,56 @@
                     stage:             '' + (reqGr.getDisplayValue('stage') || ''),
                     opened_at:         '' + reqGr.getDisplayValue('opened_at'),
                     url:               '/sp?id=ticket&table=sc_request&sys_id=' + reqGr.getUniqueValue()
+                });
+            }
+        } catch (e) { items = []; }
+        return items;
+    }
+
+    function loadUserIncidents(uSysId, limitNum) {
+        var items = [];
+        try {
+            var incGr = new GlideRecord('incident');
+            incGr.addQuery('caller_id', uSysId);
+            incGr.addQuery('active', true);
+            incGr.orderByDesc('opened_at');
+            incGr.setLimit(limitNum || 10);
+            incGr.query();
+            while (incGr.next()) {
+                items.push({
+                    sys_id:            '' + incGr.getUniqueValue(),
+                    number:            '' + incGr.getValue('number'),
+                    short_description: '' + (incGr.getValue('short_description') || ''),
+                    state:             '' + incGr.getDisplayValue('state'),
+                    priority:          '' + incGr.getDisplayValue('priority'),
+                    opened_at:         '' + incGr.getDisplayValue('opened_at'),
+                    url:               '/sp?id=ticket&table=incident&sys_id=' + incGr.getUniqueValue()
+                });
+            }
+        } catch (e) { items = []; }
+        return items;
+    }
+
+    function loadUserApprovals(uSysId, limitNum) {
+        var items = [];
+        try {
+            var apGr = new GlideRecord('sysapproval_approver');
+            apGr.addQuery('approver', uSysId);
+            apGr.addQuery('state', 'requested');
+            apGr.orderByDesc('sys_created_on');
+            apGr.setLimit(limitNum || 10);
+            apGr.query();
+            while (apGr.next()) {
+                var docId    = '' + apGr.getValue('sysapproval');
+                var docTable = '' + apGr.getValue('source_table');
+                items.push({
+                    sys_id:            '' + apGr.getUniqueValue(),
+                    short_description: '' + (apGr.getValue('approver_id') || 'Approval Request'),
+                    state:             '' + apGr.getDisplayValue('state'),
+                    opened_at:         '' + apGr.getDisplayValue('sys_created_on'),
+                    document_sys_id:   docId,
+                    document_table:    docTable,
+                    url:               '/sp?id=ticket&table=' + docTable + '&sys_id=' + docId
                 });
             }
         } catch (e) { items = []; }
@@ -620,37 +666,318 @@
                 'that','this','these','those','is','are','was','were','be','been','being',
                 'have','has','had','do','does','did','will','would','shall','should',
                 'may','might','must','can','could','about','of','in','it','its',
-                'if','as','up','out','so','also','all','any','just','not','no'];
+                'if','as','up','out','so','also','all','any','just','not','no','get','show','find',
+                'please','could','want','need','tell','give','let','know','see','check','look'];
             var words = str.split(/\s+/);
             var filtered = [];
-            var wi;
-            for (wi = 0; wi < words.length; wi++) {
-                if (stops.indexOf(words[wi]) === -1 && words[wi].length > 1) { filtered.push(words[wi]); }
+            var swi;
+            for (swi = 0; swi < words.length; swi++) {
+                if (stops.indexOf(words[swi]) === -1 && words[swi].length > 1) { filtered.push(words[swi]); }
             }
             return filtered.join(' ');
         }
 
-        if (containsAny(aq, ['help','what can you','what can i','capabilities','commands','guide me','guide','assist','how to use','what do you do'])) {
-            data.reply = 'I am your Operations Assistant. Here is what I can help you with:\n\n' +
-                'Automations:\n' +
-                '- "Show my automations" — list available automations\n' +
-                '- "Run [automation name]" — trigger an automation\n' +
-                '- "Show recent executions" — view activity history\n\n' +
-                'Service Catalog:\n' +
-                '- "I need a new laptop" — find and request catalog items\n' +
-                '- "Request VPN access" — search available services\n\n' +
-                'Knowledge Base:\n' +
-                '- "How do I reset my password?" — search articles\n' +
-                '- "What is the VPN procedure?" — find documentation\n\n' +
-                'My Requests:\n' +
-                '- "Show my requests" — view all your service requests\n\n' +
-                'Groups:\n' +
-                '- "What groups am I in?" — list your memberships';
+        function extractIncidentNumber(str) {
+            var match = str.match(/\binc\d{7}\b/i);
+            return match ? match[0].toUpperCase() : null;
+        }
+
+        if (containsAny(aq, ['hello','hi there','hey there','good morning','good afternoon','good evening','howdy','greetings','what\'s up','whats up','yo ','hi ','hey ']) || aq === 'hi' || aq === 'hey' || aq === 'hello') {
+            var greetHour = parseInt(gs.nowDateTime().substring(11, 13), 10) || 9;
+            var greetTime = greetHour < 12 ? 'Good morning' : greetHour < 17 ? 'Good afternoon' : 'Good evening';
+            data.reply = greetTime + '! I am your Operations Assistant. I can help you with:\n\n' +
+                '- Service requests and catalog items\n' +
+                '- Incidents and approvals\n' +
+                '- Knowledge base articles\n' +
+                '- Automations and executions\n' +
+                '- Groups, teams, and memberships\n\n' +
+                'What would you like to do today? Type "help" for a full list of capabilities.';
+            data.type = 'info';
+            return;
+        }
+
+        if (containsAny(aq, ['thank you','thanks','thank','appreciate','great job','well done','perfect','awesome','excellent','cheers','that helped','that works','sorted','resolved'])) {
+            data.reply = 'You are welcome! Is there anything else I can help you with?';
             data.type  = 'info';
             return;
         }
 
-        if (containsAny(aq, ['my request','my requests','my tickets','my orders','requests i raised','service request','what did i request','show requests','view requests','open request','raised request','submitted request','my sr','show my sr'])) {
+        if (containsAny(aq, ['help','what can you','what can i','capabilities','commands','guide me','guide','assist','how to use','what do you do','list commands','show commands','what do you know','what are you'])) {
+            var isAdminUser = (hasAdmin === true);
+            data.reply = 'I am your Operations Assistant. Here is what I can help you with:\n\n' +
+                'Service Requests:\n' +
+                '- "Show my requests" — view your open service requests\n' +
+                '- "I need a new laptop" — search and submit catalog items\n' +
+                '- "Request VPN access" — find access request catalog items\n\n' +
+                'Incidents:\n' +
+                '- "Show my incidents" — list your open incidents\n' +
+                '- "Create an incident" — report a new issue to IT\n' +
+                '- "Check INC0001234" — look up a specific incident\n\n' +
+                'Approvals:\n' +
+                '- "Show my approvals" — view requests waiting for your approval\n\n' +
+                'Knowledge Base:\n' +
+                '- "How do I reset my password?" — find how-to articles\n' +
+                '- "What is the VPN procedure?" — search documentation\n\n' +
+                'Automations:\n' +
+                '- "Show my automations" — list available automations\n' +
+                '- "Run [automation name]" — trigger an automation\n' +
+                '- "Show recent executions" — view activity history\n\n' +
+                'Account & Profile:\n' +
+                '- "Who am I?" — show your profile information\n' +
+                '- "What groups am I in?" — list your group memberships\n\n' +
+                'Self-Service:\n' +
+                '- "Reset my password" — password reset guidance\n' +
+                '- "I am locked out" — account unlock options\n' +
+                '- "Onboarding help" — new employee resources\n\n' +
+                (isAdminUser ? 'Administration (admin only):\n' +
+                '- "Create a report" — create a managed report\n' +
+                '- "Create a dashboard" — create a managed dashboard\n' +
+                '- "Service health" — check system status\n\n' : '') +
+                'Contact:\n' +
+                '- "Contact the service desk" — reach IT support';
+            data.type  = 'info';
+            return;
+        }
+
+        if (containsAny(aq, ['my profile','who am i','my account','my details','my information','my name','my email','my username','about me','my user'])) {
+            var profRec = new GlideRecord('sys_user');
+            var profName = 'Unknown', profEmail = '', profDept = '', profTitle = '';
+            if (profRec.get(userSysId)) {
+                profName  = '' + profRec.getDisplayValue('name');
+                profEmail = '' + (profRec.getValue('email') || '');
+                profDept  = '' + (profRec.getDisplayValue('department') || '');
+                profTitle = '' + (profRec.getValue('title') || '');
+            }
+            var roleList = [];
+            if (hasAdmin)      { roleList.push('Administrator'); }
+            if (hasLeadership) { roleList.push('Leadership'); }
+            if (hasCreator)    { roleList.push('Creator'); }
+            if (hasUser)       { roleList.push('User'); }
+            data.reply = 'Your Profile:\n\n' +
+                'Name: ' + profName + '\n' +
+                (profEmail ? 'Email: ' + profEmail + '\n' : '') +
+                (profTitle ? 'Title: ' + profTitle + '\n' : '') +
+                (profDept  ? 'Department: ' + profDept + '\n' : '') +
+                'Roles: ' + (roleList.length ? roleList.join(', ') : 'None assigned') + '\n' +
+                'Groups: ' + (data.userGroups.length ? data.userGroups.length + ' group' + (data.userGroups.length === 1 ? '' : 's') : 'None');
+            data.type = 'info';
+            return;
+        }
+
+        if (containsAny(aq, ['my incident','my incidents','my issues','open incident','incidents i raised','incident list','show incidents','view incidents','check my incident','my open ticket','my open tickets','active incident'])) {
+            var myIncItems = loadUserIncidents(userSysId, 10);
+            if (myIncItems.length === 0) {
+                data.reply = 'You have no active incidents. If you are experiencing an issue, say "Create an incident" to report it to IT.';
+                data.type  = 'info';
+            } else {
+                data.reply = 'You have ' + myIncItems.length + ' active incident' + (myIncItems.length === 1 ? '' : 's') + '. Click any item to view details:';
+                data.type  = 'requests';
+                data.items = myIncItems;
+            }
+            return;
+        }
+
+        var incNum = extractIncidentNumber(aq);
+        if (incNum) {
+            var incLookupGr = new GlideRecord('incident');
+            incLookupGr.addQuery('number', incNum);
+            incLookupGr.setLimit(1);
+            incLookupGr.query();
+            if (incLookupGr.next()) {
+                var incState    = '' + incLookupGr.getDisplayValue('state');
+                var incPriority = '' + incLookupGr.getDisplayValue('priority');
+                var incDesc     = '' + (incLookupGr.getValue('short_description') || '');
+                var incAssigned = '' + (incLookupGr.getDisplayValue('assigned_to') || 'Unassigned');
+                var incUpdated  = '' + incLookupGr.getDisplayValue('sys_updated_on');
+                data.reply = 'Incident ' + incNum + ':\n\n' +
+                    'Description: ' + (incDesc || 'No description') + '\n' +
+                    'State: ' + incState + '\n' +
+                    'Priority: ' + incPriority + '\n' +
+                    'Assigned to: ' + incAssigned + '\n' +
+                    'Last updated: ' + incUpdated + '\n\n' +
+                    'Click here to view the full incident: /sp?id=ticket&table=incident&sys_id=' + incLookupGr.getUniqueValue();
+                data.type = 'info';
+            } else {
+                data.reply = 'Incident ' + incNum + ' was not found. Please verify the number and try again.';
+                data.type  = 'error';
+            }
+            return;
+        }
+
+        if (containsAny(aq, ['create incident','report incident','log incident','raise incident','new incident','open incident','file incident','submit incident','report an issue','log an issue','report issue','create a ticket','raise a ticket','open a ticket','log a ticket','something is broken','not working','broken','server down','system down','i have an issue','i have a problem','technical issue','technical problem'])) {
+            var incKbItems = searchKnowledge(stripStopWords(aq) || aq, 3);
+            data.reply = 'To report an incident with IT, go to the Service Portal and select "Report an Issue" or click here: /sp?id=new_call\n\n' +
+                'When creating your incident, please include:\n' +
+                '- A clear description of the issue\n' +
+                '- When it started\n' +
+                '- How many people are affected\n' +
+                '- Any error messages you see\n\n' +
+                'For emergencies or critical outages, call the IT helpdesk directly.';
+            if (incKbItems.length > 0) {
+                data.reply += '\n\nI also found knowledge articles that may resolve your issue:';
+                data.type  = 'knowledge';
+                data.items = incKbItems;
+            } else {
+                data.type = 'info';
+            }
+            return;
+        }
+
+        if (containsAny(aq, ['my approval','my approvals','pending approval','waiting for my approval','items to approve','approve request','approve something','need to approve','approval queue','approval list','show approvals','view approvals','what needs approval','awaiting approval'])) {
+            var myApprovals = loadUserApprovals(userSysId, 10);
+            if (myApprovals.length === 0) {
+                data.reply = 'You have no pending approvals at this time. You will be notified when requests require your approval.';
+                data.type  = 'info';
+            } else {
+                data.reply = 'You have ' + myApprovals.length + ' pending approval' + (myApprovals.length === 1 ? '' : 's') + ' waiting for your action:';
+                data.type  = 'requests';
+                data.items = myApprovals;
+            }
+            return;
+        }
+
+        if (containsAny(aq, ['change request','change ticket','change management','crtq','crq','schedule change','raise a change','create a change','change order','request a change','change advisory','cab','emergency change','standard change','normal change'])) {
+            var changeKbItems = searchKnowledge('change management process', 4);
+            data.reply = 'To submit a Change Request, navigate to the Service Catalog and search for "Change Request" or speak with your Change Manager.\n\n' +
+                'Change types available:\n' +
+                '- Standard Change: Pre-approved, low-risk, repeatable\n' +
+                '- Normal Change: Requires Change Advisory Board (CAB) review\n' +
+                '- Emergency Change: Expedited for critical issues\n\n' +
+                'You can submit a change at: /sp?id=sc_cat_item&sysparm_category=change';
+            if (changeKbItems.length > 0) {
+                data.reply += '\n\nRelated knowledge articles:';
+                data.type  = 'knowledge';
+                data.items = changeKbItems;
+            } else {
+                data.type = 'info';
+            }
+            return;
+        }
+
+        if (containsAny(aq, ['reset password','forgot password','password expired','change password','password reset','locked out','account locked','cannot log in','can\'t log in','login problem','password problem','unlock account','unlock my account','need new password','password help','i am locked out'])) {
+            var pwKbItems = searchKnowledge('password reset', 4);
+            data.reply = 'Password and account help:\n\n' +
+                '1. Self-service password reset: /sp?id=self_service_pw_reset\n' +
+                '2. If your account is locked, wait 15 minutes and try again, or contact IT Support\n' +
+                '3. For Active Directory password resets, use the company self-service portal\n\n' +
+                'IT Support contact: Raise a service request for "Account Access" in the Service Catalog, or call the helpdesk for immediate assistance.';
+            if (pwKbItems.length > 0) {
+                data.reply += '\n\nKnowledge articles on password management:';
+                data.type  = 'knowledge';
+                data.items = pwKbItems;
+            } else {
+                data.type = 'info';
+            }
+            return;
+        }
+
+        if (containsAny(aq, ['outage','service down','system outage','is down','not available','service unavailable','maintenance window','service status','system status','health check','service health','platform status','what is down','what\'s down','current outage','known issue','known issues','planned maintenance'])) {
+            var outageSysItems = [];
+            try {
+                var outageGr = new GlideRecord('cmdb_ci_outage');
+                outageGr.addQuery('active', true);
+                outageGr.orderByDesc('begin');
+                outageGr.setLimit(5);
+                outageGr.query();
+                while (outageGr.next()) {
+                    outageSysItems.push('- ' + ('' + outageGr.getDisplayValue('configuration_item')) + ': ' + ('' + outageGr.getValue('type')) + ' since ' + ('' + outageGr.getDisplayValue('begin')));
+                }
+            } catch (oe) { outageSysItems = []; }
+            if (outageSysItems.length > 0) {
+                data.reply = 'Current active outages:\n\n' + outageSysItems.join('\n') + '\n\nFor real-time status updates, contact the IT service desk or check the company status page.';
+            } else {
+                data.reply = 'No active outages are currently recorded in the system. If you are experiencing an issue, please report it as an incident using "Create an incident" or contact IT Support directly.';
+            }
+            data.type = 'info';
+            return;
+        }
+
+        if (containsAny(aq, ['onboarding','new employee','getting started','new starter','new joiner','first day','orientation','setup my account','setup account','new hire','join the team','new member','start working','where do i start','i am new'])) {
+            var onboardItems = searchCatalog('onboarding', 3);
+            var onboardKb    = searchKnowledge('onboarding new employee', 3);
+            data.reply = 'Welcome! Here are resources to help you get started:\n\n' +
+                '1. Service Catalog — Request your equipment and system access\n' +
+                '2. Knowledge Base — Find how-to guides and IT policies\n' +
+                '3. Operations Intelligence Portal — Your central hub for automations and reporting\n\n' +
+                'Suggested first steps:\n' +
+                '- Request a laptop: say "I need a laptop"\n' +
+                '- Request system access: say "Request access to [system name]"\n' +
+                '- Find policies: say "How do I [topic]?"';
+            if (onboardItems.length > 0 || onboardKb.length > 0) {
+                data.reply += '\n\nOnboarding resources found:';
+                data.type  = onboardItems.length > 0 ? 'catalog' : 'knowledge';
+                data.items = onboardItems.concat(onboardKb);
+            } else {
+                data.type = 'info';
+            }
+            return;
+        }
+
+        if (containsAny(aq, ['sla','breach','breached','overdue','past due','sla breach','missing sla','service level','response time','resolution time','sla target','sla status','first response'])) {
+            var slaKbItems = searchKnowledge('service level agreement', 3);
+            data.reply = 'Service Level Agreements (SLAs) define target response and resolution times for incidents and requests.\n\n' +
+                'Typical SLA targets:\n' +
+                '- Priority 1 (Critical): 1 hour response, 4 hour resolution\n' +
+                '- Priority 2 (High): 4 hour response, 8 hour resolution\n' +
+                '- Priority 3 (Medium): 8 hour response, 3 day resolution\n' +
+                '- Priority 4 (Low): 1 day response, 5 day resolution\n\n' +
+                'To check SLA status on a specific ticket, say "Check INC[number]" or view your incidents with "Show my incidents".';
+            if (slaKbItems.length > 0) {
+                data.reply += '\n\nSLA knowledge articles:';
+                data.type  = 'knowledge';
+                data.items = slaKbItems;
+            } else {
+                data.type = 'info';
+            }
+            return;
+        }
+
+        if (containsAny(aq, ['navigate to','where is','where can i find','how do i get to','go to','open the','take me to','show me the','portal section','dashboard section','workspace section','gallery section','studio section','command section'])) {
+            data.reply = 'Operations Intelligence Portal navigation:\n\n' +
+                '- Workspace — Your automations and executions\n' +
+                '- Operations Gallery — Your saved reports and dashboards\n' +
+                '- Studio — Build and manage deliverables (Creators)\n' +
+                '- Governance — Group management and approvals (Leadership)\n' +
+                '- Command — Administration console (Admins)\n\n' +
+                'Use the navigation sidebar on the left to switch between sections. The Assistant is always available via the chat icon.';
+            data.type = 'info';
+            return;
+        }
+
+        if (containsAny(aq, ['contact support','contact the service desk','call support','reach support','speak to someone','talk to a human','escalate','need help from a human','contact it','it support','helpdesk','help desk','service desk contact','support contact','how to contact'])) {
+            data.reply = 'To reach IT Support:\n\n' +
+                '- Service Portal: /sp — Browse and submit service requests\n' +
+                '- Create an incident: Say "Create an incident" to report an issue\n' +
+                '- Urgent issues: Call your IT helpdesk or support line\n' +
+                '- Email: Submit requests via the Service Catalog for non-urgent needs\n\n' +
+                'For Operations Intelligence platform issues specifically, contact your platform administrator.';
+            data.type = 'info';
+            return;
+        }
+
+        if (containsAny(aq, ['create report','build report','new report','make report','add report','generate report','report builder'])) {
+            if (!hasCreator && !hasAdmin) {
+                data.reply = 'Report creation requires Creator or Administrator access. Contact your administrator to request the Creator role.';
+                data.type  = 'error';
+            } else {
+                data.reply = 'To create a new report, navigate to the Studio section from the sidebar and select "Report" as your deliverable type. The report builder will guide you through naming and configuring your report.\n\nYour completed reports will appear in the Operations Gallery.';
+                data.type  = 'info';
+            }
+            return;
+        }
+
+        if (containsAny(aq, ['create dashboard','build dashboard','new dashboard','make dashboard','add dashboard','generate dashboard','dashboard builder'])) {
+            if (!hasCreator && !hasAdmin) {
+                data.reply = 'Dashboard creation requires Creator or Administrator access. Contact your administrator to request the Creator role.';
+                data.type  = 'error';
+            } else {
+                data.reply = 'To create a new dashboard, navigate to the Studio section from the sidebar and select "Dashboard" as your deliverable type. The dashboard builder will guide you through the configuration.\n\nYour completed dashboards will appear in the Operations Gallery.';
+                data.type  = 'info';
+            }
+            return;
+        }
+
+        if (containsAny(aq, ['my request','my requests','my tickets','my orders','requests i raised','what did i request','show requests','view requests','open request','raised request','submitted request'])) {
             var reqItems = loadUserRequests(userSysId, 20);
             if (reqItems.length === 0) {
                 data.reply = 'You have not raised any service requests yet. Use the Service Catalog to submit requests for equipment, access, or services. Try asking "I need a laptop" to get started.';
@@ -663,57 +990,9 @@
             return;
         }
 
-        if (containsAny(aq, ['i need','i want','request a','order a','order an','get a','get an','need a','need an','access to','request access','can i get','can i have','how to order','how do i order','how do i request','buy a','purchase','procure'])) {
-            var catSearchQ1 = stripStopWords(aq);
-            if (!catSearchQ1) { catSearchQ1 = aq; }
-            var catItems1 = searchCatalog(catSearchQ1, 6);
-            if (catItems1.length === 0 && catSearchQ1 !== aq) { catItems1 = searchCatalog(aq, 6); }
-            if (catItems1.length === 0) {
-                data.reply = 'I could not find matching catalog items for "' + rawQ + '". Try browsing the Service Catalog directly or rephrase your request with the specific item name.';
-                data.type  = 'info';
-            } else {
-                data.reply = 'I found ' + catItems1.length + ' catalog item' + (catItems1.length === 1 ? '' : 's') + ' matching your request. Click to open and submit:';
-                data.type  = 'catalog';
-                data.items = catItems1;
-            }
-            return;
-        }
-
-        if (containsAny(aq, ['laptop','computer','phone','mobile','equipment','vpn','software','license','application','hardware','printer','monitor','mouse','keyboard','headset','desk','badge','account','permission','onboarding','catalog item','service catalog','wifi','network access','remote access'])) {
-            var catSearchQ2 = stripStopWords(aq);
-            if (!catSearchQ2) { catSearchQ2 = aq; }
-            var catItems2 = searchCatalog(catSearchQ2, 6);
-            if (catItems2.length === 0 && catSearchQ2 !== aq) { catItems2 = searchCatalog(aq, 6); }
-            if (catItems2.length === 0) {
-                data.reply = 'I could not find a catalog item matching "' + rawQ + '". Contact the service desk or browse the Service Catalog directly.';
-                data.type  = 'info';
-            } else {
-                data.reply = 'Here are catalog items related to your request. Click to open and submit:';
-                data.type  = 'catalog';
-                data.items = catItems2;
-            }
-            return;
-        }
-
-        if (containsAny(aq, ['how do','how to','what is','what are','explain','procedure','process','policy','knowledge','learn','find information','find out','troubleshoot','fix','problem with','issue with','error with','help with','documentation','steps to','instructions','tutorial','article','faq','guide for','understand'])) {
-            var kbSearchQ = stripStopWords(aq);
-            if (!kbSearchQ) { kbSearchQ = aq; }
-            var kbItems = searchKnowledge(kbSearchQ, 6);
-            if (kbItems.length === 0 && kbSearchQ !== aq) { kbItems = searchKnowledge(aq, 6); }
-            if (kbItems.length === 0) {
-                data.reply = 'I could not find knowledge articles matching "' + rawQ + '". Try rephrasing your question or contact the service desk for direct assistance.';
-                data.type  = 'info';
-            } else {
-                data.reply = 'I found ' + kbItems.length + ' knowledge article' + (kbItems.length === 1 ? '' : 's') + ' that may help:';
-                data.type  = 'knowledge';
-                data.items = kbItems;
-            }
-            return;
-        }
-
-        if (containsAny(aq, ['my group','groups i','which group','what group','am i in','member of','my team','my membership'])) {
+        if (containsAny(aq, ['my group','groups i','which group','what group','am i in','member of','my team','my membership','team member','group member','my teams'])) {
             if (data.userGroups.length === 0) {
-                data.reply = 'You are not a member of any groups. Contact your administrator to be added to an Operations Intelligence group.';
+                data.reply = 'You are not a member of any Operations Intelligence groups. Contact your administrator to be added to a group.';
             } else {
                 var gLines = [];
                 var gni;
@@ -726,7 +1005,7 @@
             return;
         }
 
-        if (containsAny(aq, ['status','last execution','recent execution','history','activity','what ran','did it run','what happened','execution log','my execution'])) {
+        if (containsAny(aq, ['last execution','recent execution','history','activity','what ran','did it run','what happened','execution log','my execution','execution status','automation history','automation log'])) {
             var seItems = [];
             if (data.personSysId) {
                 var seGr = new GlideRecord('x_infte_ops_int_execution');
@@ -739,15 +1018,15 @@
                 }
             }
             if (seItems.length === 0) {
-                data.reply = 'You have no recent executions. Trigger an automation from the Workspace or via the Automation Catalog to get started.';
+                data.reply = 'You have no recent automation executions. Trigger an automation from the Workspace to get started.';
             } else {
-                data.reply = 'Your most recent executions:\n\n' + seItems.join('\n');
+                data.reply = 'Your most recent automation executions:\n\n' + seItems.join('\n');
             }
             data.type = 'info';
             return;
         }
 
-        if (containsAny(aq, ['list automation','show automation','my automation','what automation','available automation','automations available','show me automation'])) {
+        if (containsAny(aq, ['list automation','show automation','my automation','what automation','available automation','automations available','show me automation','what automations','which automations','all automations'])) {
             var listWs = loadWorkspace(data.userGroups);
             if (listWs.automations.length === 0) {
                 data.reply = 'You have no automations available. Contact your administrator to be added to a group with published automations.';
@@ -756,7 +1035,7 @@
                 var ali;
                 for (ali = 0; ali < listWs.automations.length; ali++) {
                     var aa = listWs.automations[ali];
-                    aLines.push('- ' + aa.name + (aa.short_description ? ': ' + aa.short_description : '') + ' [Group: ' + (aa.owner_group || 'N/A') + ']');
+                    aLines.push('- ' + aa.name + (aa.short_description ? ': ' + aa.short_description : '') + ' [Group: ' + (aa.owner_group || 'Not assigned') + ']');
                 }
                 data.reply = 'You have ' + listWs.automations.length + ' automation' + (listWs.automations.length === 1 ? '' : 's') + ' available:\n\n' + aLines.join('\n') + '\n\nTo trigger one, say "Run [automation name]".';
             }
@@ -764,7 +1043,7 @@
             return;
         }
 
-        if (containsAny(aq, ['run ','trigger ','execute ','launch ','fire ','start '])) {
+        if (containsAny(aq, ['run ','trigger ','execute ','launch ','fire ','start automation','kick off','initiate automation'])) {
             var runWs = loadWorkspace(data.userGroups);
             if (runWs.automations.length === 0) {
                 data.reply = 'You have no automations available to run. Contact your administrator.';
@@ -810,12 +1089,60 @@
             return;
         }
 
+        if (containsAny(aq, ['i need','i want','request a','order a','order an','get a','get an','need a','need an','access to','request access','can i get','can i have','how to order','how do i order','how do i request','buy a','purchase','procure','submit a request','raise a request'])) {
+            var catSearchQ1 = stripStopWords(aq);
+            if (!catSearchQ1) { catSearchQ1 = aq; }
+            var catItems1 = searchCatalog(catSearchQ1, 6);
+            if (catItems1.length === 0 && catSearchQ1 !== aq) { catItems1 = searchCatalog(aq, 6); }
+            if (catItems1.length === 0) {
+                data.reply = 'I could not find matching catalog items for "' + rawQ + '". Try browsing the Service Catalog at /sp?id=sc_home or rephrase with the specific item name.';
+                data.type  = 'info';
+            } else {
+                data.reply = 'I found ' + catItems1.length + ' catalog item' + (catItems1.length === 1 ? '' : 's') + ' matching your request. Click to open and submit:';
+                data.type  = 'catalog';
+                data.items = catItems1;
+            }
+            return;
+        }
+
+        if (containsAny(aq, ['laptop','computer','phone','mobile','equipment','vpn','software','license','application','hardware','printer','monitor','mouse','keyboard','headset','desk','badge','account','permission','catalog item','service catalog','wifi','network access','remote access','tablet','charger','cable','docking station','webcam','microphone'])) {
+            var catSearchQ2 = stripStopWords(aq);
+            if (!catSearchQ2) { catSearchQ2 = aq; }
+            var catItems2 = searchCatalog(catSearchQ2, 6);
+            if (catItems2.length === 0 && catSearchQ2 !== aq) { catItems2 = searchCatalog(aq, 6); }
+            if (catItems2.length === 0) {
+                data.reply = 'I could not find a catalog item matching "' + rawQ + '". Contact the service desk or browse the Service Catalog at /sp?id=sc_home.';
+                data.type  = 'info';
+            } else {
+                data.reply = 'Here are catalog items related to your request. Click to open and submit:';
+                data.type  = 'catalog';
+                data.items = catItems2;
+            }
+            return;
+        }
+
+        if (containsAny(aq, ['how do','how to','what is','what are','explain','procedure','process','policy','knowledge','learn','find information','find out','troubleshoot','fix','problem with','issue with','error with','help with','documentation','steps to','instructions','tutorial','article','faq','guide for','understand','show me how','can you explain','tell me about','what does'])) {
+            var kbSearchQ = stripStopWords(aq);
+            if (!kbSearchQ) { kbSearchQ = aq; }
+            var kbItems = searchKnowledge(kbSearchQ, 6);
+            if (kbItems.length === 0 && kbSearchQ !== aq) { kbItems = searchKnowledge(aq, 6); }
+            if (kbItems.length === 0) {
+                data.reply = 'I could not find knowledge articles matching "' + rawQ + '". Try rephrasing your question, browse the Knowledge Base at /sp?id=kb_home, or contact the service desk for direct assistance.';
+                data.type  = 'info';
+            } else {
+                data.reply = 'I found ' + kbItems.length + ' knowledge article' + (kbItems.length === 1 ? '' : 's') + ' that may help:';
+                data.type  = 'knowledge';
+                data.items = kbItems;
+            }
+            return;
+        }
+
         var fbQ = stripStopWords(aq);
         var fbCatItems = fbQ ? searchCatalog(fbQ, 3) : [];
         var fbKbItems  = fbQ ? searchKnowledge(fbQ, 3) : [];
 
         if (fbCatItems.length > 0 || fbKbItems.length > 0) {
-            data.reply = 'I found some resources that might help with your question about "' + rawQ + '":';
+            data.reply = 'I found some resources that might help with "' + rawQ + '":';
             if (fbCatItems.length > 0 && fbKbItems.length > 0) {
                 data.type  = 'catalog';
                 data.items = fbCatItems.concat(fbKbItems);
@@ -829,7 +1156,14 @@
             return;
         }
 
-        data.reply = 'I am not sure how to answer that. You can try:\n- "Show my automations" — list automations\n- "I need a laptop" — search the Service Catalog\n- "How do I reset my password?" — search Knowledge Base\n- "Show my requests" — view your service requests\n- Type "help" for all capabilities.';
+        data.reply = 'I am not sure how to help with "' + rawQ + '". You can try:\n\n' +
+            '- "Show my incidents" — view your active incidents\n' +
+            '- "Show my approvals" — view pending approvals\n' +
+            '- "I need a laptop" — search the Service Catalog\n' +
+            '- "How do I reset my password?" — search the Knowledge Base\n' +
+            '- "Show my automations" — list available automations\n' +
+            '- "Contact support" — reach IT support\n\n' +
+            'Type "help" for all capabilities.';
         data.type  = 'info';
         return;
     }
@@ -908,7 +1242,7 @@
                     try {
                         new RoleSyncService().syncPersonRoles(subjectPersonSysId);
                     } catch (rsErr) {
-                        gs.warn('OI Portal: RoleSyncService.syncPersonRoles error: ' + rsErr);
+                        gs.warn('Operations Intelligence Portal: RoleSyncService.syncPersonRoles error: ' + rsErr);
                     }
                 }
             }
@@ -1066,7 +1400,7 @@
             try {
                 new GroupManager().addMember(enrollGroupSysId, newPersonSysId, enrollRole, data.personSysId || null);
             } catch (gmErr) {
-                gs.warn('OI Portal enroll_person GroupManager.addMember: ' + gmErr);
+                gs.warn('Operations Intelligence Portal enroll_person GroupManager.addMember: ' + gmErr);
             }
         }
 
