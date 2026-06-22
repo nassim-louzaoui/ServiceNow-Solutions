@@ -1375,7 +1375,8 @@
         }
 
         if (containsAny(aq, ['hello','hi there','hey there','good morning','good afternoon','good evening','howdy','greetings','whats up','yo ','hi ','hey ','good day','g\'day','morning','evening','afternoon','sup ','what\'s up','hola','hey you','hi you','alright','allo','bonjour','ciao','namaste','ni hao','salut','hey ho','rise and shine','morning all','whats cracking','whats happening','how goes it','how do you do','whats going on','howdy do','long time no see','nice to meet you','pleasure to meet you','hey buddy','hello friend','hello there','hey friend']) || aq === 'hi' || aq === 'hey' || aq === 'hello' || aq === 'sup' || aq === 'morning' || aq === 'evening' || aq === 'afternoon' || aq === 'yo') {
-            var greetHour = parseInt(gs.nowDateTime().substring(11, 13), 10);
+            var greetNow = ''; try { greetNow = '' + new GlideDateTime().getValue(); } catch (dte) { greetNow = ''; }
+            var greetHour = (greetNow.length >= 13) ? parseInt(greetNow.substring(11, 13), 10) : 9;
             if (isNaN(greetHour)) { greetHour = 9; }
             var greetTime = greetHour < 12 ? 'Good morning' : greetHour < 17 ? 'Good afternoon' : 'Good evening';
             data.reply = greetTime + (userFirstName ? ', ' + userFirstName : '') + '! I am your Operations Assistant — here to help with anything on the platform.\n\n' +
@@ -1980,20 +1981,8 @@
         if (!hasAdmin) { return; }
         var tPropName = '' + input.prop_name;
         var tPropVal  = (input.value === true || ('' + input.value) === 'true') ? 'true' : 'false';
-        var tPropRec = new GlideRecord('sys_properties');
-        tPropRec.addQuery('name', tPropName);
-        tPropRec.setLimit(1);
-        tPropRec.query();
-        if (tPropRec.next()) {
-            tPropRec.setValue('value', tPropVal);
-            tPropRec.update();
-        } else {
-            var tPropNew = new GlideRecord('sys_properties');
-            tPropNew.initialize();
-            tPropNew.setValue('name', tPropName);
-            tPropNew.setValue('value', tPropVal);
-            tPropNew.insert();
-        }
+        gs.setProperty(tPropName, tPropVal, 'Operations Intelligence');
+        data.toggled = true;
         return;
     }
 
