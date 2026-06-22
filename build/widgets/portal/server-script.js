@@ -323,6 +323,7 @@
     function loadStudio(personSysId) {
         var deliverableTypes = [];
         var artifacts = [];
+        var studioGroups = [];
         try {
             var dtGr = new GlideRecord('x_infte_ops_int_deliverable_type');
             dtGr.addQuery('active', true);
@@ -351,11 +352,22 @@
                     updated_at:    '' + artGr.getDisplayValue('updated_at')
                 });
             }
+            var sgGr = new GlideRecord('x_infte_ops_int_group');
+            sgGr.addQuery('status', 'active');
+            sgGr.orderBy('name');
+            sgGr.query();
+            while (sgGr.next()) {
+                studioGroups.push({
+                    sys_id: '' + sgGr.getUniqueValue(),
+                    name:   '' + sgGr.getValue('name')
+                });
+            }
         } catch (e) {
             deliverableTypes = [];
             artifacts = [];
+            studioGroups = [];
         }
-        return { deliverable_types: deliverableTypes, artifacts: artifacts };
+        return { deliverable_types: deliverableTypes, artifacts: artifacts, studio_groups: studioGroups };
     }
 
     function loadGovernance(personSysId, isAdmin) {
@@ -2146,15 +2158,19 @@
     }
 
     if (input.action === 'create_group') {
-        if (!hasAdmin) { data.created_group = { ok: false, error: 'Admin access required.' }; return; }
-        var cgName = '' + (input.name || '');
-        var cgDesc = '' + (input.description || '');
-        var cgType = '' + (input.type || 'custom_group');
+        if (!hasAdmin && !hasLeadership) { data.created_group = { ok: false, error: 'Admin or Leadership access required.' }; return; }
+        var cgName         = '' + (input.name || '');
+        var cgDesc         = '' + (input.description || '');
+        var cgType         = '' + (input.type || 'custom_group');
+        var cgLeadId       = input.lead_person_sys_id   ? '' + input.lead_person_sys_id   : null;
+        var cgCreatorId    = input.creator_person_sys_id ? '' + input.creator_person_sys_id : null;
         if (!cgName) { data.created_group = { ok: false, error: 'Name is required.' }; return; }
         try {
             var gm = new GroupManager();
             var newGrpId = gm.createGroup(cgName, cgDesc, cgType, data.personSysId || null, null, data.personSysId || null);
             if (newGrpId) {
+                if (cgLeadId)    { try { gm.addMember(newGrpId, cgLeadId,    'lead',    data.personSysId || null); } catch(e) {} }
+                if (cgCreatorId) { try { gm.addMember(newGrpId, cgCreatorId, 'creator', data.personSysId || null); } catch(e) {} }
                 data.created_group = { ok: true, sys_id: newGrpId, name: cgName };
             } else {
                 data.created_group = { ok: false, error: 'Group already exists or could not be created.' };
@@ -2265,6 +2281,196 @@
         ddRec.setValue('status', 'archived');
         ddRec.update();
         data.deleted_deliverable = { ok: true };
+        return;
+    }
+
+    if (input.action === 'list_access_members') {
+        if (!hasAdmin && !hasLeadership) { data.access_members = {}; return; }
+        var lamRoleMap = {};
+        var lamRGr = new GlideRecord('sys_user_role');
+        lamRGr.addQuery('name', 'IN', 'x_infte_ops_int.admin,x_infte_ops_int.leadership,x_infte_ops_int.creator,x_infte_ops_int.user');
+        lamRGr.query();
+        while (lamRGr.next()) {
+            lamRoleMap['' + lamRGr.getUniqueValue()] = '' + lamRGr.getValue('name');
+        }
+        var lamAccess = { admin: [], leadership: [], creator: [], user: [] };
+        var lamIds = [];
+        var lamK;
+        for (lamK in lamRoleMap) { if (lamRoleMap.hasOwnProperty(lamK)) { lamIds.push(lamK); } }
+        if (lamIds.length > 0) {
+            var lamHrGr = new GlideRecord('sys_user_has_role');
+            lamHrGr.addQuery('role', 'IN', lamIds.join(','));
+            lamHrGr.query();
+            while (lamHrGr.next()) {
+                var lamRoleSysId = '' + lamHrGr.getValue('role');
+                var lamRoleName  = lamRoleMap[lamRoleSysId];
+                if (!lamRoleName) { continue; }
+                var lamParts     = lamRoleName.split('.');
+                var lamRoleKey   = lamParts.length > 1 ? lamParts[lamParts.length - 1] : lamRoleName;
+                if (!lamAccess[lamRoleKey]) { continue; }
+                var lamUserSysId = '' + lamHrGr.getValue('user');
+                var lamUserRec   = new GlideRecord('sys_user');
+                if (!lamUserRec.get(lamUserSysId)) { continue; }
+                lamAccess[lamRoleKey].push({
+                    user_sys_id:            lamUserSysId,
+                    name:                   '' + lamUserRec.getDisplayValue('name'),
+                    user_name:              '' + lamUserRec.getValue('user_name'),
+                    email:                  '' + (lamUserRec.getValue('email') || ''),
+                    role_assignment_sys_id: '' + lamHrGr.getUniqueValue()
+                });
+            }
+        }
+        data.access_members = lamAccess;
+        return;
+    }
+
+    if (input.action === 'grant_role') {
+        if (!hasAdmin) { data.role_granted = { ok: false, error: 'Admin access required.' }; return; }
+        var grUserSysId    = '' + input.user_sys_id;
+        var grRoleName     = '' + input.role_name;
+        var VALID_GR_ROLES = { admin: true, leadership: true, creator: true, user: true };
+        if (!VALID_GR_ROLES[grRoleName]) { data.role_granted = { ok: false, error: 'Invalid role name.' }; return; }
+        var grFullName     = 'x_infte_ops_int.' + grRoleName;
+        var grRoleRec      = new GlideRecord('sys_user_role');
+        grRoleRec.addQuery('name', grFullName);
+        grRoleRec.setLimit(1);
+        grRoleRec.query();
+        if (!grRoleRec.next()) { data.role_granted = { ok: false, error: 'Role record not found.' }; return; }
+        var grRoleSysId    = '' + grRoleRec.getUniqueValue();
+        var grChkGr        = new GlideRecord('sys_user_has_role');
+        grChkGr.addQuery('user', grUserSysId);
+        grChkGr.addQuery('role', grRoleSysId);
+        grChkGr.setLimit(1);
+        grChkGr.query();
+        if (grChkGr.next()) {
+            var grExistUserRec = new GlideRecord('sys_user');
+            var grExistName = '';
+            var grExistEmail = '';
+            if (grExistUserRec.get(grUserSysId)) { grExistName = '' + grExistUserRec.getDisplayValue('name'); grExistEmail = '' + (grExistUserRec.getValue('email') || ''); }
+            data.role_granted = { ok: true, already_had_role: true, role_assignment_sys_id: '' + grChkGr.getUniqueValue(), user_sys_id: grUserSysId, name: grExistName, email: grExistEmail };
+            return;
+        }
+        var grNewHr        = new GlideRecord('sys_user_has_role');
+        grNewHr.initialize();
+        grNewHr.setValue('user', grUserSysId);
+        grNewHr.setValue('role', grRoleSysId);
+        grNewHr.setValue('state', 'active');
+        var grNewId        = '' + (grNewHr.insert() || '');
+        var grUserRec      = new GlideRecord('sys_user');
+        var grName         = '';
+        var grEmail        = '';
+        if (grUserRec.get(grUserSysId)) { grName = '' + grUserRec.getDisplayValue('name'); grEmail = '' + (grUserRec.getValue('email') || ''); }
+        data.role_granted = { ok: !!grNewId, role_assignment_sys_id: grNewId, user_sys_id: grUserSysId, name: grName, email: grEmail };
+        return;
+    }
+
+    if (input.action === 'revoke_role') {
+        if (!hasAdmin) { data.role_revoked = { ok: false, error: 'Admin access required.' }; return; }
+        var rrSysId = '' + input.role_assignment_sys_id;
+        var rrRec   = new GlideRecord('sys_user_has_role');
+        if (!rrRec.get(rrSysId)) { data.role_revoked = { ok: false, error: 'Assignment not found.' }; return; }
+        rrRec.deleteRecord();
+        data.role_revoked = { ok: true };
+        return;
+    }
+
+    if (input.action === 'list_all_automations') {
+        if (!hasAdmin && !hasCreator) { data.all_automations = []; return; }
+        var laaGr   = new GlideRecord('x_infte_ops_int_automation');
+        laaGr.orderBy('name');
+        laaGr.query();
+        var laaList = [];
+        while (laaGr.next()) {
+            laaList.push({
+                sys_id:      '' + laaGr.getUniqueValue(),
+                name:        '' + laaGr.getValue('name'),
+                description: '' + (laaGr.getValue('description') || ''),
+                status:      '' + (laaGr.getValue('status') || 'draft'),
+                created_on:  '' + laaGr.getDisplayValue('sys_created_on')
+            });
+        }
+        data.all_automations = laaList;
+        return;
+    }
+
+    if (input.action === 'create_automation') {
+        if (!hasAdmin && !hasCreator) { data.created_automation = { ok: false, error: 'Creator or Admin access required.' }; return; }
+        var caName      = '' + (input.name || '');
+        var caDesc      = '' + (input.description || '');
+        var caScript    = '' + (input.script || '');
+        var caTarget    = input.target_groups;
+        if (!caName) { data.created_automation = { ok: false, error: 'Name is required.' }; return; }
+        var caRec       = new GlideRecord('x_infte_ops_int_automation');
+        caRec.initialize();
+        caRec.setValue('name', caName);
+        caRec.setValue('description', caDesc);
+        if (caScript) { caRec.setValue('script', caScript); }
+        caRec.setValue('status', 'draft');
+        caRec.setValue('created_by', userSysId);
+        var caId        = '' + (caRec.insert() || '');
+        if (!caId) { data.created_automation = { ok: false, error: 'Failed to create automation.' }; return; }
+        var caAllGroups = (caTarget === 'all');
+        var caGroupIds  = [];
+        if (caAllGroups) {
+            var caAllGrGr = new GlideRecord('x_infte_ops_int_group');
+            caAllGrGr.addQuery('status', 'active');
+            caAllGrGr.query();
+            while (caAllGrGr.next()) { caGroupIds.push('' + caAllGrGr.getUniqueValue()); }
+        } else if (caTarget && caTarget.length) {
+            var caTi;
+            for (caTi = 0; caTi < caTarget.length; caTi++) { caGroupIds.push('' + caTarget[caTi]); }
+        }
+        var caGi;
+        for (caGi = 0; caGi < caGroupIds.length; caGi++) {
+            var caGrRec = new GlideRecord('x_infte_ops_int_group');
+            if (!caGrRec.get(caGroupIds[caGi])) { continue; }
+            var caExist = [];
+            try { caExist = JSON.parse('' + caGrRec.getValue('automations')); } catch(e) { caExist = []; }
+            var caAlready = false;
+            var caAi;
+            for (caAi = 0; caAi < caExist.length; caAi++) {
+                if ('' + caExist[caAi].automation_sys_id === caId) { caAlready = true; break; }
+            }
+            if (!caAlready) {
+                caExist.push({ automation_sys_id: caId, approval_status: 'approved' });
+                caGrRec.setValue('automations', JSON.stringify(caExist));
+                caGrRec.update();
+            }
+        }
+        data.created_automation = { ok: true, sys_id: caId, name: caName };
+        return;
+    }
+
+    if (input.action === 'publish_automation') {
+        if (!hasAdmin && !hasCreator) { data.published_automation = { ok: false, error: 'Creator or Admin access required.' }; return; }
+        var paAutoId    = '' + input.automation_sys_id;
+        var paAllGroups = (input.target_type === 'all');
+        var paGroupIds  = input.group_sys_ids || [];
+        var paAutoRec   = new GlideRecord('x_infte_ops_int_automation');
+        if (!paAutoRec.get(paAutoId)) { data.published_automation = { ok: false, error: 'Automation not found.' }; return; }
+        var paGrGr      = new GlideRecord('x_infte_ops_int_group');
+        paGrGr.addQuery('status', 'active');
+        if (!paAllGroups && paGroupIds.length > 0) {
+            paGrGr.addQuery('sys_id', 'IN', paGroupIds.join(','));
+        }
+        paGrGr.query();
+        var paCount = 0;
+        while (paGrGr.next()) {
+            var paExist = [];
+            try { paExist = JSON.parse('' + paGrGr.getValue('automations')); } catch(e) { paExist = []; }
+            var paAlready = false;
+            var paBi;
+            for (paBi = 0; paBi < paExist.length; paBi++) {
+                if ('' + paExist[paBi].automation_sys_id === paAutoId) { paAlready = true; break; }
+            }
+            if (!paAlready) {
+                paExist.push({ automation_sys_id: paAutoId, approval_status: 'approved' });
+                paGrGr.setValue('automations', JSON.stringify(paExist));
+                paGrGr.update();
+                paCount++;
+            }
+        }
+        data.published_automation = { ok: true, groups_updated: paCount };
         return;
     }
 

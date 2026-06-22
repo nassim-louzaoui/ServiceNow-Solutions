@@ -1127,18 +1127,50 @@
   /* ── Studio Section ──────────────────────────────────────────── */
 
   function StudioSection(props) {
+    var ctx = React.useContext(AppContext);
     var data = props.data;
     var artifacts = data.artifacts || [];
     var deliverableTypes = data.deliverable_types || [];
+    var studioGroups = data.studio_groups || [];
 
     var tabResult = React.useState('artifacts');
     var tab = tabResult[0];
     var setTab = tabResult[1];
 
+    var automationsResult = React.useState(null);
+    var automations = automationsResult[0];
+    var setAutomations = automationsResult[1];
+
+    var autoLoadingResult = React.useState(false);
+    var autoLoading = autoLoadingResult[0];
+    var setAutoLoading = autoLoadingResult[1];
+
+    var showCreateAutoResult = React.useState(false);
+    var showCreateAuto = showCreateAutoResult[0];
+    var setShowCreateAuto = showCreateAutoResult[1];
+
+    function loadAutomations() {
+      setAutoLoading(true);
+      ctx.callServer({ action: 'list_all_automations' }, function (d, err) {
+        setAutoLoading(false);
+        if (err) { ctx.toast(err, 'error'); return; }
+        setAutomations((d && d.all_automations) || []);
+      });
+    }
+
+    React.useEffect(function () {
+      if (tab === 'automations' && automations === null) loadAutomations();
+    }, [tab]);
+
     return h('div', { className: 'oi-section' },
       h('div', { className: 'oi-toolbar' },
         h('div', { className: 'oi-toolbar-left' },
           h('h1', { className: 'oi-section-title' }, 'Operations Studio')
+        ),
+        h('div', { className: 'oi-toolbar-right' },
+          tab === 'automations'
+            ? h('button', { className: 'oi-btn primary sm', onClick: function () { setShowCreateAuto(true); } }, '+ Create Automation')
+            : null
         )
       ),
       h('div', null,
@@ -1146,6 +1178,10 @@
           h('button', { className: 'oi-subtab' + (tab === 'artifacts' ? ' active' : ''), onClick: function () { setTab('artifacts'); } },
             'My Artifacts',
             h('span', { className: 'oi-subtab-count' }, artifacts.length)
+          ),
+          h('button', { className: 'oi-subtab' + (tab === 'automations' ? ' active' : ''), onClick: function () { setTab('automations'); } },
+            'Automations',
+            automations !== null ? h('span', { className: 'oi-subtab-count' }, automations.length) : null
           ),
           h('button', { className: 'oi-subtab' + (tab === 'types' ? ' active' : ''), onClick: function () { setTab('types'); } },
             'Deliverable Types',
@@ -1184,25 +1220,63 @@
                       )
                     )
               )
-            : h('div', { style: { padding: '1.25rem' } },
-                deliverableTypes.length === 0
-                  ? h('div', { className: 'oi-empty' },
-                      h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'document', size: 40, fill: '#DCDCDC' })),
-                      h('div', { className: 'oi-empty-title' }, 'No deliverable types'),
-                      h('div', { className: 'oi-empty-sub' }, 'Deliverable types configured in the system will appear here.')
-                    )
-                  : h('div', { className: 'oi-auto-grid' },
-                      deliverableTypes.map(function (dt, i) {
-                        return h('div', { key: dt.sys_id || i, className: 'oi-auto-card' },
-                          h('div', { className: 'oi-auto-card-icon' }, h(OIIcon, { name: 'document', size: 20, fill: '#00BF6F' })),
-                          h('div', { className: 'oi-auto-card-name' }, dt.name),
-                          h('div', { className: 'oi-auto-card-desc' }, dt.icon || '')
-                        );
-                      })
-                    )
-              )
+            : tab === 'automations'
+              ? h('div', { style: { padding: '1.25rem' } },
+                  autoLoading
+                    ? h('div', { className: 'oi-spinner-center' }, h('div', { className: 'oi-spinner' }))
+                    : !automations || automations.length === 0
+                      ? h('div', { className: 'oi-empty' },
+                          h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'automation', size: 40, fill: '#DCDCDC' })),
+                          h('div', { className: 'oi-empty-title' }, 'No automations yet'),
+                          h('div', { className: 'oi-empty-sub' }, 'Create an automation to make it available in the Workspace for your groups.')
+                        )
+                      : h('table', { className: 'oi-table' },
+                          h('thead', null,
+                            h('tr', null,
+                              h('th', null, 'Name'),
+                              h('th', null, 'Description'),
+                              h('th', null, 'Status'),
+                              h('th', null, 'Created')
+                            )
+                          ),
+                          h('tbody', null,
+                            automations.map(function (a, i) {
+                              return h('tr', { key: a.sys_id || i },
+                                h('td', null, h('span', { className: 'oi-td-primary' }, a.name || '')),
+                                h('td', null, h('span', { className: 'oi-td-muted' }, a.description || '—')),
+                                h('td', null, h(Badge, { cls: statusClass(a.status) }, a.status || 'draft')),
+                                h('td', null, h('span', { className: 'oi-td-muted' }, relTime(a.created_on)))
+                              );
+                            })
+                          )
+                        )
+                )
+              : h('div', { style: { padding: '1.25rem' } },
+                  deliverableTypes.length === 0
+                    ? h('div', { className: 'oi-empty' },
+                        h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'document', size: 40, fill: '#DCDCDC' })),
+                        h('div', { className: 'oi-empty-title' }, 'No deliverable types'),
+                        h('div', { className: 'oi-empty-sub' }, 'Deliverable types configured in the system will appear here.')
+                      )
+                    : h('div', { className: 'oi-auto-grid' },
+                        deliverableTypes.map(function (dt, i) {
+                          return h('div', { key: dt.sys_id || i, className: 'oi-auto-card' },
+                            h('div', { className: 'oi-auto-card-icon' }, h(OIIcon, { name: 'document', size: 20, fill: '#00BF6F' })),
+                            h('div', { className: 'oi-auto-card-name' }, dt.name),
+                            h('div', { className: 'oi-auto-card-desc' }, dt.icon || '')
+                          );
+                        })
+                      )
+                )
         )
-      )
+      ),
+      showCreateAuto
+        ? h(CreateAutomationModal, {
+            groups: studioGroups,
+            onClose: function () { setShowCreateAuto(false); },
+            onCreated: function (auto) { setAutomations((automations || []).concat([auto])); }
+          })
+        : null
     );
   }
 
@@ -1212,7 +1286,14 @@
     var ctx = React.useContext(AppContext);
     var data = props.data;
 
-    var tabResult = React.useState('groups');
+    var ACCESS_ROLES = [
+      { key: 'admin',      label: 'Operations Intelligence Administrator', desc: 'Full platform control including Command console, user management, and all administrative capabilities.' },
+      { key: 'leadership', label: 'Operations Intelligence Lead',           desc: 'Governance oversight, group management, approval of pending actions, and leadership-level reporting.' },
+      { key: 'creator',    label: 'Operations Intelligence Creator',        desc: 'Build and publish reports, dashboards, data alerts, and Studio automations for assigned groups.' },
+      { key: 'user',       label: 'Operations Intelligence User',           desc: 'Run automations and view the Gallery, Workspace, and deliverables available to their groups.' }
+    ];
+
+    var tabResult = React.useState('access');
     var tab = tabResult[0];
     var setTab = tabResult[1];
 
@@ -1220,9 +1301,9 @@
     var groups = groupsResult[0];
     var setGroups = groupsResult[1];
 
-    var personsResult = React.useState(data.persons || []);
-    var persons = personsResult[0];
-    var setPersons = personsResult[1];
+    var usersResult = React.useState(data.persons || []);
+    var users = usersResult[0];
+    var setUsers = usersResult[1];
 
     var pendingResult = React.useState(data.pending_actions || []);
     var pendingActions = pendingResult[0];
@@ -1256,10 +1337,50 @@
     var confirmDeleteId = confirmDeleteResult[0];
     var setConfirmDeleteId = confirmDeleteResult[1];
 
-    function loadPersons() {
+    var accessMembersResult = React.useState(null);
+    var accessMembers = accessMembersResult[0];
+    var setAccessMembers = accessMembersResult[1];
+
+    var accessLoadingResult = React.useState(false);
+    var accessLoading = accessLoadingResult[0];
+    var setAccessLoading = accessLoadingResult[1];
+
+    var showGrantRoleResult = React.useState(null);
+    var showGrantRole = showGrantRoleResult[0];
+    var setShowGrantRole = showGrantRoleResult[1];
+
+    function loadUsers() {
       ctx.callServer({ action: 'list_persons' }, function (d, err) {
         if (err) { ctx.toast(err, 'error'); return; }
-        setPersons((d && d.persons) || []);
+        setUsers((d && d.persons) || []);
+      });
+    }
+
+    function loadAccessMembers() {
+      setAccessLoading(true);
+      ctx.callServer({ action: 'list_access_members' }, function (d, err) {
+        setAccessLoading(false);
+        if (err) { ctx.toast(err, 'error'); return; }
+        setAccessMembers((d && d.access_members) || { admin: [], leadership: [], creator: [], user: [] });
+      });
+    }
+
+    function revokeRoleAccess(roleKey, member) {
+      ctx.callServer({ action: 'revoke_role', role_assignment_sys_id: member.role_assignment_sys_id }, function (d, err) {
+        if (err) { ctx.toast(err, 'error'); return; }
+        if (d && d.role_revoked && d.role_revoked.ok) {
+          ctx.toast(member.name + ' access revoked.', 'success');
+          var updated = {
+            admin:      (accessMembers && accessMembers.admin)      || [],
+            leadership: (accessMembers && accessMembers.leadership)  || [],
+            creator:    (accessMembers && accessMembers.creator)     || [],
+            user:       (accessMembers && accessMembers.user)        || []
+          };
+          updated[roleKey] = (updated[roleKey] || []).filter(function (m) { return m.role_assignment_sys_id !== member.role_assignment_sys_id; });
+          setAccessMembers(updated);
+        } else {
+          ctx.toast('Failed to revoke access.', 'error');
+        }
       });
     }
 
@@ -1315,7 +1436,8 @@
     }
 
     React.useEffect(function () {
-      if (tab === 'persons') loadPersons();
+      if (tab === 'users') loadUsers();
+      if (tab === 'access' && !accessMembers) loadAccessMembers();
     }, [tab]);
 
     return h('div', { className: 'oi-section' },
@@ -1327,20 +1449,23 @@
           tab === 'groups'
             ? h('button', { className: 'oi-btn primary sm', onClick: function () { setShowCreateGroup(true); } }, '+ Create Group')
             : null,
-          tab === 'persons'
-            ? h('button', { className: 'oi-btn primary sm', onClick: function () { setShowEnroll(true); } }, '+ Enroll Person')
+          tab === 'users'
+            ? h('button', { className: 'oi-btn primary sm', onClick: function () { setShowEnroll(true); } }, '+ Enroll User')
             : null
         )
       ),
       h('div', null,
         h('div', { className: 'oi-subtabs' },
+          h('button', { className: 'oi-subtab' + (tab === 'access' ? ' active' : ''), onClick: function () { setTab('access'); } },
+            'Access'
+          ),
+          h('button', { className: 'oi-subtab' + (tab === 'users' ? ' active' : ''), onClick: function () { setTab('users'); } },
+            'Users',
+            h('span', { className: 'oi-subtab-count' }, users.length)
+          ),
           h('button', { className: 'oi-subtab' + (tab === 'groups' ? ' active' : ''), onClick: function () { setTab('groups'); setSelectedGroup(null); } },
             'Groups',
             h('span', { className: 'oi-subtab-count' }, groups.length)
-          ),
-          h('button', { className: 'oi-subtab' + (tab === 'persons' ? ' active' : ''), onClick: function () { setTab('persons'); } },
-            'Persons',
-            h('span', { className: 'oi-subtab-count' }, persons.length)
           ),
           h('button', { className: 'oi-subtab' + (tab === 'actions' ? ' active' : ''), onClick: function () { setTab('actions'); } },
             'Pending Actions',
@@ -1348,91 +1473,51 @@
           )
         ),
         h('div', { className: 'oi-subtab-body' },
-          tab === 'groups'
-            ? h('div', { className: 'oi-split', style: { padding: '1.25rem' } },
-                h('div', { className: 'oi-list-pane' },
-                  h('div', { className: 'oi-item-list' },
-                    groups.length === 0
-                      ? h('div', { className: 'oi-empty-inline' }, 'No groups found.')
-                      : groups.map(function (g) {
-                          var confirming = confirmDeleteId === g.sys_id;
-                          return h('div', {
-                            key: g.sys_id,
-                            className: 'oi-list-item' + (selectedGroup && selectedGroup.sys_id === g.sys_id ? ' selected' : ''),
-                            onClick: function () { if (!confirming) selectGroup(g); }
-                          },
-                            h('div', { className: 'oi-list-item-icon' }, h(OIIcon, { name: 'group', size: 16, fill: g.is_system ? '#6E6E6E' : '#00BF6F' })),
-                            h('div', { className: 'oi-list-item-body' },
-                              h('div', { className: 'oi-list-item-title' }, g.name),
-                              h('div', { className: 'oi-list-item-sub' }, g.is_system ? 'System-managed' : (g.member_count + ' member' + (g.member_count === 1 ? '' : 's')))
+          tab === 'access'
+            ? h('div', { style: { padding: '1.25rem' } },
+                accessLoading
+                  ? h('div', { className: 'oi-spinner-center' }, h('div', { className: 'oi-spinner' }))
+                  : h('div', { className: 'oi-access-grid' },
+                      ACCESS_ROLES.map(function (role) {
+                        var roleMembers = (accessMembers && accessMembers[role.key]) || [];
+                        return h('div', { key: role.key, className: 'oi-access-card' },
+                          h('div', { className: 'oi-access-card-hdr' },
+                            h('div', null,
+                              h('div', { className: 'oi-access-card-title' }, role.label),
+                              h('div', { className: 'oi-access-card-desc' }, role.desc)
                             ),
-                            confirming
-                              ? h('div', { className: 'oi-delete-confirm', onClick: function (e) { e.stopPropagation(); } },
-                                  h('span', { className: 'oi-delete-confirm-msg' }, 'Delete group?'),
-                                  h('button', { className: 'oi-btn danger xs', onClick: function (e) { e.stopPropagation(); setConfirmDeleteId(null); deleteGroup(g); } }, 'Delete'),
-                                  h('button', { className: 'oi-btn ghost xs', onClick: function (e) { e.stopPropagation(); setConfirmDeleteId(null); } }, 'Cancel')
-                                )
-                              : h('div', { className: 'oi-list-item-actions', onClick: function (e) { e.stopPropagation(); } },
-                                  h('span', { className: 'oi-list-item-count' }, g.member_count != null ? g.member_count : ''),
-                                  g.is_system
-                                    ? h('span', { className: 'oi-list-item-lock', title: 'System-managed — cannot be deleted' },
-                                        h(OIIcon, { name: 'lock', size: 14, fill: '#DCDCDC' })
-                                      )
-                                    : h('button', {
+                            h('button', { className: 'oi-btn ghost xs', style: { flexShrink: 0 }, onClick: function () { setShowGrantRole(role.key); } }, '+ Grant')
+                          ),
+                          !accessMembers
+                            ? h('div', { className: 'oi-empty-inline', style: { fontSize: '0.8125rem', color: '#6E6E6E' } }, 'Loading...')
+                            : roleMembers.length === 0
+                              ? h('div', { className: 'oi-empty-inline' }, 'No users assigned to this role.')
+                              : h('div', { className: 'oi-member-list' },
+                                  roleMembers.map(function (m, i) {
+                                    return h('div', { key: m.role_assignment_sys_id || i, className: 'oi-member-item' },
+                                      h('div', { className: 'oi-member-avatar' }, initials(m.name || '')),
+                                      h('div', { className: 'oi-member-info' },
+                                        h('div', { className: 'oi-member-name' }, m.name || '—'),
+                                        m.email ? h('div', { className: 'oi-member-role' }, m.email) : null
+                                      ),
+                                      h('button', {
                                         className: 'oi-icon-btn danger',
-                                        title: 'Delete group',
-                                        onClick: function (e) { e.stopPropagation(); setConfirmDeleteId(g.sys_id); }
+                                        title: 'Revoke access',
+                                        onClick: function () { revokeRoleAccess(role.key, m); }
                                       }, h(OIIcon, { name: 'remove', size: 14 }))
+                                    );
+                                  })
                                 )
-                          );
-                        })
-                  )
-                ),
-                selectedGroup
-                  ? h('div', { className: 'oi-detail-pane' },
-                      h('div', { className: 'oi-detail-hdr' },
-                        h('span', { className: 'oi-detail-title' }, selectedGroup.name),
-                        h('div', { style: { display: 'flex', gap: '0.375rem' } },
-                          h('button', {
-                            className: 'oi-btn ghost xs',
-                            onClick: function () { setShowAddMember(true); }
-                          }, h(OIIcon, { name: 'plus', size: 14 }), ' Member'),
-                          h('button', { className: 'oi-icon-btn', onClick: function () { setSelectedGroup(null); } }, h(OIIcon, { name: 'close', size: 18 }))
-                        )
-                      ),
-                      h('div', { className: 'oi-detail-body' },
-                        h('div', { className: 'oi-detail-sec-hdr' }, h('span', null, 'Members')),
-                        loadingMembers
-                          ? h('div', { className: 'oi-spinner-center' }, h('div', { className: 'oi-spinner' }))
-                          : groupMembers.length === 0
-                            ? h('div', { className: 'oi-empty-inline' }, 'No members.')
-                            : h('div', { className: 'oi-member-list' },
-                                groupMembers.map(function (m, i) {
-                                  return h('div', { key: m.person_sys_id || i, className: 'oi-member-item' },
-                                    h('div', { className: 'oi-member-avatar' }, initials(m.person_name || '')),
-                                    h('div', { className: 'oi-member-info' },
-                                      h('div', { className: 'oi-member-name' }, m.person_name || '—'),
-                                      m.person_email ? h('div', { className: 'oi-member-role' }, m.person_email) : null,
-                                      h('div', { className: 'oi-member-role' }, m.group_role || 'user')
-                                    ),
-                                    h('button', {
-                                      className: 'oi-icon-btn danger',
-                                      title: 'Remove from this group (person remains enrolled)',
-                                      onClick: function () { removeMember(m.person_sys_id); }
-                                    }, h(OIIcon, { name: 'remove', size: 14 }))
-                                  );
-                                })
-                              )
-                      )
+                        );
+                      })
                     )
-                  : null
               )
-            : tab === 'persons'
+            : tab === 'users'
               ? h('div', null,
-                  persons.length === 0
+                  users.length === 0
                     ? h('div', { className: 'oi-empty' },
                         h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'user', size: 40, fill: '#DCDCDC' })),
-                        h('div', { className: 'oi-empty-title' }, 'No persons enrolled'),
+                        h('div', { className: 'oi-empty-title' }, 'No users enrolled'),
                         h('div', { className: 'oi-empty-sub' }, 'Enroll a ServiceNow user to grant access.')
                       )
                     : h('table', { className: 'oi-table' },
@@ -1446,7 +1531,7 @@
                           )
                         ),
                         h('tbody', null,
-                          persons.map(function (p, i) {
+                          users.map(function (p, i) {
                             return h('tr', { key: p.sys_id || i },
                               h('td', null,
                                 h('div', { className: 'oi-person-cell' },
@@ -1469,43 +1554,122 @@
                               h('td', null,
                                 h('button', {
                                   className: 'oi-btn danger xs',
-                                  title: 'Deactivate this person and remove them from all groups',
-                                  onClick: function () { unenrollPerson(p, setPersons, persons, ctx); }
-                                }, 'Deactivate')
+                                  title: 'Unenroll this user and remove them from all groups',
+                                  onClick: function () { unenrollPerson(p, setUsers, users, ctx); }
+                                }, 'Unenroll')
                               )
                             );
                           })
                         )
                       )
                 )
-              : h('div', { className: 'oi-action-list' },
-                  pendingActions.length === 0
-                    ? h('div', { className: 'oi-empty' },
-                        h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'check', size: 40, fill: '#DCDCDC' })),
-                        h('div', { className: 'oi-empty-title' }, 'All clear'),
-                        h('div', { className: 'oi-empty-sub' }, 'No pending actions require attention.')
+              : tab === 'groups'
+                ? h('div', { className: 'oi-split', style: { padding: '1.25rem' } },
+                    h('div', { className: 'oi-list-pane' },
+                      h('div', { className: 'oi-item-list' },
+                        groups.length === 0
+                          ? h('div', { className: 'oi-empty-inline' }, 'No groups found.')
+                          : groups.map(function (g) {
+                              var confirming = confirmDeleteId === g.sys_id;
+                              return h('div', {
+                                key: g.sys_id,
+                                className: 'oi-list-item' + (selectedGroup && selectedGroup.sys_id === g.sys_id ? ' selected' : ''),
+                                onClick: function () { if (!confirming) selectGroup(g); }
+                              },
+                                h('div', { className: 'oi-list-item-icon' }, h(OIIcon, { name: 'group', size: 16, fill: g.is_system ? '#6E6E6E' : '#00BF6F' })),
+                                h('div', { className: 'oi-list-item-body' },
+                                  h('div', { className: 'oi-list-item-title' }, g.name),
+                                  h('div', { className: 'oi-list-item-sub' }, g.is_system ? 'System-managed' : (g.member_count + ' member' + (g.member_count === 1 ? '' : 's')))
+                                ),
+                                confirming
+                                  ? h('div', { className: 'oi-delete-confirm', onClick: function (e) { e.stopPropagation(); } },
+                                      h('span', { className: 'oi-delete-confirm-msg' }, 'Delete group?'),
+                                      h('button', { className: 'oi-btn danger xs', onClick: function (e) { e.stopPropagation(); setConfirmDeleteId(null); deleteGroup(g); } }, 'Delete'),
+                                      h('button', { className: 'oi-btn ghost xs', onClick: function (e) { e.stopPropagation(); setConfirmDeleteId(null); } }, 'Cancel')
+                                    )
+                                  : h('div', { className: 'oi-list-item-actions', onClick: function (e) { e.stopPropagation(); } },
+                                      h('span', { className: 'oi-list-item-count' }, g.member_count != null ? g.member_count : ''),
+                                      g.is_system
+                                        ? h('span', { className: 'oi-list-item-lock', title: 'System-managed — cannot be deleted' },
+                                            h(OIIcon, { name: 'lock', size: 14, fill: '#DCDCDC' })
+                                          )
+                                        : h('button', {
+                                            className: 'oi-icon-btn danger',
+                                            title: 'Delete group',
+                                            onClick: function (e) { e.stopPropagation(); setConfirmDeleteId(g.sys_id); }
+                                          }, h(OIIcon, { name: 'remove', size: 14 }))
+                                    )
+                              );
+                            })
                       )
-                    : pendingActions.map(function (a, i) {
-                        return h('div', { key: a.sys_id || i, className: 'oi-action-item' },
-                          h('div', { className: 'oi-action-info' },
-                            h('div', { className: 'oi-action-type' }, a.type || 'Action'),
-                            h('div', { className: 'oi-action-desc' }, a.description || ''),
-                            a.subject_user_name ? h('div', { className: 'oi-action-meta' }, 'Re: ' + a.subject_user_name) : null,
-                            h('div', { className: 'oi-action-meta' }, relTime(a.created))
+                    ),
+                    selectedGroup
+                      ? h('div', { className: 'oi-detail-pane' },
+                          h('div', { className: 'oi-detail-hdr' },
+                            h('span', { className: 'oi-detail-title' }, selectedGroup.name),
+                            h('div', { style: { display: 'flex', gap: '0.375rem' } },
+                              h('button', {
+                                className: 'oi-btn ghost xs',
+                                onClick: function () { setShowAddMember(true); }
+                              }, h(OIIcon, { name: 'plus', size: 14 }), ' Member'),
+                              h('button', { className: 'oi-icon-btn', onClick: function () { setSelectedGroup(null); } }, h(OIIcon, { name: 'close', size: 18 }))
+                            )
                           ),
-                          h('div', { className: 'oi-action-btns' },
-                            h('button', {
-                              className: 'oi-btn primary xs',
-                              onClick: function () { resolveAction(a, 'approved'); }
-                            }, h(OIIcon, { name: 'approve', size: 14 }), ' Approve'),
-                            h('button', {
-                              className: 'oi-btn danger xs',
-                              onClick: function () { resolveAction(a, 'rejected'); }
-                            }, h(OIIcon, { name: 'reject', size: 14 }), ' Reject')
+                          h('div', { className: 'oi-detail-body' },
+                            h('div', { className: 'oi-detail-sec-hdr' }, h('span', null, 'Members')),
+                            loadingMembers
+                              ? h('div', { className: 'oi-spinner-center' }, h('div', { className: 'oi-spinner' }))
+                              : groupMembers.length === 0
+                                ? h('div', { className: 'oi-empty-inline' }, 'No members.')
+                                : h('div', { className: 'oi-member-list' },
+                                    groupMembers.map(function (m, i) {
+                                      return h('div', { key: m.person_sys_id || i, className: 'oi-member-item' },
+                                        h('div', { className: 'oi-member-avatar' }, initials(m.person_name || '')),
+                                        h('div', { className: 'oi-member-info' },
+                                          h('div', { className: 'oi-member-name' }, m.person_name || '—'),
+                                          m.person_email ? h('div', { className: 'oi-member-role' }, m.person_email) : null,
+                                          h('div', { className: 'oi-member-role' }, m.group_role || 'user')
+                                        ),
+                                        h('button', {
+                                          className: 'oi-icon-btn danger',
+                                          title: 'Remove from this group (user remains enrolled)',
+                                          onClick: function () { removeMember(m.person_sys_id); }
+                                        }, h(OIIcon, { name: 'remove', size: 14 }))
+                                      );
+                                    })
+                                  )
                           )
-                        );
-                      })
-                )
+                        )
+                      : null
+                  )
+                : h('div', { className: 'oi-action-list' },
+                    pendingActions.length === 0
+                      ? h('div', { className: 'oi-empty' },
+                          h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'check', size: 40, fill: '#DCDCDC' })),
+                          h('div', { className: 'oi-empty-title' }, 'All clear'),
+                          h('div', { className: 'oi-empty-sub' }, 'No pending actions require attention.')
+                        )
+                      : pendingActions.map(function (a, i) {
+                          return h('div', { key: a.sys_id || i, className: 'oi-action-item' },
+                            h('div', { className: 'oi-action-info' },
+                              h('div', { className: 'oi-action-type' }, a.type || 'Action'),
+                              h('div', { className: 'oi-action-desc' }, a.description || ''),
+                              a.subject_user_name ? h('div', { className: 'oi-action-meta' }, 'Re: ' + a.subject_user_name) : null,
+                              h('div', { className: 'oi-action-meta' }, relTime(a.created))
+                            ),
+                            h('div', { className: 'oi-action-btns' },
+                              h('button', {
+                                className: 'oi-btn primary xs',
+                                onClick: function () { resolveAction(a, 'approved'); }
+                              }, h(OIIcon, { name: 'approve', size: 14 }), ' Approve'),
+                              h('button', {
+                                className: 'oi-btn danger xs',
+                                onClick: function () { resolveAction(a, 'rejected'); }
+                              }, h(OIIcon, { name: 'reject', size: 14 }), ' Reject')
+                            )
+                          );
+                        })
+                  )
         )
       ),
       showCreateGroup
@@ -1522,9 +1686,25 @@
           })
         : null,
       showEnroll
-        ? h(EnrollPersonModal, {
+        ? h(EnrollUserModal, {
             onClose: function () { setShowEnroll(false); },
-            onEnrolled: function (p) { setPersons(persons.concat([p])); }
+            onEnrolled: function (p) { setUsers(users.concat([p])); }
+          })
+        : null,
+      showGrantRole
+        ? h(GrantRoleModal, {
+            roleKey: showGrantRole,
+            onClose: function () { setShowGrantRole(null); },
+            onGranted: function (roleKey, member) {
+              var updated = {
+                admin:      (accessMembers && accessMembers.admin)      || [],
+                leadership: (accessMembers && accessMembers.leadership)  || [],
+                creator:    (accessMembers && accessMembers.creator)     || [],
+                user:       (accessMembers && accessMembers.user)        || []
+              };
+              updated[roleKey] = (updated[roleKey] || []).concat([member]);
+              setAccessMembers(updated);
+            }
           })
         : null
     );
@@ -1688,7 +1868,7 @@
                     h('div', { className: 'oi-member-info' },
                       h('div', { className: 'oi-member-name' }, u.name),
                       h('div', { className: 'oi-member-role' }, u.email || u.user_name),
-                      u.already_enrolled ? null : h('div', { className: 'oi-member-role', style: { color: '#E57323' } }, 'Not enrolled — enroll from Persons tab first')
+                      u.already_enrolled ? null : h('div', { className: 'oi-member-role', style: { color: '#E57323' } }, 'Not enrolled — enroll from Users tab first')
                     ),
                     sel ? h('span', { style: { color: '#00BF6F' } }, h(OIIcon, { name: 'check', size: 14 })) : null
                   );
@@ -1707,7 +1887,7 @@
     );
   }
 
-  function EnrollPersonModal(props) {
+  function EnrollUserModal(props) {
     var ctx = React.useContext(AppContext);
 
     var queryResult = React.useState('');
@@ -1760,7 +1940,7 @@
     return h('div', { className: 'oi-backdrop' },
       h('div', { className: 'oi-modal md' },
         h('div', { className: 'oi-modal-hdr' },
-          h('span', { className: 'oi-modal-title' }, 'Enroll Person'),
+          h('span', { className: 'oi-modal-title' }, 'Enroll User'),
           h('button', { className: 'oi-modal-close', onClick: props.onClose }, h(OIIcon, { name: 'close', size: 18 }))
         ),
         h('div', { className: 'oi-modal-body' },
@@ -1807,6 +1987,236 @@
           h('button', { className: 'oi-btn primary', disabled: busy || !selectedUser, onClick: enroll },
             busy ? h('span', { className: 'oi-spinner sm' }) : null,
             ' Enroll'
+          )
+        )
+      )
+    );
+  }
+
+  function GrantRoleModal(props) {
+    var ctx = React.useContext(AppContext);
+    var roleKey = props.roleKey;
+    var ROLE_LABELS = {
+      admin:      'Operations Intelligence Administrator',
+      leadership: 'Operations Intelligence Lead',
+      creator:    'Operations Intelligence Creator',
+      user:       'Operations Intelligence User'
+    };
+
+    var queryResult = React.useState('');
+    var query = queryResult[0];
+    var setQuery = queryResult[1];
+
+    var resultsResult = React.useState([]);
+    var results = resultsResult[0];
+    var setResults = resultsResult[1];
+
+    var searchingResult = React.useState(false);
+    var searching = searchingResult[0];
+    var setSearching = searchingResult[1];
+
+    var selectedResult = React.useState(null);
+    var selectedUser = selectedResult[0];
+    var setSelectedUser = selectedResult[1];
+
+    var busyResult = React.useState(false);
+    var busy = busyResult[0];
+    var setBusy = busyResult[1];
+
+    function doSearch() {
+      if (!query.trim()) return;
+      setSearching(true);
+      ctx.callServer({ action: 'search_users', query: query.trim() }, function (d, err) {
+        setSearching(false);
+        if (err) { ctx.toast(err, 'error'); return; }
+        setResults((d && d.users) || []);
+      });
+    }
+
+    function grantAccess() {
+      if (!selectedUser) return;
+      setBusy(true);
+      ctx.callServer({ action: 'grant_role', user_sys_id: selectedUser.sys_id, role_name: roleKey }, function (d, err) {
+        setBusy(false);
+        if (err) { ctx.toast(err, 'error'); return; }
+        var result = d && d.role_granted;
+        if (result && result.ok) {
+          ctx.toast(selectedUser.name + ' granted ' + ROLE_LABELS[roleKey] + ' access.', 'success');
+          props.onGranted(roleKey, {
+            user_sys_id:            selectedUser.sys_id,
+            name:                   selectedUser.name,
+            user_name:              selectedUser.user_name,
+            email:                  selectedUser.email || '',
+            role_assignment_sys_id: result.role_assignment_sys_id || ''
+          });
+          props.onClose();
+        } else {
+          ctx.toast((result && result.error) || 'Failed to grant access.', 'error');
+        }
+      });
+    }
+
+    return h('div', { className: 'oi-backdrop' },
+      h('div', { className: 'oi-modal md' },
+        h('div', { className: 'oi-modal-hdr' },
+          h('span', { className: 'oi-modal-title' }, 'Grant ' + ROLE_LABELS[roleKey] + ' Access'),
+          h('button', { className: 'oi-modal-close', onClick: props.onClose }, h(OIIcon, { name: 'close', size: 18 }))
+        ),
+        h('div', { className: 'oi-modal-body' },
+          h('div', { className: 'oi-form-group' },
+            h('label', { className: 'oi-label' }, 'Search ServiceNow Users'),
+            h('div', { className: 'oi-search-row' },
+              h('input', {
+                className: 'oi-input',
+                value: query,
+                placeholder: 'Name or username...',
+                onChange: function (e) { setQuery(e.target.value); },
+                onKeyDown: function (e) { if (e.key === 'Enter') doSearch(); }
+              }),
+              h('button', { className: 'oi-btn ghost', disabled: searching, onClick: doSearch },
+                searching ? h('span', { className: 'oi-spinner sm' }) : 'Search'
+              )
+            )
+          ),
+          results.length > 0
+            ? h('div', { className: 'oi-member-list', style: { maxHeight: '14rem', overflowY: 'auto', border: '1px solid #DCDCDC', borderRadius: '0.375rem' } },
+                results.map(function (u, i) {
+                  var sel = selectedUser && selectedUser.sys_id === u.sys_id;
+                  return h('button', {
+                    key: u.sys_id || i,
+                    className: 'oi-list-item' + (sel ? ' selected' : ''),
+                    onClick: function () { setSelectedUser(u); }
+                  },
+                    h('div', { className: 'oi-member-avatar' }, initials(u.name || '')),
+                    h('div', { className: 'oi-member-info' },
+                      h('div', { className: 'oi-member-name' }, u.name),
+                      h('div', { className: 'oi-member-role' }, u.email || u.user_name)
+                    ),
+                    sel ? h('span', { style: { color: '#00BF6F' } }, h(OIIcon, { name: 'check', size: 14 })) : null
+                  );
+                })
+              )
+            : null
+        ),
+        h('div', { className: 'oi-modal-foot' },
+          h('button', { className: 'oi-btn ghost', onClick: props.onClose }, 'Cancel'),
+          h('button', { className: 'oi-btn primary', disabled: busy || !selectedUser, onClick: grantAccess },
+            busy ? h('span', { className: 'oi-spinner sm' }) : null,
+            ' Grant Access'
+          )
+        )
+      )
+    );
+  }
+
+  function CreateAutomationModal(props) {
+    var ctx = React.useContext(AppContext);
+    var groups = props.groups || [];
+
+    var nameResult = React.useState('');
+    var name = nameResult[0];
+    var setName = nameResult[1];
+
+    var descResult = React.useState('');
+    var desc = descResult[0];
+    var setDesc = descResult[1];
+
+    var targetTypeResult = React.useState('all');
+    var targetType = targetTypeResult[0];
+    var setTargetType = targetTypeResult[1];
+
+    var selectedGroupsResult = React.useState([]);
+    var selectedGroups = selectedGroupsResult[0];
+    var setSelectedGroups = selectedGroupsResult[1];
+
+    var busyResult = React.useState(false);
+    var busy = busyResult[0];
+    var setBusy = busyResult[1];
+
+    function toggleGroup(groupId) {
+      if (selectedGroups.indexOf(groupId) !== -1) {
+        setSelectedGroups(selectedGroups.filter(function (g) { return g !== groupId; }));
+      } else {
+        setSelectedGroups(selectedGroups.concat([groupId]));
+      }
+    }
+
+    function submit() {
+      if (!name.trim()) { ctx.toast('Name is required.', 'warning'); return; }
+      if (targetType === 'specific' && selectedGroups.length === 0) { ctx.toast('Select at least one group or choose All Groups.', 'warning'); return; }
+      setBusy(true);
+      var payload = {
+        action:        'create_automation',
+        name:          name.trim(),
+        description:   desc.trim(),
+        target_groups: targetType === 'all' ? 'all' : targetType === 'none' ? [] : selectedGroups
+      };
+      ctx.callServer(payload, function (d, err) {
+        setBusy(false);
+        if (err) { ctx.toast(err, 'error'); return; }
+        var result = d && d.created_automation;
+        if (result && result.ok) {
+          ctx.toast('Automation "' + result.name + '" created.', 'success');
+          props.onCreated({ sys_id: result.sys_id, name: result.name, description: desc.trim(), status: 'draft', created_on: '' });
+          props.onClose();
+        } else {
+          ctx.toast((result && result.error) || 'Failed to create automation.', 'error');
+        }
+      });
+    }
+
+    return h('div', { className: 'oi-backdrop' },
+      h('div', { className: 'oi-modal md' },
+        h('div', { className: 'oi-modal-hdr' },
+          h('span', { className: 'oi-modal-title' }, 'Create Automation'),
+          h('button', { className: 'oi-modal-close', onClick: props.onClose }, h(OIIcon, { name: 'close', size: 18 }))
+        ),
+        h('div', { className: 'oi-modal-body' },
+          h('div', { className: 'oi-form-group' },
+            h('label', { className: 'oi-label' }, 'Name'),
+            h('input', { className: 'oi-input', value: name, placeholder: 'e.g. Restart Application Services', onChange: function (e) { setName(e.target.value); } })
+          ),
+          h('div', { className: 'oi-form-group' },
+            h('label', { className: 'oi-label' }, 'Description'),
+            h('textarea', { className: 'oi-textarea', value: desc, placeholder: 'What this automation does...', onChange: function (e) { setDesc(e.target.value); } })
+          ),
+          h('div', { className: 'oi-form-group' },
+            h('label', { className: 'oi-label' }, 'Publish To'),
+            h('div', { className: 'oi-radio-group' },
+              h('label', { className: 'oi-radio-label' },
+                h('input', { type: 'radio', name: 'ca_target_type', value: 'all', checked: targetType === 'all', onChange: function () { setTargetType('all'); } }),
+                ' All Groups'
+              ),
+              h('label', { className: 'oi-radio-label' },
+                h('input', { type: 'radio', name: 'ca_target_type', value: 'specific', checked: targetType === 'specific', onChange: function () { setTargetType('specific'); } }),
+                ' Specific Groups'
+              ),
+              h('label', { className: 'oi-radio-label' },
+                h('input', { type: 'radio', name: 'ca_target_type', value: 'none', checked: targetType === 'none', onChange: function () { setTargetType('none'); setSelectedGroups([]); } }),
+                ' Save as Draft — Do Not Publish'
+              )
+            )
+          ),
+          targetType === 'specific' && groups.length > 0
+            ? h('div', { className: 'oi-form-group' },
+                h('label', { className: 'oi-label' }, 'Select Groups'),
+                h('div', { style: { maxHeight: '10rem', overflowY: 'auto', border: '1px solid #DCDCDC', borderRadius: '0.375rem', padding: '0.5rem' } },
+                  groups.map(function (g, i) {
+                    var isSel = selectedGroups.indexOf(g.sys_id) !== -1;
+                    return h('label', { key: g.sys_id || i, style: { display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0', cursor: 'pointer' } },
+                      h('input', { type: 'checkbox', checked: isSel, onChange: function () { toggleGroup(g.sys_id); }, style: { accentColor: '#00BF6F', cursor: 'pointer' } }),
+                      h('span', { style: { fontSize: '0.9375rem', color: '#121212' } }, g.name)
+                    );
+                  })
+                )
+              )
+            : null
+        ),
+        h('div', { className: 'oi-modal-foot' },
+          h('button', { className: 'oi-btn ghost', onClick: props.onClose }, 'Cancel'),
+          h('button', { className: 'oi-btn primary', disabled: busy || !name.trim(), onClick: submit },
+            busy ? h('span', { className: 'oi-spinner sm' }) : null,
+            ' Create Automation'
           )
         )
       )

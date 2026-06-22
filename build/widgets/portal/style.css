@@ -695,3 +695,11 @@
 .oi-request-card-date {
   font-size: 0.75rem; color: #6E6E6E; margin-left: auto;
 }
+.oi-access-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr)); gap: 1.25rem; }
+.oi-access-card { background: #FFFFFF; border: 0.0625rem solid #DCDCDC; border-radius: 0.625rem; border-top: 0.25rem solid #00BF6F; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; }
+.oi-access-card-hdr { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
+.oi-access-card-title { font-size: clamp(0.9375rem, 1.15vw, 1rem); font-weight: 700; color: #121212; margin-bottom: 0.25rem; }
+.oi-access-card-desc { font-size: 0.8125rem; color: #6E6E6E; line-height: 1.5; }
+.oi-radio-group { display: flex; flex-direction: column; gap: 0.5rem; }
+.oi-radio-label { display: flex; align-items: center; gap: 0.5rem; font-size: clamp(0.875rem, 1.05vw, 0.9375rem); color: #121212; cursor: pointer; }
+.oi-radio-label input { cursor: pointer; accent-color: #00BF6F; width: 1rem; height: 1rem; flex-shrink: 0; }
