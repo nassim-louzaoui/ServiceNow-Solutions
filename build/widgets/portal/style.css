@@ -605,3 +605,93 @@
   .oi-content { padding: 1.25rem; }
   .oi-action-item { flex-direction: column; align-items: flex-start; }
 }
+
+/* Sidebar Requests Button */
+.oi-sb-requests {
+  padding: 0.5rem 0;
+  border-top: 0.0625rem solid rgba(255,255,255,0.08);
+  border-bottom: 0.0625rem solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+.oi-requests-btn {
+  display: flex; align-items: center; gap: 0.875rem; width: 100%;
+  padding: 1.0625rem 1.5rem; background: transparent; border: none; cursor: pointer;
+  color: rgba(255,255,255,0.75); font-size: clamp(1rem, 1.35vw, 1.125rem);
+  text-align: left; transition: background 0.15s, color 0.15s;
+  white-space: nowrap; overflow: hidden; font-family: inherit; font-weight: 500;
+}
+.oi-requests-btn:hover { background: rgba(255,255,255,0.07); color: #FFFFFF; }
+
+/* Chat Item Cards (catalog / knowledge / requests) */
+.oi-chat-items {
+  display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.75rem; max-width: 100%;
+}
+.oi-chat-item-card {
+  display: flex; flex-direction: column; gap: 0.25rem;
+  padding: 0.75rem 1rem; border-radius: 0.5rem;
+  border: 0.0625rem solid #DCDCDC; background: #FFFFFF;
+  text-decoration: none; color: #121212;
+  transition: box-shadow 0.15s, border-color 0.15s;
+  cursor: pointer;
+}
+.oi-chat-item-card:hover { box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.1); border-color: #00BF6F; }
+.oi-chat-item-card.catalog { border-left: 0.25rem solid #00BF6F; }
+.oi-chat-item-card.knowledge { border-left: 0.25rem solid #293E40; }
+.oi-chat-item-card.request { border-left: 0.25rem solid #6E6E6E; }
+.oi-chat-item-card-row {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+}
+.oi-chat-item-card-name {
+  font-size: clamp(0.875rem, 1.1vw, 0.9375rem); font-weight: 700; color: #121212; flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.oi-chat-item-card-num {
+  font-size: 0.75rem; font-family: monospace; color: #6E6E6E; flex-shrink: 0; white-space: nowrap;
+}
+.oi-chat-item-card-desc {
+  font-size: 0.8125rem; color: #6E6E6E; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; line-height: 1.4;
+}
+.oi-chat-item-card-cat {
+  font-size: 0.75rem; color: #6E6E6E; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.oi-chat-item-card-date {
+  font-size: 0.75rem; color: #6E6E6E; margin-left: auto; white-space: nowrap;
+}
+.oi-chat-item-card-action {
+  display: flex; align-items: center; flex-shrink: 0; color: #00BF6F;
+}
+
+/* Requests Modal */
+.oi-requests-modal { max-width: 52rem; }
+.oi-requests-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr)); gap: 0.875rem;
+}
+.oi-request-card {
+  display: flex; flex-direction: column; gap: 0.5rem;
+  padding: 1rem 1.25rem; background: #FFFFFF; border: 0.0625rem solid #DCDCDC;
+  border-radius: 0.625rem; text-decoration: none; color: #121212;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.oi-request-card:hover { box-shadow: 0 0.125rem 0.625rem rgba(0,0,0,0.1); border-color: #00BF6F; }
+.oi-request-card-top {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+}
+.oi-request-card-num {
+  font-family: monospace; font-size: 0.8125rem; font-weight: 700; color: #6E6E6E;
+}
+.oi-request-card-desc {
+  font-size: clamp(0.875rem, 1.1vw, 0.9375rem); font-weight: 600; color: #121212;
+  overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.oi-request-card-foot {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.125rem;
+}
+.oi-request-card-stage {
+  font-size: 0.75rem; color: #00895E; font-weight: 600;
+  background: rgba(0,191,111,0.1); padding: 0.125rem 0.5rem; border-radius: 0.75rem;
+}
+.oi-request-card-date {
+  font-size: 0.75rem; color: #6E6E6E; margin-left: auto;
+}

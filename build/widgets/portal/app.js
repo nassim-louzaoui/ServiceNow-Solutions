@@ -42,7 +42,12 @@
       toggle_on:  'M17 7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h10c2.76 0 5-2.24 5-5s-2.24-5-5-5zm0 8c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z',
       toggle_off: 'M17 7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h10c2.76 0 5-2.24 5-5s-2.24-5-5-5zm-10 8c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z',
       assistant: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9 11H7V9h2v2zm4 0h-2V9h2v2zm4 0h-2V9h2v2z',
-      send:      'M2.01 21L23 12 2.01 3 2 10l15 2-15 2z'
+      send:      'M2.01 21L23 12 2.01 3 2 10l15 2-15 2z',
+      request:   'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z',
+      knowledge: 'M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4zm0 14v-2.92l6-3.43 6 3.43V18H6z',
+      link:      'M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z',
+      gallery:   'M22 16V4c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2zm-11-4l2.03 2.71L16 11l4 5H8l3-4zM2 6v14c0 1.1.9 2 2 2h14v-2H4V6H2z',
+      inbox:     'M19 3H4.99c-1.11 0-1.98.89-1.98 2L3 19c0 1.1.88 2 1.99 2H19c1.1 0 2-.9 2-2V5c0-1.11-.9-2-2-2zm0 12h-4c0 1.66-1.35 3-3 3s-3-1.34-3-3H4.99V5H19v10z'
     };
     var d = paths[props.name] || paths['command'];
     return h('svg', {
@@ -118,11 +123,11 @@
   /* ── Reducer ─────────────────────────────────────────────────── */
 
   var NAV_ITEMS = [
-    { id: 'workspace',    label: 'Workspace',             icon: 'workspace'  },
-    { id: 'deliverables', label: 'My Deliverables',       icon: 'document'   },
-    { id: 'studio',       label: 'Operations Studio',     icon: 'studio'     },
-    { id: 'governance',   label: 'Operations Governance', icon: 'governance' },
-    { id: 'command',      label: 'Operations Command',    icon: 'command'    }
+    { id: 'workspace',  label: 'Workspace',             icon: 'workspace'  },
+    { id: 'gallery',    label: 'Operations Gallery',    icon: 'gallery'    },
+    { id: 'studio',     label: 'Operations Studio',     icon: 'studio'     },
+    { id: 'governance', label: 'Operations Governance', icon: 'governance' },
+    { id: 'command',    label: 'Operations Command',    icon: 'command'    }
   ];
 
   var _msgId = 0;
@@ -250,6 +255,7 @@
     sectionData: null,
     loading: true,
     mobileOpen: false,
+    showRequests: false,
     error: null,
     toasts: [],
     authDenied: false,
@@ -280,6 +286,10 @@
         return Object.assign({}, state, { sectionData: Object.assign({}, state.sectionData, action.payload) });
       case 'SET_AUTH_DENIED':
         return Object.assign({}, state, { authDenied: action.payload, loading: false });
+      case 'TOGGLE_REQUESTS':
+        return Object.assign({}, state, { showRequests: !state.showRequests });
+      case 'CLOSE_REQUESTS':
+        return Object.assign({}, state, { showRequests: false });
       default:
         return state;
     }
@@ -410,6 +420,9 @@
             )
           )
         ),
+        state.showRequests
+          ? h(RequestsModal, { onClose: function () { dispatch({ type: 'CLOSE_REQUESTS' }); } })
+          : null,
         h(ToastContainer, null)
       )
     );
@@ -444,6 +457,15 @@
             h('span', { className: 'oi-nav-label' }, item.label)
           );
         })
+      ),
+      h('div', { className: 'oi-sb-requests' },
+        h('button', {
+          className: 'oi-requests-btn',
+          onClick: function () { dispatch({ type: 'TOGGLE_REQUESTS' }); }
+        },
+          h('span', { className: 'oi-nav-icon' }, h(OIIcon, { name: 'inbox', size: 18, fill: 'currentColor' })),
+          h('span', { className: 'oi-nav-label' }, 'My Requests')
+        )
       ),
       h('div', { className: 'oi-sb-footer' },
         h('div', { className: 'oi-user-avatar' }, userInitials),
@@ -491,7 +513,7 @@
     var data = props.sectionData || {};
     switch (props.section) {
       case 'workspace':    return h(WorkspaceSection, { data: data });
-      case 'deliverables': return h(DeliverablesSection, { data: data });
+      case 'gallery':      return h(GallerySection, { data: data });
       case 'studio':       return h(StudioSection, { data: data });
       case 'governance':   return h(GovernanceSection, { data: data });
       case 'command':      return h(CommandSection, { data: data });
@@ -540,21 +562,86 @@
 
     function nextId() { _msgId += 1; return _msgId; }
 
-    function makeMsg(role, text, choices, type, result) {
-      return { id: nextId(), role: role, text: text || '', choices: choices || null, choiceSelected: null, type: type || 'text', result: result || null };
+    function makeMsg(role, text, choices, type, result, items) {
+      return { id: nextId(), role: role, text: text || '', choices: choices || null, choiceSelected: null, type: type || 'text', result: result || null, items: items || null };
     }
 
     function appendMsg(msg) {
       setMessages(function(prev) { return prev.concat([msg]); });
     }
 
-    function addAssistantDelayed(text, choices, type, result) {
+    function addAssistantDelayed(text, choices, type, result, items) {
       var delay = 350 + Math.min((text || '').length * 7, 900);
       setChatBusy(true);
       setTimeout(function() {
         setChatBusy(false);
-        appendMsg(makeMsg('assistant', text, choices, type, result));
+        appendMsg(makeMsg('assistant', text, choices, type, result, items));
       }, delay);
+    }
+
+    function renderItems(type, items) {
+      if (!items || !items.length) { return null; }
+      if (type === 'catalog') {
+        return h('div', { className: 'oi-chat-items' },
+          items.map(function(item, idx) {
+            return h('a', {
+              key: item.sys_id || idx,
+              className: 'oi-chat-item-card catalog',
+              href: item.url || '#',
+              target: '_blank'
+            },
+              h('div', { className: 'oi-chat-item-card-row' },
+                h('span', { className: 'oi-chat-item-card-name' }, item.name || item.title || ''),
+                h('span', { className: 'oi-chat-item-card-action' }, h(OIIcon, { name: 'link', size: 13, fill: '#00BF6F' }))
+              ),
+              item.short_description ? h('div', { className: 'oi-chat-item-card-desc' }, item.short_description) : null,
+              item.category ? h('div', { className: 'oi-chat-item-card-cat' }, item.category) : null
+            );
+          })
+        );
+      }
+      if (type === 'knowledge') {
+        return h('div', { className: 'oi-chat-items' },
+          items.map(function(item, idx) {
+            return h('a', {
+              key: item.sys_id || idx,
+              className: 'oi-chat-item-card knowledge',
+              href: item.url || '#',
+              target: '_blank'
+            },
+              h('div', { className: 'oi-chat-item-card-row' },
+                item.number ? h('span', { className: 'oi-chat-item-card-num' }, item.number) : null,
+                h('span', { className: 'oi-chat-item-card-name' }, item.title || item.name || ''),
+                h('span', { className: 'oi-chat-item-card-action' }, h(OIIcon, { name: 'link', size: 13, fill: '#293E40' }))
+              ),
+              item.kb_knowledge_base ? h('div', { className: 'oi-chat-item-card-cat' }, item.kb_knowledge_base) : null
+            );
+          })
+        );
+      }
+      if (type === 'requests') {
+        return h('div', { className: 'oi-chat-items' },
+          items.map(function(item, idx) {
+            return h('a', {
+              key: item.sys_id || idx,
+              className: 'oi-chat-item-card request',
+              href: item.url || '#',
+              target: '_blank'
+            },
+              h('div', { className: 'oi-chat-item-card-row' },
+                h('span', { className: 'oi-chat-item-card-num' }, item.number || ''),
+                h('span', { className: 'oi-chat-item-card-name' }, item.short_description || ''),
+                h('span', { className: 'oi-chat-item-card-action' }, h(OIIcon, { name: 'link', size: 13, fill: '#6E6E6E' }))
+              ),
+              h('div', { className: 'oi-chat-item-card-row' },
+                h('span', { className: 'oi-chat-item-card-cat' }, item.state || ''),
+                item.opened_at ? h('span', { className: 'oi-chat-item-card-date' }, item.opened_at) : null
+              )
+            );
+          })
+        );
+      }
+      return null;
     }
 
     function buildSummaryText(flow, collected) {
@@ -633,7 +720,9 @@
         ctx.callServer({ action: 'assistant_query', query: q }, function(d, err) {
           setChatBusy(false);
           var reply = (d && d.reply) || 'I could not process that request.';
-          appendMsg(makeMsg('assistant', reply, null, err ? 'error' : 'text', null));
+          var msgType = err ? 'error' : ((d && d.type) || 'text');
+          var msgItems = (d && d.items) || null;
+          appendMsg(makeMsg('assistant', reply, null, msgType, null, msgItems));
         });
       }
     }
@@ -655,7 +744,7 @@
           return;
         }
         var typeLabel = TYPE_LABELS_WS[result.type] || result.type;
-        appendMsg(makeMsg('assistant', 'Your ' + typeLabel + ' has been created and saved to My Deliverables.', null, 'result', {
+        appendMsg(makeMsg('assistant', 'Your ' + typeLabel + ' has been created and saved to the Operations Gallery.', null, 'result', {
           name: result.name,
           type: result.type,
           type_label: typeLabel,
@@ -861,11 +950,12 @@
                         h('div', { className: 'oi-result-card-type' }, m.result.type_label || m.result.type),
                         m.result.url
                           ? h('a', { className: 'oi-result-card-link', href: m.result.url, target: '_blank' }, 'Open in ServiceNow')
-                          : h('span', { className: 'oi-result-card-type', style: { color: '#6E6E6E' } }, 'Saved to My Deliverables')
+                          : h('span', { className: 'oi-result-card-type', style: { color: '#6E6E6E' } }, 'Saved to Operations Gallery')
                       )
                     )
                   : m.text
               ),
+              m.items ? renderItems(m.type, m.items) : null,
               m.choices && m.choices.length > 0
                 ? h('div', { className: 'oi-chat-choices' },
                     m.choices.map(function(c) {
@@ -908,9 +998,9 @@
     );
   }
 
-  /* ── Deliverables Section ───────────────────────────────────── */
+  /* ── Gallery Section ────────────────────────────────────────── */
 
-  function DeliverablesSection(props) {
+  function GallerySection(props) {
     var ctx = React.useContext(AppContext);
     var data = props.data;
     var allDeliverables = data.deliverables || [];
@@ -965,7 +1055,7 @@
     return h('div', { className: 'oi-section' },
       h('div', { className: 'oi-toolbar' },
         h('div', { className: 'oi-toolbar-left' },
-          h('h1', { className: 'oi-section-title' }, 'My Deliverables'),
+          h('h1', { className: 'oi-section-title' }, 'Operations Gallery'),
           h('span', { style: { fontSize: '0.875rem', color: '#6E6E6E' } },
             deliverables.length + ' deliverable' + (deliverables.length === 1 ? '' : 's')
           )
@@ -996,7 +1086,7 @@
         ? h('div', { className: 'oi-empty' },
             h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'document', size: 48, fill: '#DCDCDC' })),
             h('div', { className: 'oi-empty-title' }, 'No deliverables yet'),
-            h('div', { className: 'oi-empty-sub' }, 'Use the Workspace to build reports, dashboards, data alerts, and notification rules.')
+            h('div', { className: 'oi-empty-sub' }, 'Use the Workspace to build reports, dashboards, data alerts, and notification rules. They will appear here once created.')
           )
         : sorted.length === 0
           ? h('div', { className: 'oi-empty' },
@@ -1732,7 +1822,7 @@
 
     var MAINTENANCE_SECTIONS = [
       { key: 'workspace',  label: 'Workspace',             desc: 'Disable the Workspace section for all users.',             prop: 'x_infte_ops_int.maintenance.workspace' },
-      { key: 'deliverables', label: 'My Deliverables',       desc: 'Disable the My Deliverables section for all users.',       prop: 'x_infte_ops_int.maintenance.deliverables' },
+      { key: 'gallery',      label: 'Operations Gallery',     desc: 'Disable the Operations Gallery section for all users.',    prop: 'x_infte_ops_int.maintenance.gallery' },
       { key: 'studio',     label: 'Operations Studio',      desc: 'Disable the Operations Studio section for all users.',      prop: 'x_infte_ops_int.maintenance.studio' },
       { key: 'governance', label: 'Operations Governance',  desc: 'Disable the Operations Governance section for all users.',  prop: 'x_infte_ops_int.maintenance.governance' }
     ];
@@ -1856,6 +1946,136 @@
               )
             )
           )
+        )
+      )
+    );
+  }
+
+  /* ── Requests Modal ─────────────────────────────────────────── */
+
+  function RequestsModal(props) {
+    var ctx = React.useContext(AppContext);
+
+    var requestsResult = React.useState([]);
+    var requests = requestsResult[0];
+    var setRequests = requestsResult[1];
+
+    var loadingResult = React.useState(true);
+    var loading = loadingResult[0];
+    var setLoading = loadingResult[1];
+
+    var filterResult = React.useState('all');
+    var filter = filterResult[0];
+    var setFilter = filterResult[1];
+
+    var searchResult = React.useState('');
+    var search = searchResult[0];
+    var setSearch = searchResult[1];
+
+    var STATE_FILTERS = [
+      { key: 'all',       label: 'All' },
+      { key: 'open',      label: 'Open' },
+      { key: 'closed',    label: 'Closed' }
+    ];
+
+    React.useEffect(function () {
+      ctx.callServer({ action: 'load_user_requests', limit: 50 }, function (d, err) {
+        setLoading(false);
+        if (err) { ctx.toast(err, 'error'); return; }
+        setRequests((d && d.user_requests) || []);
+      });
+    }, []);
+
+    var filtered = requests.filter(function (r) {
+      var matchState = filter === 'all' ? true :
+        filter === 'open' ? (r.state && r.state.toLowerCase().indexOf('closed') === -1 && r.state.toLowerCase().indexOf('complete') === -1) :
+        (r.state && (r.state.toLowerCase().indexOf('closed') !== -1 || r.state.toLowerCase().indexOf('complete') !== -1));
+      var matchSearch = !search.trim() ? true :
+        (r.short_description || '').toLowerCase().indexOf(search.toLowerCase()) !== -1 ||
+        (r.number || '').toLowerCase().indexOf(search.toLowerCase()) !== -1;
+      return matchState && matchSearch;
+    });
+
+    function statusCls(state) {
+      if (!state) { return 'neutral'; }
+      var s = state.toLowerCase();
+      if (s.indexOf('closed') !== -1 || s.indexOf('complete') !== -1) { return 'success'; }
+      if (s.indexOf('open') !== -1 || s.indexOf('new') !== -1) { return 'running'; }
+      if (s.indexOf('pending') !== -1 || s.indexOf('wait') !== -1) { return 'pending'; }
+      return 'neutral';
+    }
+
+    return h('div', { className: 'oi-backdrop' },
+      h('div', { className: 'oi-modal oi-requests-modal' },
+        h('div', { className: 'oi-modal-hdr' },
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: '0.75rem' } },
+            h('div', { style: { width: '2rem', height: '2rem', background: 'rgba(0,191,111,0.12)', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' } },
+              h(OIIcon, { name: 'request', size: 16, fill: '#00BF6F' })
+            ),
+            h('span', { className: 'oi-modal-title' }, 'My Service Requests')
+          ),
+          h('button', { className: 'oi-modal-close', onClick: props.onClose }, h(OIIcon, { name: 'close', size: 18 }))
+        ),
+        h('div', { className: 'oi-modal-body', style: { padding: '1.25rem' } },
+          h('div', { style: { display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' } },
+            h('div', { style: { flex: '1', minWidth: '12rem' } },
+              h('input', {
+                className: 'oi-input',
+                value: search,
+                placeholder: 'Search requests...',
+                onChange: function (e) { setSearch(e.target.value); }
+              })
+            ),
+            h('div', { className: 'oi-filter-chips', style: { flexShrink: '0' } },
+              STATE_FILTERS.map(function (f) {
+                return h('button', {
+                  key: f.key,
+                  className: 'oi-filter-chip' + (filter === f.key ? ' active' : ''),
+                  onClick: function () { setFilter(f.key); }
+                }, f.label);
+              })
+            )
+          ),
+          loading
+            ? h('div', { className: 'oi-spinner-center' }, h('div', { className: 'oi-spinner' }))
+            : requests.length === 0
+              ? h('div', { className: 'oi-empty' },
+                  h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'inbox', size: 40, fill: '#DCDCDC' })),
+                  h('div', { className: 'oi-empty-title' }, 'No service requests'),
+                  h('div', { className: 'oi-empty-sub' }, 'Requests you submit through the Service Catalog will appear here.')
+                )
+              : filtered.length === 0
+                ? h('div', { className: 'oi-empty' },
+                    h('div', { className: 'oi-empty-icon' }, h(OIIcon, { name: 'search', size: 36, fill: '#DCDCDC' })),
+                    h('div', { className: 'oi-empty-title' }, 'No matching requests'),
+                    h('div', { className: 'oi-empty-sub' }, 'Try adjusting the search or filter.')
+                  )
+                : h('div', { className: 'oi-requests-grid' },
+                    filtered.map(function (r) {
+                      return h('a', {
+                        key: r.sys_id,
+                        className: 'oi-request-card',
+                        href: r.url || '#',
+                        target: '_blank'
+                      },
+                        h('div', { className: 'oi-request-card-top' },
+                          h('span', { className: 'oi-request-card-num' }, r.number || ''),
+                          h('span', { className: 'oi-badge ' + statusCls(r.state) }, r.state || '')
+                        ),
+                        h('div', { className: 'oi-request-card-desc' }, r.short_description || 'No description'),
+                        h('div', { className: 'oi-request-card-foot' },
+                          r.stage ? h('span', { className: 'oi-request-card-stage' }, r.stage) : null,
+                          h('span', { className: 'oi-request-card-date' }, r.opened_at || '')
+                        )
+                      );
+                    })
+                  )
+        ),
+        h('div', { className: 'oi-modal-foot', style: { justifyContent: 'space-between' } },
+          h('span', { style: { fontSize: '0.8125rem', color: '#6E6E6E' } },
+            filtered.length + ' of ' + requests.length + ' request' + (requests.length === 1 ? '' : 's')
+          ),
+          h('button', { className: 'oi-btn ghost', onClick: props.onClose }, 'Close')
         )
       )
     );

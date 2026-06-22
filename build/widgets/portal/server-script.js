@@ -165,38 +165,21 @@
         } catch (e) { return null; }
     }
 
-    function createReport(collected, personSysId, userSysId) {
-        var rName    = '' + (collected.name || 'Untitled Report');
-        var rTable   = '' + (collected.table || 'incident');
-        var rType    = '' + (collected.report_type || 'list');
-        var rGroupBy = '' + (collected.group_by || '');
+    function createReport(collected, personSysId) {
+        var rName = '' + (collected.name || 'Untitled Report');
         try {
-            var rRec = new GlideRecord('sys_report');
-            rRec.initialize();
-            rRec.setValue('title', rName);
-            rRec.setValue('table', rTable);
-            rRec.setValue('type', rType);
-            if (rGroupBy && rGroupBy !== 'none') { rRec.setValue('field', rGroupBy); }
-            rRec.setValue('user', userSysId);
-            rRec.setValue('is_published', false);
-            var rSysId = '' + rRec.insert();
-            if (!rSysId) { return { ok: false, error: 'Failed to create report record.' }; }
-            var aId = createManagedArtifact(rName, 'report', personSysId, rSysId, collected);
-            return { ok: true, name: rName, type: 'report', sys_id: rSysId, url: '/sys_report.do?sys_id=' + rSysId, artifact_sys_id: aId };
+            var aId = createManagedArtifact(rName, 'report', personSysId, null, collected);
+            if (!aId) { return { ok: false, error: 'Failed to create report record.' }; }
+            return { ok: true, name: rName, type: 'report', sys_id: aId, url: '', artifact_sys_id: aId };
         } catch (e) { return { ok: false, error: '' + e }; }
     }
 
-    function createDashboard(collected, personSysId, userSysId) {
+    function createDashboard(collected, personSysId) {
         var dName = '' + (collected.name || 'Untitled Dashboard');
         try {
-            var dRec = new GlideRecord('pa_dashboards');
-            dRec.initialize();
-            dRec.setValue('name', dName);
-            dRec.setValue('owner', userSysId);
-            var dSysId = '' + dRec.insert();
-            if (!dSysId) { return { ok: false, error: 'Failed to create dashboard record.' }; }
-            var aId = createManagedArtifact(dName, 'dashboard', personSysId, dSysId, collected);
-            return { ok: true, name: dName, type: 'dashboard', sys_id: dSysId, url: '/pa_dashboards.do?sys_id=' + dSysId, artifact_sys_id: aId };
+            var aId = createManagedArtifact(dName, 'dashboard', personSysId, null, collected);
+            if (!aId) { return { ok: false, error: 'Failed to create dashboard record.' }; }
+            return { ok: true, name: dName, type: 'dashboard', sys_id: aId, url: '', artifact_sys_id: aId };
         } catch (e) { return { ok: false, error: '' + e }; }
     }
 
@@ -216,6 +199,79 @@
             if (!aId) { return { ok: false, error: 'Failed to create notification rule record.' }; }
             return { ok: true, name: rName, type: 'notification_rule', sys_id: aId, url: '', artifact_sys_id: aId };
         } catch (e) { return { ok: false, error: '' + e }; }
+    }
+
+    function searchCatalog(query, limitNum) {
+        var items = [];
+        try {
+            var catGr = new GlideRecord('sc_cat_item');
+            catGr.addQuery('active', true);
+            catGr.addQuery('visible_standalone', true);
+            var qStrCat = ('' + query).toLowerCase();
+            var catQc = catGr.addQuery('name', 'CONTAINS', qStrCat);
+            catQc.addOrCondition('short_description', 'CONTAINS', qStrCat);
+            catGr.orderBy('name');
+            catGr.setLimit(limitNum || 6);
+            catGr.query();
+            while (catGr.next()) {
+                items.push({
+                    sys_id:            '' + catGr.getUniqueValue(),
+                    name:              '' + catGr.getValue('name'),
+                    short_description: '' + (catGr.getValue('short_description') || ''),
+                    category:          '' + (catGr.getDisplayValue('category') || ''),
+                    url:               '/sp?id=sc_cat_item&sys_id=' + catGr.getUniqueValue()
+                });
+            }
+        } catch (e) { items = []; }
+        return items;
+    }
+
+    function searchKnowledge(query, limitNum) {
+        var items = [];
+        try {
+            var kbGr = new GlideRecord('kb_knowledge');
+            kbGr.addQuery('active', true);
+            kbGr.addQuery('workflow_state', 'published');
+            var qStrKb = ('' + query).toLowerCase();
+            var kbQc = kbGr.addQuery('short_description', 'CONTAINS', qStrKb);
+            kbQc.addOrCondition('text', 'CONTAINS', qStrKb);
+            kbGr.orderByDesc('sys_updated_on');
+            kbGr.setLimit(limitNum || 6);
+            kbGr.query();
+            while (kbGr.next()) {
+                items.push({
+                    sys_id:              '' + kbGr.getUniqueValue(),
+                    number:              '' + (kbGr.getValue('number') || ''),
+                    title:               '' + (kbGr.getValue('short_description') || ''),
+                    kb_knowledge_base:   '' + (kbGr.getDisplayValue('kb_knowledge_base') || ''),
+                    url:                 '/sp?id=kb_article&sys_id=' + kbGr.getUniqueValue()
+                });
+            }
+        } catch (e) { items = []; }
+        return items;
+    }
+
+    function loadUserRequests(uSysId, limitNum) {
+        var items = [];
+        try {
+            var reqGr = new GlideRecord('sc_request');
+            reqGr.addQuery('requested_for', uSysId);
+            reqGr.orderByDesc('opened_at');
+            reqGr.setLimit(limitNum || 20);
+            reqGr.query();
+            while (reqGr.next()) {
+                items.push({
+                    sys_id:            '' + reqGr.getUniqueValue(),
+                    number:            '' + reqGr.getValue('number'),
+                    short_description: '' + (reqGr.getValue('short_description') || ''),
+                    state:             '' + reqGr.getDisplayValue('state'),
+                    stage:             '' + (reqGr.getDisplayValue('stage') || ''),
+                    opened_at:         '' + reqGr.getDisplayValue('opened_at'),
+                    url:               '/sp?id=ticket&table=sc_request&sys_id=' + reqGr.getUniqueValue()
+                });
+            }
+        } catch (e) { items = []; }
+        return items;
     }
 
     function loadStudio(personSysId) {
@@ -412,7 +468,7 @@
 
         var maintenancePropNames = [
             'x_infte_ops_int.maintenance.workspace',
-            'x_infte_ops_int.maintenance.deliverables',
+            'x_infte_ops_int.maintenance.gallery',
             'x_infte_ops_int.maintenance.studio',
             'x_infte_ops_int.maintenance.governance'
         ];
@@ -500,7 +556,7 @@
 
     var allSections = [
         { id: 'workspace',  label: 'Workspace',             icon: 'fa-th-large', roles: ['admin','leadership','creator','user'] },
-        { id: 'deliverables', label: 'My Deliverables',     icon: 'fa-cube',     roles: ['admin','leadership','creator','user'] },
+        { id: 'gallery',    label: 'Operations Gallery',    icon: 'fa-cube',     roles: ['admin','leadership','creator','user'] },
         { id: 'studio',     label: 'Operations Studio',     icon: 'fa-code',     roles: ['admin','creator'] },
         { id: 'governance', label: 'Operations Governance', icon: 'fa-shield',   roles: ['admin','leadership'] },
         { id: 'command',    label: 'Operations Command',    icon: 'fa-terminal', roles: ['admin'] }
@@ -522,7 +578,7 @@
         var section = '' + input.section;
         if (section === 'workspace') {
             data.sectionData = loadWorkspace(data.userGroups);
-        } else if (section === 'deliverables') {
+        } else if (section === 'gallery') {
             data.sectionData = loadDeliverables(data.personSysId);
         } else if (section === 'studio') {
             if (hasCreator || hasAdmin) {
@@ -541,7 +597,8 @@
     }
 
     if (input.action === 'assistant_query') {
-        var aq = ('' + (input.query || '')).toLowerCase().trim();
+        var rawQ = '' + (input.query || '');
+        var aq   = rawQ.toLowerCase().trim();
 
         if (!aq) {
             data.reply = 'Please enter a question or command.';
@@ -549,34 +606,128 @@
             return;
         }
 
-        if (aq === 'help' || aq.indexOf('what can') !== -1 || aq.indexOf('how do') !== -1) {
-            data.reply = 'I can help you with:\n\n' +
-                '- List automations: "Show my automations" or "What automations do I have?"\n' +
-                '- Run an automation: "Run [automation name]" or "Trigger [automation name]"\n' +
-                '- Check status: "What is the status of my last execution?" or "Show recent activity"\n' +
-                '- My groups: "What groups am I in?"\n' +
-                '- Statistics: "How many executions do I have?"';
+        function containsAny(str, words) {
+            var wi;
+            for (wi = 0; wi < words.length; wi++) {
+                if (str.indexOf(words[wi]) !== -1) { return true; }
+            }
+            return false;
+        }
+
+        function stripStopWords(str) {
+            var stops = ['i','me','my','myself','we','our','ours','ourselves','you','your','yours',
+                'the','a','an','and','but','or','for','nor','on','at','to','from','by','with',
+                'that','this','these','those','is','are','was','were','be','been','being',
+                'have','has','had','do','does','did','will','would','shall','should',
+                'may','might','must','can','could','about','of','in','it','its',
+                'if','as','up','out','so','also','all','any','just','not','no'];
+            var words = str.split(/\s+/);
+            var filtered = [];
+            var wi;
+            for (wi = 0; wi < words.length; wi++) {
+                if (stops.indexOf(words[wi]) === -1 && words[wi].length > 1) { filtered.push(words[wi]); }
+            }
+            return filtered.join(' ');
+        }
+
+        if (containsAny(aq, ['help','what can you','what can i','capabilities','commands','guide me','guide','assist','how to use','what do you do'])) {
+            data.reply = 'I am your Operations Assistant. Here is what I can help you with:\n\n' +
+                'Automations:\n' +
+                '- "Show my automations" — list available automations\n' +
+                '- "Run [automation name]" — trigger an automation\n' +
+                '- "Show recent executions" — view activity history\n\n' +
+                'Service Catalog:\n' +
+                '- "I need a new laptop" — find and request catalog items\n' +
+                '- "Request VPN access" — search available services\n\n' +
+                'Knowledge Base:\n' +
+                '- "How do I reset my password?" — search articles\n' +
+                '- "What is the VPN procedure?" — find documentation\n\n' +
+                'My Requests:\n' +
+                '- "Show my requests" — view all your service requests\n\n' +
+                'Groups:\n' +
+                '- "What groups am I in?" — list your memberships';
             data.type  = 'info';
             return;
         }
 
-        if (aq.indexOf('group') !== -1 && (aq.indexOf('my') !== -1 || aq.indexOf('what') !== -1 || aq.indexOf('list') !== -1 || aq.indexOf('show') !== -1 || aq.indexOf('which') !== -1)) {
-            if (data.userGroups.length === 0) {
-                data.reply = 'You are not a member of any groups. Contact your administrator to be added.';
+        if (containsAny(aq, ['my request','my requests','my tickets','my orders','requests i raised','service request','what did i request','show requests','view requests','open request','raised request','submitted request','my sr','show my sr'])) {
+            var reqItems = loadUserRequests(userSysId, 20);
+            if (reqItems.length === 0) {
+                data.reply = 'You have not raised any service requests yet. Use the Service Catalog to submit requests for equipment, access, or services. Try asking "I need a laptop" to get started.';
+                data.type  = 'info';
             } else {
-                var gNames = [];
+                data.reply = 'Here are your service requests. Click any item to open it in the Service Portal:';
+                data.type  = 'requests';
+                data.items = reqItems;
+            }
+            return;
+        }
+
+        if (containsAny(aq, ['i need','i want','request a','order a','order an','get a','get an','need a','need an','access to','request access','can i get','can i have','how to order','how do i order','how do i request','buy a','purchase','procure'])) {
+            var catSearchQ1 = stripStopWords(aq);
+            if (!catSearchQ1) { catSearchQ1 = aq; }
+            var catItems1 = searchCatalog(catSearchQ1, 6);
+            if (catItems1.length === 0 && catSearchQ1 !== aq) { catItems1 = searchCatalog(aq, 6); }
+            if (catItems1.length === 0) {
+                data.reply = 'I could not find matching catalog items for "' + rawQ + '". Try browsing the Service Catalog directly or rephrase your request with the specific item name.';
+                data.type  = 'info';
+            } else {
+                data.reply = 'I found ' + catItems1.length + ' catalog item' + (catItems1.length === 1 ? '' : 's') + ' matching your request. Click to open and submit:';
+                data.type  = 'catalog';
+                data.items = catItems1;
+            }
+            return;
+        }
+
+        if (containsAny(aq, ['laptop','computer','phone','mobile','equipment','vpn','software','license','application','hardware','printer','monitor','mouse','keyboard','headset','desk','badge','account','permission','onboarding','catalog item','service catalog','wifi','network access','remote access'])) {
+            var catSearchQ2 = stripStopWords(aq);
+            if (!catSearchQ2) { catSearchQ2 = aq; }
+            var catItems2 = searchCatalog(catSearchQ2, 6);
+            if (catItems2.length === 0 && catSearchQ2 !== aq) { catItems2 = searchCatalog(aq, 6); }
+            if (catItems2.length === 0) {
+                data.reply = 'I could not find a catalog item matching "' + rawQ + '". Contact the service desk or browse the Service Catalog directly.';
+                data.type  = 'info';
+            } else {
+                data.reply = 'Here are catalog items related to your request. Click to open and submit:';
+                data.type  = 'catalog';
+                data.items = catItems2;
+            }
+            return;
+        }
+
+        if (containsAny(aq, ['how do','how to','what is','what are','explain','procedure','process','policy','knowledge','learn','find information','find out','troubleshoot','fix','problem with','issue with','error with','help with','documentation','steps to','instructions','tutorial','article','faq','guide for','understand'])) {
+            var kbSearchQ = stripStopWords(aq);
+            if (!kbSearchQ) { kbSearchQ = aq; }
+            var kbItems = searchKnowledge(kbSearchQ, 6);
+            if (kbItems.length === 0 && kbSearchQ !== aq) { kbItems = searchKnowledge(aq, 6); }
+            if (kbItems.length === 0) {
+                data.reply = 'I could not find knowledge articles matching "' + rawQ + '". Try rephrasing your question or contact the service desk for direct assistance.';
+                data.type  = 'info';
+            } else {
+                data.reply = 'I found ' + kbItems.length + ' knowledge article' + (kbItems.length === 1 ? '' : 's') + ' that may help:';
+                data.type  = 'knowledge';
+                data.items = kbItems;
+            }
+            return;
+        }
+
+        if (containsAny(aq, ['my group','groups i','which group','what group','am i in','member of','my team','my membership'])) {
+            if (data.userGroups.length === 0) {
+                data.reply = 'You are not a member of any groups. Contact your administrator to be added to an Operations Intelligence group.';
+            } else {
+                var gLines = [];
                 var gni;
                 for (gni = 0; gni < data.userGroups.length; gni++) {
-                    gNames.push('- ' + data.userGroups[gni].name + ' (' + (data.userGroups[gni].role || 'user') + ')');
+                    gLines.push('- ' + data.userGroups[gni].name + ' (' + (data.userGroups[gni].role || 'user') + ')');
                 }
-                data.reply = 'You are a member of ' + data.userGroups.length + ' group' + (data.userGroups.length === 1 ? '' : 's') + ':\n\n' + gNames.join('\n');
+                data.reply = 'You are a member of ' + data.userGroups.length + ' group' + (data.userGroups.length === 1 ? '' : 's') + ':\n\n' + gLines.join('\n');
             }
             data.type = 'info';
             return;
         }
 
-        if (aq.indexOf('status') !== -1 || aq.indexOf('last execution') !== -1 || aq.indexOf('recent') !== -1 || aq.indexOf('history') !== -1) {
-            var statusExecs = [];
+        if (containsAny(aq, ['status','last execution','recent execution','history','activity','what ran','did it run','what happened','execution log','my execution'])) {
+            var seItems = [];
             if (data.personSysId) {
                 var seGr = new GlideRecord('x_infte_ops_int_execution');
                 seGr.addQuery('triggered_by', data.personSysId);
@@ -584,59 +735,57 @@
                 seGr.setLimit(5);
                 seGr.query();
                 while (seGr.next()) {
-                    statusExecs.push((statusExecs.length + 1) + '. ' + ('' + seGr.getDisplayValue('automation')) + ' — ' + ('' + seGr.getValue('status')) + ' (' + ('' + seGr.getDisplayValue('triggered_at')) + ')');
+                    seItems.push((seItems.length + 1) + '. ' + ('' + seGr.getDisplayValue('automation')) + ' — ' + ('' + seGr.getValue('status')) + ' (' + ('' + seGr.getDisplayValue('triggered_at')) + ')');
                 }
             }
-            if (statusExecs.length === 0) {
-                data.reply = 'You have no recent executions.';
+            if (seItems.length === 0) {
+                data.reply = 'You have no recent executions. Trigger an automation from the Workspace or via the Automation Catalog to get started.';
             } else {
-                data.reply = 'Your most recent executions:\n\n' + statusExecs.join('\n');
+                data.reply = 'Your most recent executions:\n\n' + seItems.join('\n');
             }
             data.type = 'info';
             return;
         }
 
-        if (aq.indexOf('list') !== -1 || aq.indexOf('show') !== -1 || (aq.indexOf('what') !== -1 && aq.indexOf('automation') !== -1) || aq.indexOf('available') !== -1) {
-            var listAutos = loadWorkspace(data.userGroups);
-            if (listAutos.automations.length === 0) {
+        if (containsAny(aq, ['list automation','show automation','my automation','what automation','available automation','automations available','show me automation'])) {
+            var listWs = loadWorkspace(data.userGroups);
+            if (listWs.automations.length === 0) {
                 data.reply = 'You have no automations available. Contact your administrator to be added to a group with published automations.';
             } else {
                 var aLines = [];
                 var ali;
-                for (ali = 0; ali < listAutos.automations.length; ali++) {
-                    var aa = listAutos.automations[ali];
+                for (ali = 0; ali < listWs.automations.length; ali++) {
+                    var aa = listWs.automations[ali];
                     aLines.push('- ' + aa.name + (aa.short_description ? ': ' + aa.short_description : '') + ' [Group: ' + (aa.owner_group || 'N/A') + ']');
                 }
-                data.reply = 'You have ' + listAutos.automations.length + ' automation' + (listAutos.automations.length === 1 ? '' : 's') + ' available:\n\n' + aLines.join('\n');
+                data.reply = 'You have ' + listWs.automations.length + ' automation' + (listWs.automations.length === 1 ? '' : 's') + ' available:\n\n' + aLines.join('\n') + '\n\nTo trigger one, say "Run [automation name]".';
             }
             data.type = 'info';
             return;
         }
 
-        if (aq.indexOf('run') !== -1 || aq.indexOf('trigger') !== -1 || aq.indexOf('execute') !== -1 || aq.indexOf('start') !== -1) {
-            var runAutos = loadWorkspace(data.userGroups);
-            if (runAutos.automations.length === 0) {
-                data.reply = 'You have no automations available to run.';
-                data.type  = 'warning';
+        if (containsAny(aq, ['run ','trigger ','execute ','launch ','fire ','start '])) {
+            var runWs = loadWorkspace(data.userGroups);
+            if (runWs.automations.length === 0) {
+                data.reply = 'You have no automations available to run. Contact your administrator.';
+                data.type  = 'info';
                 return;
             }
             var targetAuto = null;
-            var ri;
-            for (ri = 0; ri < runAutos.automations.length; ri++) {
-                var aName = (runAutos.automations[ri].name || '').toLowerCase();
-                if (aq.indexOf(aName) !== -1) {
-                    targetAuto = runAutos.automations[ri];
+            var rni;
+            for (rni = 0; rni < runWs.automations.length; rni++) {
+                var rAutoName = (runWs.automations[rni].name || '').toLowerCase();
+                if (aq.indexOf(rAutoName) !== -1) {
+                    targetAuto = runWs.automations[rni];
                     break;
                 }
             }
             if (!targetAuto) {
-                var autoListNames = [];
+                var autoNames = [];
                 var ani;
-                for (ani = 0; ani < runAutos.automations.length; ani++) {
-                    autoListNames.push('"' + runAutos.automations[ani].name + '"');
-                }
-                data.reply = 'Please specify which automation to run. Available: ' + autoListNames.join(', ') + '.\n\nExample: "Run ' + (runAutos.automations[0] ? runAutos.automations[0].name : 'automation name') + '"';
-                data.type  = 'warning';
+                for (ani = 0; ani < runWs.automations.length; ani++) { autoNames.push('"' + runWs.automations[ani].name + '"'); }
+                data.reply = 'Which automation would you like to run? Available: ' + autoNames.join(', ') + '.\n\nExample: "Run ' + (runWs.automations[0] ? runWs.automations[0].name : 'automation name') + '"';
+                data.type  = 'info';
                 return;
             }
             try {
@@ -651,18 +800,43 @@
                     }
                     data.type = 'success';
                 } else {
-                    data.reply = 'Failed to trigger "' + targetAuto.name + '". Please try again from the Workspace section.';
+                    data.reply = 'Failed to trigger "' + targetAuto.name + '". Please try again from the Workspace.';
                     data.type  = 'error';
                 }
-            } catch(runErr) {
+            } catch (runErr) {
                 data.reply = 'Error triggering "' + targetAuto.name + '": ' + runErr;
                 data.type  = 'error';
             }
             return;
         }
 
-        data.reply = 'I am not sure how to answer that. Try: "List my automations", "Run [automation name]", "Show recent executions", or type "help" for all commands.';
+        var fbQ = stripStopWords(aq);
+        var fbCatItems = fbQ ? searchCatalog(fbQ, 3) : [];
+        var fbKbItems  = fbQ ? searchKnowledge(fbQ, 3) : [];
+
+        if (fbCatItems.length > 0 || fbKbItems.length > 0) {
+            data.reply = 'I found some resources that might help with your question about "' + rawQ + '":';
+            if (fbCatItems.length > 0 && fbKbItems.length > 0) {
+                data.type  = 'catalog';
+                data.items = fbCatItems.concat(fbKbItems);
+            } else if (fbCatItems.length > 0) {
+                data.type  = 'catalog';
+                data.items = fbCatItems;
+            } else {
+                data.type  = 'knowledge';
+                data.items = fbKbItems;
+            }
+            return;
+        }
+
+        data.reply = 'I am not sure how to answer that. You can try:\n- "Show my automations" — list automations\n- "I need a laptop" — search the Service Catalog\n- "How do I reset my password?" — search Knowledge Base\n- "Show my requests" — view your service requests\n- Type "help" for all capabilities.';
         data.type  = 'info';
+        return;
+    }
+
+    if (input.action === 'load_user_requests') {
+        var lrLimit = input.limit ? parseInt('' + input.limit, 10) : 20;
+        data.user_requests = loadUserRequests(userSysId, lrLimit);
         return;
     }
 
@@ -1017,9 +1191,9 @@
         try { cdCollected = JSON.parse('' + (input.collected || '{}')); } catch (e) { cdCollected = {}; }
         var cdResult;
         if (cdFlowId === 'report_builder') {
-            cdResult = createReport(cdCollected, data.personSysId, userSysId);
+            cdResult = createReport(cdCollected, data.personSysId);
         } else if (cdFlowId === 'dashboard_builder') {
-            cdResult = createDashboard(cdCollected, data.personSysId, userSysId);
+            cdResult = createDashboard(cdCollected, data.personSysId);
         } else if (cdFlowId === 'data_alert') {
             cdResult = createDataAlert(cdCollected, data.personSysId);
         } else if (cdFlowId === 'notification_rule') {
