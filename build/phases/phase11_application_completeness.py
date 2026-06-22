@@ -217,8 +217,8 @@ APP_MENU_NAME   = "Operations Intelligence"
 MODULE_PORTAL   = "Operations Intelligence Portal"
 MODULE_ONBOARD  = "Operations Intelligence Onboarding"
 
-PORTAL_URL      = "/x_infte_ops_int_portal"
-ONBOARD_URL     = "/x_infte_ops_int_portal?id=oi_onboarding"
+PORTAL_URL      = "/operations-intelligence"
+ONBOARD_URL     = "/operations-intelligence?id=oi_onboarding"
 
 
 def ensure_app_menu(log, scope_id):
@@ -252,9 +252,19 @@ def ensure_module(log, scope_id, menu_id, title, url, order):
         return
     r = ec.op("record.query", table="sys_app_module",
               encoded_query="title=%s^application=%s" % (title, menu_id),
-              fields=["sys_id", "title"], limit=1)
+              fields=["sys_id", "title", "direct"], limit=1)
     if r.get("records"):
-        log.append("  Module already exists: %s" % title)
+        existing = r["records"][0]
+        if existing.get("direct") == url:
+            log.append("  Module already exists with correct URL: %s" % title)
+            return
+        ru = ec.op("record.update", table="sys_app_module",
+                   platform=True, scope=True,
+                   data={"sys_id": existing["sys_id"], "direct": url})
+        if ru.get("ok"):
+            log.append("  Module URL updated: %s -> %s" % (title, url))
+        else:
+            log.append("  FAIL updating module URL %s: %s" % (title, str(ru)[:120]))
         return
     r2 = ec.op("record.insert", table="sys_app_module",
                platform=True, scope=True,

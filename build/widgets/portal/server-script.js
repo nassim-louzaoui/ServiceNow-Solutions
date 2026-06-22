@@ -308,7 +308,7 @@
                 var docTable = '' + apGr.getValue('source_table');
                 items.push({
                     sys_id:            '' + apGr.getUniqueValue(),
-                    short_description: '' + (apGr.getValue('approver_id') || 'Approval Request'),
+                    short_description: '' + (apGr.getDisplayValue('sysapproval') || apGr.getValue('comments') || 'Approval Request'),
                     state:             '' + apGr.getDisplayValue('state'),
                     opened_at:         '' + apGr.getDisplayValue('sys_created_on'),
                     document_sys_id:   docId,
@@ -1205,7 +1205,7 @@
             { k: ['who do i contact', 'right team', 'where to go', 'point of contact', 'responsible contact'], r: 'If you are unsure who to contact, describe what you need and I will point you to the right path, whether that is a catalog item, an incident, an HR request, or the service desk. For services, the owning team is recorded in the CMDB, and the service desk can always route you.' }
         ];
 
-        if (containsAny(aq, ['hello','hi there','hey there','good morning','good afternoon','good evening','howdy','greetings','whats up','yo ','hi ','hey ']) || aq === 'hi' || aq === 'hey' || aq === 'hello') {
+        if (containsAny(aq, ['hello','hi there','hey there','good morning','good afternoon','good evening','howdy','greetings','whats up','yo ','hi ','hey ','good day','g\'day','morning','evening','afternoon','sup ','what\'s up','hola']) || aq === 'hi' || aq === 'hey' || aq === 'hello' || aq === 'sup' || aq === 'morning' || aq === 'evening') {
             var greetHour = parseInt(gs.nowDateTime().substring(11, 13), 10);
             if (isNaN(greetHour)) { greetHour = 9; }
             var greetTime = greetHour < 12 ? 'Good morning' : greetHour < 17 ? 'Good afternoon' : 'Good evening';
@@ -1324,7 +1324,7 @@
             return;
         }
 
-        if (containsAny(aq, ['create incident','report incident','log incident','raise incident','new incident','file incident','submit incident','report an issue','log an issue','report issue','create a ticket','raise a ticket','open a ticket','log a ticket','something is broken','not working','server down','system down','i have an issue','i have a problem','technical issue','technical problem'])) {
+        if (containsAny(aq, ['create incident','report incident','log incident','raise incident','new incident','file incident','submit incident','report an issue','log an issue','report issue','create a ticket','raise a ticket','open a ticket','log a ticket','something is broken','not working','server down','system down','i have an issue','i have a problem','technical issue','technical problem','i have an error','something is wrong','having trouble','cant access','cannot access','cannot log','cant log','access denied','getting an error','error message','keeps crashing','keeps failing','its not working','doesnt work','not loading','wont load','wont open','i am stuck','im stuck','need it support','need help with my','having issues with','problem with my','issue with my','broken link','site is down','application down','service not responding'])) {
             var incKbItems = searchKnowledge(stripStopWords(aq) || aq, 3);
             data.reply = 'To report an incident with IT, go to the Service Portal and select "Report an Issue" or click here: /sp?id=new_call\n\n' +
                 'When creating your incident, please include:\n' +
@@ -1546,7 +1546,7 @@
             return;
         }
 
-        if (containsAny(aq, ['i need','i want','request a','order a','order an','get a','get an','need a','need an','request access','can i get','can i have','buy a','purchase','procure','submit a request','raise a request'])) {
+        if (containsAny(aq, ['i need','i want','request a','order a','order an','get a','get an','need a','need an','request access','can i get','can i have','buy a','purchase','procure','submit a request','raise a request','i would like','id like','can i order','how do i get','how do i request','how can i get','looking for','searching for','trying to get','trying to find','where do i get','where can i find','can someone give me','can you get me','can you order','could i get','would it be possible'])) {
             var catSearchQ1 = stripStopWords(aq);
             if (!catSearchQ1) { catSearchQ1 = aq; }
             var catItems1 = searchCatalog(catSearchQ1, 6);
@@ -1606,7 +1606,7 @@
         var fbKbItems  = fbQ ? searchKnowledge(fbQ, 3) : [];
 
         if (fbCatItems.length > 0 || fbKbItems.length > 0) {
-            data.reply = 'I found some resources that might help with "' + rawQ + '":';
+            data.reply = 'Here is what I found that might help with "' + rawQ + '":';
             if (fbCatItems.length > 0 && fbKbItems.length > 0) {
                 data.type  = 'catalog';
                 data.items = fbCatItems.concat(fbKbItems);
@@ -1620,14 +1620,24 @@
             return;
         }
 
-        data.reply = 'I am not sure how to help with "' + rawQ + '". You can try:\n\n' +
-            '- "Show my incidents" — view your active incidents\n' +
-            '- "Show my approvals" — view pending approvals\n' +
-            '- "I need a laptop" — search the Service Catalog\n' +
-            '- "How do I reset my password?" — search the Knowledge Base\n' +
-            '- "Show my automations" — list available automations\n' +
-            '- "Contact support" — reach IT support\n\n' +
-            'Type "help" for all capabilities.';
+        var fbLower = aq.toLowerCase();
+        if (containsAny(fbLower, ['who','what','when','where','why','which','can','could','would','should','is there','are there','do you','does','how'])) {
+            data.reply = 'I heard you but I am not sure exactly what you need for "' + rawQ + '". Here are the most common things I can help with:\n\n' +
+                '- Say "Show my incidents" to see your active IT tickets\n' +
+                '- Say "Show my approvals" to see items waiting for you\n' +
+                '- Say "I need a laptop" (or any equipment/software) to search the Service Catalog\n' +
+                '- Say "Create an incident" to report a new IT issue\n' +
+                '- Say "How do I reset my password?" to search knowledge articles\n' +
+                '- Say "Show my requests" to track your service requests\n\n' +
+                'Or just describe what you are trying to do in plain language and I will do my best.';
+        } else {
+            data.reply = 'I could not find an exact match for "' + rawQ + '", but let me try to help.\n\n' +
+                'You can ask me things like:\n' +
+                '"Show my incidents" · "Show my approvals" · "Create an incident"\n' +
+                '"I need a new laptop" · "How do I reset my password?"\n' +
+                '"Show my automations" · "Who am I?" · "What groups am I in?"\n\n' +
+                'Type "help" for a complete list of capabilities.';
+        }
         data.type  = 'info';
         return;
     }
@@ -1987,15 +1997,31 @@
         var cdFlowId   = '' + (input.flow_id || '');
         var cdCollected = {};
         try { cdCollected = JSON.parse('' + (input.collected || '{}')); } catch (e) { cdCollected = {}; }
+        var cdPersonId = data.personSysId;
+        if (!cdPersonId) {
+            var cdPersonRec = new GlideRecord('x_infte_ops_int_person');
+            cdPersonRec.addQuery('user', userSysId);
+            cdPersonRec.setLimit(1);
+            cdPersonRec.query();
+            if (cdPersonRec.next()) {
+                cdPersonId = '' + cdPersonRec.getUniqueValue();
+            } else {
+                var cdNewPerson = new GlideRecord('x_infte_ops_int_person');
+                cdNewPerson.initialize();
+                cdNewPerson.setValue('user', userSysId);
+                cdNewPerson.setValue('active', true);
+                cdPersonId = '' + cdNewPerson.insert();
+            }
+        }
         var cdResult;
         if (cdFlowId === 'report_builder') {
-            cdResult = createReport(cdCollected, data.personSysId);
+            cdResult = createReport(cdCollected, cdPersonId);
         } else if (cdFlowId === 'dashboard_builder') {
-            cdResult = createDashboard(cdCollected, data.personSysId);
+            cdResult = createDashboard(cdCollected, cdPersonId);
         } else if (cdFlowId === 'data_alert') {
-            cdResult = createDataAlert(cdCollected, data.personSysId);
+            cdResult = createDataAlert(cdCollected, cdPersonId);
         } else if (cdFlowId === 'notification_rule') {
-            cdResult = createNotificationRule(cdCollected, data.personSysId);
+            cdResult = createNotificationRule(cdCollected, cdPersonId);
         } else {
             cdResult = { ok: false, error: 'Unknown flow type.' };
         }
