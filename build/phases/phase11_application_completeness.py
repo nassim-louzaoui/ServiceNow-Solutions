@@ -17,26 +17,19 @@ Steps:
          x_infte_ops_int_)
        • ACLs (name LIKE x_infte_ops_int_)
        • Service Portal widget, portal, and pages (by sys_id)
-       • Virtual Agent topics (name LIKE [Operations Intelligence]) ONLY —
-         topics belonging to other scopes (e.g. Now Support chat) are never
-         touched.
+     Note: sys_cs_topic (Conversation Designer) records are NOT used by this
+     application. The OI assistant runs entirely through the portal widget
+     server script. No sys_cs_topic records should exist for this app.
 
   3. Navigator module creation — creates the Operations Intelligence
      application menu (sys_app_application) and two modules: the main portal
      link and the onboarding portal link.
 
-  4. Classic-VA scope guard — deploys a Business Rule on sys_cs_topic that
-     prevents modification of any topic whose name starts with
-     "[Operations Intelligence]" by users without x_infte_ops_int.admin.
-     Records belonging to other admins (Now Support chat, etc.) are
-     unaffected because the rule skips any topic whose name does NOT start
-     with the "[Operations Intelligence]" prefix.
-
-  5. Manifest report — prints a full count of every artifact type, scoped
+  4. Manifest report — prints a full count of every artifact type, scoped
      correctly, so the exporter can verify the package is complete.
 
-Idempotent: re-scoping is a no-op when already correct; navigator entries and
-the scope guard upsert by name.
+Idempotent: re-scoping is a no-op when already correct; navigator entries
+upsert by name.
 """
 import os
 import sys
@@ -52,26 +45,6 @@ SP_WIDGET_ID   = "d6d9baeefb2d8f9035cbf4bbaeefdce0"
 SP_PORTAL_ID   = "e738a5262b610b90efe3f355fe91bfc1"
 SP_PAGE_MAIN   = "ed4829262b610b90efe3f355fe91bf6a"
 SP_PAGE_ONBOARDING = "2148edeafba98b9052eef5c9beefdc80"
-
-OI_VA_PREFIX   = "[Operations Intelligence]"
-
-CS_TOPIC_GUARD_SCRIPT = (
-    "(function executeRule(current, previous) {\n"
-    "    var topicName = '' + current.getValue('name');\n"
-    "    if (topicName.indexOf('" + OI_VA_PREFIX + "') !== 0) { return; }\n"
-    "    var uid = gs.getUserID();\n"
-    "    var hr = new GlideRecord('sys_user_has_role');\n"
-    "    hr.addQuery('user', uid);\n"
-    "    hr.addQuery('role.name', 'x_infte_ops_int.admin');\n"
-    "    hr.setLimit(1);\n"
-    "    hr.query();\n"
-    "    if (!hr.next()) {\n"
-    "        current.setAbortAction(true);\n"
-    "        gs.addErrorMessage('Modification of Operations Intelligence Virtual Agent topics requires the Administrator role.');\n"
-    "    }\n"
-    "})(current, previous);"
-)
-
 
 # ---------------------------------------------------------------------------
 # Step 1 — Scope resolution
@@ -188,26 +161,6 @@ def rescope_artifacts(log, scope_id):
     rescope_by_sysid(log, "Portal Page (Main)",    "sp_page",   SP_PAGE_MAIN, scope_id)
     rescope_by_sysid(log, "Portal Page (Onboarding)", "sp_page", SP_PAGE_ONBOARDING, scope_id)
 
-    r = ec.op("record.query", table="sys_cs_topic",
-              encoded_query="nameLIKE" + OI_VA_PREFIX,
-              fields=["sys_id", "name", "sys_scope"], limit=200)
-    oi_topics = r.get("records", [])
-    patched = skipped = failed = 0
-    for rec in oi_topics:
-        if rec.get("sys_scope") == scope_id:
-            skipped += 1
-            continue
-        upd = ec.op("record.update", table="sys_cs_topic",
-                    platform=True, scope=True,
-                    data={"sys_id": rec["sys_id"], "sys_scope": scope_id})
-        if upd.get("ok"):
-            patched += 1
-        else:
-            failed += 1
-        time.sleep(0.2)
-    log.append("  %-35s %3d records — %d patched, %d already correct, %d failed" % (
-        "VA Topics [Operations Intelligence]", len(oi_topics), patched, skipped, failed))
-
 
 # ---------------------------------------------------------------------------
 # Step 3 — Navigator module creation
@@ -293,35 +246,7 @@ def create_navigator_modules(log, scope_id):
 
 
 # ---------------------------------------------------------------------------
-# Step 4 — Classic VA scope guard on sys_cs_topic
-# ---------------------------------------------------------------------------
-
-CS_TOPIC_GUARD_NAME = "Operations Intelligence - Virtual Agent Classic Topic Write Guard"
-
-
-def deploy_cs_topic_guard(log):
-    log.append("\n--- Step 4: Classic Virtual Agent Scope Guard ---")
-    data = {
-        "name":       CS_TOPIC_GUARD_NAME,
-        "collection": "sys_cs_topic",
-        "script":     CS_TOPIC_GUARD_SCRIPT,
-        "when":       "before",
-        "query":      False,
-        "insert":     False,
-        "update":     True,
-        "delete":     True,
-        "order":      50,
-        "active":     True,
-    }
-    r = ec.op("artifact.business_rule", data=data)
-    if r.get("ok"):
-        log.append("  %s — %s" % (CS_TOPIC_GUARD_NAME[:70], r.get("action", "ok")))
-    else:
-        log.append("  FAIL: %s — %s" % (CS_TOPIC_GUARD_NAME[:70], str(r)[:120]))
-
-
-# ---------------------------------------------------------------------------
-# Step 5 — Manifest report
+# Step 4 — Manifest report
 # ---------------------------------------------------------------------------
 
 MANIFEST_CHECKS = [
@@ -332,7 +257,6 @@ MANIFEST_CHECKS = [
     ("sp_widget",            "sys_id=" + SP_WIDGET_ID,                 "name",       "Service Portal Widget"),
     ("sp_portal",            "sys_id=" + SP_PORTAL_ID,                 "url_suffix", "Service Portal"),
     ("sp_page",              "sys_idIN" + SP_PAGE_MAIN + "," + SP_PAGE_ONBOARDING, "id", "Portal Pages"),
-    ("sys_cs_topic",         "nameLIKE" + OI_VA_PREFIX,                "name",       "Virtual Agent Topics"),
     ("sys_properties",       "nameLIKEx_infte_ops_int.",                "name",       "System Properties"),
     ("sysauto_script",       "nameLIKEOperations Intelligence",         "name",       "Scheduled Jobs"),
     ("sysevent_email_action","nameLIKEOperations Intelligence",         "name",       "Notifications"),
@@ -344,7 +268,7 @@ MANIFEST_SKIP_SCOPE_CHECK = {"System Properties"}
 
 
 def print_manifest(log):
-    log.append("\n--- Step 5: Application Manifest ---")
+    log.append("\n--- Step 4: Application Manifest ---")
     total = 0
     for table, query, field, label in MANIFEST_CHECKS:
         r = ec.op("record.query", table=table,
@@ -380,7 +304,6 @@ def build():
 
     rescope_artifacts(log, scope_id)
     create_navigator_modules(log, scope_id)
-    deploy_cs_topic_guard(log)
     print_manifest(log)
 
     log.append("\n=== Phase 11 complete ===")
