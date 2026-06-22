@@ -695,19 +695,157 @@
         }
 
         function matchTopic(aqStr, topicsArray) {
-            var ti;
+            var ti, ki;
             for (ti = 0; ti < topicsArray.length; ti++) {
-                if (containsAny(aqStr, topicsArray[ti].k)) {
-                    return topicsArray[ti];
-                }
+                if (containsAny(aqStr, topicsArray[ti].k)) { return topicsArray[ti]; }
             }
-            return null;
+            var rawWords = aqStr.split(/\s+/);
+            var aqWords = [];
+            var vi;
+            for (vi = 0; vi < rawWords.length; vi++) {
+                if (rawWords[vi].length > 2) { aqWords.push(rawWords[vi]); }
+            }
+            if (aqWords.length === 0) { return null; }
+            var THRESHOLD = 34;
+            var bestScore = THRESHOLD;
+            var bestTopic = null;
+            for (ti = 0; ti < topicsArray.length; ti++) {
+                var topicKeys = topicsArray[ti].k;
+                var topicBest = 0;
+                for (ki = 0; ki < topicKeys.length; ki++) {
+                    var kw = topicKeys[ki];
+                    var kwRaw = kw.split(/\s+/);
+                    var kwWords = [];
+                    var kvi;
+                    for (kvi = 0; kvi < kwRaw.length; kvi++) {
+                        if (kwRaw[kvi].length > 2) { kwWords.push(kwRaw[kvi]); }
+                    }
+                    if (kwWords.length === 0) { continue; }
+                    var hits = 0;
+                    var pi, ai;
+                    for (pi = 0; pi < kwWords.length; pi++) {
+                        var pw = kwWords[pi];
+                        for (ai = 0; ai < aqWords.length; ai++) {
+                            var aw = aqWords[ai];
+                            if (aw === pw || (pw.length > 4 && pw.indexOf(aw) === 0) || (aw.length > 4 && aw.indexOf(pw) === 0)) {
+                                hits++;
+                                break;
+                            }
+                        }
+                    }
+                    if (hits > 0) {
+                        var ratio = hits / kwWords.length;
+                        var score = Math.round(ratio * 58);
+                        if (ratio >= 1) { score += 15; }
+                        if (score > topicBest) { topicBest = score; }
+                    }
+                }
+                if (topicBest > bestScore) { bestScore = topicBest; bestTopic = topicsArray[ti]; }
+            }
+            return bestTopic;
         }
 
         var userFirstName = '';
         if (data.userName) {
             var fnParts = ('' + data.userName).split(' ');
             if (fnParts.length > 0 && fnParts[0]) { userFirstName = fnParts[0]; }
+        }
+
+        var SINGLE_WORD_HINTS = {
+            'incident': 'Incidents track and resolve IT issues. You can raise one ("Create incident"), check yours ("Show my incidents"), or ask about a specific number. What would you like to do?',
+            'incidents': 'Incidents track and resolve IT issues. You can raise one, view yours, or ask about a specific ticket number. What do you need?',
+            'approval': 'Say "Show my approvals" to see everything waiting for your decision. You can also ask about approval routing for requests, changes, or catalog items.',
+            'approvals': 'Say "Show my approvals" to see everything waiting for your decision. You can also ask how approval workflows work for different record types.',
+            'change': 'Change Management controls how IT modifications are implemented safely. I can help you raise a change, explain Standard, Normal, and Emergency change types, or navigate the CAB approval process. What do you need?',
+            'problem': 'Problem Management investigates root causes of recurring incidents. I can help you create a Problem record, link incidents, understand the lifecycle, or document a workaround. What do you need?',
+            'report': 'ServiceNow has 27 report types in the Report Designer. I can walk you through Bar, Pie, Trend, Pivot, Heatmap, or List reports, or explain scheduling and sharing. What do you need?',
+            'reports': 'ServiceNow has 27 report types. I can explain any of them, help with filters and grouping, or explain scheduling and sharing. What aspect of reporting do you need?',
+            'dashboard': 'Dashboards display reports, gauges, and KPIs on a shared canvas. I can help you create one, add widgets, configure tabs, or manage sharing. What do you need?',
+            'dashboards': 'Dashboards aggregate reports, scorecards, gauges, and more. I can explain creation, widget types, tabs, or permissions. What do you need?',
+            'cmdb': 'The CMDB stores all Configuration Items — hardware, software, services, and their relationships. I can explain CI classes, relationship types, CMDB health scoring, or Discovery. What interests you?',
+            'discovery': 'Discovery auto-populates the CMDB by probing your network via Mid Servers. I can explain Discovery schedules, Mid Servers, or how IRE prevents duplicates. What do you need?',
+            'automation': 'Automations in Operations Intelligence are workflows triggered from the Workspace. Say "Show available automations" to see what is available, or ask about creating custom ones in Studio.',
+            'automations': 'Say "Show available automations" to see what you can run. If you have Creator access you can also define new automations in the Studio section.',
+            'integration': 'IntegrationHub has pre-built Spokes for hundreds of systems — Slack, Jira, GitHub, AWS, and more. I can explain how to use them in Flow Designer or build a custom REST integration. What system are you connecting?',
+            'workflow': 'Workflows run automatically based on triggers — record changes, schedules, or API calls. Flow Designer is the no-code builder; Business Rules handle simpler logic. What are you trying to automate?',
+            'knowledge': 'The Knowledge Base stores articles and guides. You can search it, author new articles, or ask me a specific question and I will surface what I know. What are you looking for?',
+            'sla': 'SLAs define response and resolution time targets per priority. P1 has the shortest targets, P4 the longest. Ask "What are the SLA targets?" for exact figures, or ask about a specific priority.',
+            'analytics': 'Performance Analytics captures historical KPI snapshots for trending over time. Standard Reports query live data. I can explain PA Indicators, Scorecards, Data Collectors, or dashboards. What do you need?',
+            'catalog': 'The Service Catalog at /sp?id=sc_home lists everything you can request, organised by category. Search by name or browse categories. What are you trying to find or request?',
+            'request': 'You can submit new requests from the Service Catalog (/sp?id=sc_home) or track existing ones ("Show my requests"). What would you like to do?',
+            'requests': 'Say "Show my requests" to see all your active requests, or browse the Service Catalog at /sp?id=sc_home to submit new ones. What do you need?',
+            'governance': 'Operations Governance manages group membership, user enrollment, access roles, and pending approvals. Administrators and Leadership can access it from the sidebar. What do you need to manage?',
+            'groups': 'Groups associate users with a Lead and Creator for specific work areas. Administrators and Leadership can create and manage groups in the Governance section. What do you need?',
+            'role': 'The four Operations Intelligence roles are: User (run automations), Creator (build deliverables in Studio), Leadership (governance oversight), and Administrator (full control). Ask "What is my role?" to see yours.',
+            'roles': 'Operations Intelligence has four roles: User, Creator, Leadership, and Administrator. Ask "What can each role do?" for a full breakdown of capabilities.',
+            'studio': 'Operations Studio is where Creators and Administrators build deliverables and define automations. Access it from the left sidebar. What would you like to build or manage?',
+            'security': 'I can advise on ServiceNow Security Operations (vulnerability management, security incidents), platform security (ACLs, roles, scoped apps), or Operations Intelligence access control. Which area do you mean?',
+            'permission': 'Permissions in ServiceNow are controlled by Access Control Lists (ACLs) and roles. In Operations Intelligence, the four roles determine which sections and actions are available. Ask about a specific permission or role for details.',
+            'permissions': 'Permissions are governed by roles and ACLs. In Operations Intelligence, your role determines your access. Say "What is my role?" to check yours, or ask about specific access rights.',
+            'grc': 'ServiceNow GRC covers Policy and Compliance Management, Risk Management, Audit Management, and Business Continuity Planning. I can explain any of these areas. Which do you need?',
+            'compliance': 'ServiceNow Policy and Compliance Management lets you author policies, map them to controls, schedule attestations, and collect evidence. GRC Risk Management handles risk registers and risk scoring. Which area do you need?',
+            'risk': 'ServiceNow Risk Management provides risk registers, risk scoring frameworks, risk response workflows, and continuous monitoring. It is part of the GRC product suite. Do you want more details?',
+            'fsm': 'Field Service Management handles on-site work via Work Orders and the Dispatcher Workspace. I can explain work order lifecycle, scheduling optimization, territory management, or the Now Mobile app. What do you need?',
+            'spm': 'Strategic Portfolio Management covers Demand, Project, Resource, and Financial management. I can explain demand intake, waterfall/agile project methods, or the Goal Framework. What do you need?',
+            'project': 'ServiceNow Project Management supports Waterfall (Gantt-based), Agile (epics/stories/sprints), and Hybrid methodologies. I can explain project creation, task management, resource allocation, or status reporting. What do you need?',
+            'demand': 'Demand Management is the structured intake process for new investments. Demands are captured, assessed for feasibility and cost, approved, then converted to projects or epics. I can walk you through the process. What do you need?',
+            'acl': 'Access Control Lists (ACLs) control who can read, write, create, or delete records and fields in ServiceNow. They evaluate Roles, Conditions, and Scripts — all three must pass for access to be granted. What do you need to know?',
+            'gliderecord': 'GlideRecord is the core server-side database API in ServiceNow. Use it to query, insert, update, and delete records. I can explain query syntax, operators, update methods, or GlideRecordSecure. What do you need?',
+            'midserver': 'The Mid Server is a Java agent installed in your on-premises network that proxies Discovery and IntegrationHub connections between ServiceNow and internal resources. I can explain setup, HA pairs, or troubleshooting. What do you need?',
+            'flow': 'Flow Designer is ServiceNow\'s no-code/low-code automation builder using triggers, actions, and data pills. I can explain triggers, Integration Hub actions, subflows, or deployment. What do you need?',
+            'update': 'Are you asking about an Update Set (configuration migration between instances) or updating a specific record? Say "Update set" for migration guidance, or tell me what you are trying to update.',
+            'spoke': 'IntegrationHub Spokes are packaged integrations for third-party systems. Pre-built Spokes cover Slack, Teams, Jira, GitHub, AWS, and hundreds more. You can also build custom Spokes using REST or SOAP actions. What system do you need?'
+        };
+
+        function getAdvisorResponse(aq) {
+            var advisorPhrases = [
+                'is it possible to','can servicenow','can we do','how would we do',
+                'is there a way to','could we build','how do we achieve','what module would',
+                'which module','which servicenow','what feature','does servicenow have',
+                'does servicenow support','can we automate','is there functionality',
+                'how would i implement','advise on','advice on','what approach for',
+                'what is the best way to','can this be done in','is this possible in servicenow',
+                'we have a requirement','we need a solution for','looking to build','trying to build',
+                'how to implement in servicenow','what servicenow product','what plugin','which product',
+                'what capability','can servicenow handle','servicenow able to','is servicenow capable',
+                'requirement for','business requirement','in servicenow terms','from servicenow perspective'
+            ];
+            var isAdvisor = false;
+            var ai;
+            for (ai = 0; ai < advisorPhrases.length; ai++) {
+                if (aq.indexOf(advisorPhrases[ai]) !== -1) { isAdvisor = true; break; }
+            }
+            if (!isAdvisor) { return null; }
+            var hints = [];
+            if (containsAny(aq, ['approval','approve','sign off','authorization','authorise','authorize'])) { hints.push('Approval Engine (native to Service Catalog, Change, and Flow Designer)'); }
+            if (containsAny(aq, ['notification','email','alert','notify','inform'])) { hints.push('Notification Rules and Scheduled Email Notifications'); }
+            if (containsAny(aq, ['workflow','automate','automation','trigger','automatic','scheduled job'])) { hints.push('Flow Designer (no-code) or Business Rules (server-side scripting)'); }
+            if (containsAny(aq, ['report','dashboard','chart','graph','trend','kpi','metric'])) { hints.push('Reporting and Performance Analytics'); }
+            if (containsAny(aq, ['incident','ticket','issue','outage','fault'])) { hints.push('Incident Management (ITSM module)'); }
+            if (containsAny(aq, ['request','catalog','order','service request','provision'])) { hints.push('Service Catalog and Request Management'); }
+            if (containsAny(aq, ['change','deployment','release','upgrade','patch'])) { hints.push('Change Management (ITSM)'); }
+            if (containsAny(aq, ['asset','hardware','software license','inventory','device management'])) { hints.push('Asset Management and Software Asset Management (SAM)'); }
+            if (containsAny(aq, ['cmdb','configuration item','ci','service map','dependency'])) { hints.push('CMDB and Service Mapping'); }
+            if (containsAny(aq, ['discovery','auto populate','scan','probe','network scan'])) { hints.push('Discovery and Mid Server'); }
+            if (containsAny(aq, ['security','vulnerability','patch management','compliance','risk','audit'])) { hints.push('Security Operations (SecOps) and GRC'); }
+            if (containsAny(aq, ['hr','employee','onboarding','offboarding','leave','payroll','people'])) { hints.push('HR Service Delivery (HRSD) and Employee Center'); }
+            if (containsAny(aq, ['customer','client','external portal','b2b','account','entitlement'])) { hints.push('Customer Service Management (CSM)'); }
+            if (containsAny(aq, ['field','technician','on site','dispatch','work order','field service'])) { hints.push('Field Service Management (FSM)'); }
+            if (containsAny(aq, ['project','demand','portfolio','roadmap','programme','program'])) { hints.push('Strategic Portfolio Management (SPM/ITBM)'); }
+            if (containsAny(aq, ['integrate','api','connector','sync','third party','external system','middleware'])) { hints.push('IntegrationHub and REST API (Scripted REST)'); }
+            if (containsAny(aq, ['app','application','custom table','build a tool','citizen developer','low code','no code'])) { hints.push('App Engine Studio (low-code scoped application development)'); }
+            if (containsAny(aq, ['role','permission','access control','acl','security rule','restrict'])) { hints.push('Access Control Lists (ACLs) and Role-Based Access Control'); }
+            if (containsAny(aq, ['knowledge','article','faq','self service'])) { hints.push('Knowledge Management'); }
+            if (containsAny(aq, ['sla','service level','breach','response time','resolution time'])) { hints.push('SLA Management and Work Level Agreements'); }
+            if (containsAny(aq, ['predict','ml','machine learning','classify','categorise','categorize','ai'])) { hints.push('Predictive Intelligence (ML-based classification and similarity)'); }
+            if (hints.length === 0) {
+                return 'Most business requirements can be addressed in ServiceNow — the platform is extremely configurable. To give you a specific recommendation, describe the requirement in more detail: what business process is involved, who are the users, and what outcome are you trying to achieve? I will then point you to the exact module and approach.';
+            }
+            var reply = 'That requirement can very likely be addressed in ServiceNow. Based on what you described, the relevant capability areas are:\n';
+            var mi;
+            for (mi = 0; mi < hints.length; mi++) { reply += '\n- ' + hints[mi]; }
+            reply += '\n\nDescribe the requirement in more detail if you would like a more specific recommendation on the approach, configuration steps, or the exact feature to use.';
+            return reply;
         }
 
         var TOPICS = [
@@ -1891,6 +2029,28 @@
             return;
         }
 
+        var advisorReply = getAdvisorResponse(aq);
+        if (advisorReply) {
+            data.reply = advisorReply;
+            data.type  = 'info';
+            return;
+        }
+
+        var aqWordsSingle = aq.trim().split(/\s+/);
+        if (aqWordsSingle.length <= 2) {
+            var singleKey = aqWordsSingle[0];
+            if (SINGLE_WORD_HINTS[singleKey]) {
+                data.reply = SINGLE_WORD_HINTS[singleKey];
+                data.type  = 'info';
+                return;
+            }
+            if (aqWordsSingle.length === 2 && SINGLE_WORD_HINTS[aqWordsSingle[1]]) {
+                data.reply = SINGLE_WORD_HINTS[aqWordsSingle[1]];
+                data.type  = 'info';
+                return;
+            }
+        }
+
         var matchedTopic = matchTopic(aq, TOPICS);
         if (matchedTopic) {
             data.reply = matchedTopic.r;
@@ -2052,8 +2212,22 @@
         if (!hasAdmin) { return; }
         var tPropName = '' + input.prop_name;
         var tPropVal  = (input.value === true || ('' + input.value) === 'true') ? 'true' : 'false';
-        gs.setProperty(tPropName, tPropVal, 'Operations Intelligence');
-        data.toggled = true;
+        try {
+            var tmKey  = gs.getProperty('x_infte_ops_int.engine_key', '');
+            var tmPass = gs.getProperty('x_infte_ops_int.svc_password', '');
+            var tmBase = ('' + gs.getProperty('glide.servlet.uri', '')).replace(/\/+$/, '');
+            var tmRm   = new sn_ws.RESTMessageV2();
+            tmRm.setEndpoint(tmBase + '/api/x_infte_ops_int/ops_int_engine/v1');
+            tmRm.setHttpMethod('POST');
+            tmRm.setRequestHeader('x-engine-key', tmKey);
+            tmRm.setRequestHeader('Content-Type', 'application/json');
+            tmRm.setBasicAuth('svc_operations_intelligence_api', tmPass);
+            tmRm.setRequestBody('{"op":"property.set","data":{"key":"' + tPropName + '","value":"' + tPropVal + '","type":"string","description":"Operations Intelligence maintenance flag"}}');
+            var tmResp = tmRm.execute();
+            data.toggled = (tmResp.getStatusCode() === 200);
+        } catch (tmErr) {
+            data.toggled = false;
+        }
         return;
     }
 

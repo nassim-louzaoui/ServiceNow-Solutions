@@ -1477,37 +1477,56 @@
             ? h('div', { style: { padding: '1.25rem' } },
                 accessLoading
                   ? h('div', { className: 'oi-spinner-center' }, h('div', { className: 'oi-spinner' }))
-                  : h('div', { className: 'oi-access-grid' },
+                  : h('div', { className: 'oi-access-sections' },
                       ACCESS_ROLES.map(function (role) {
-                        var roleMembers = (accessMembers && accessMembers[role.key]) || [];
-                        return h('div', { key: role.key, className: 'oi-access-card' },
-                          h('div', { className: 'oi-access-card-hdr' },
-                            h('div', null,
-                              h('div', { className: 'oi-access-card-title' }, role.label),
-                              h('div', { className: 'oi-access-card-desc' }, role.desc)
+                        var roleKey = role.key;
+                        var roleMembers = (accessMembers && accessMembers[roleKey]) || [];
+                        return h('div', { key: roleKey, className: 'oi-access-section' },
+                          h('div', { className: 'oi-access-section-hdr' },
+                            h('div', { className: 'oi-access-section-meta' },
+                              h('span', { className: 'oi-access-section-title' }, role.label),
+                              h('span', { className: 'oi-access-section-desc' }, role.desc)
                             ),
-                            h('button', { className: 'oi-btn ghost xs', style: { flexShrink: 0 }, onClick: function () { setShowGrantRole(role.key); } }, '+ Grant')
+                            h('button', {
+                              className: 'oi-btn ghost xs',
+                              onClick: function () { setShowGrantRole(roleKey); }
+                            }, '+ Grant')
                           ),
-                          !accessMembers
-                            ? h('div', { className: 'oi-empty-inline', style: { fontSize: '0.8125rem', color: '#6E6E6E' } }, 'Loading...')
-                            : roleMembers.length === 0
-                              ? h('div', { className: 'oi-empty-inline' }, 'No users assigned to this role.')
-                              : h('div', { className: 'oi-member-list' },
-                                  roleMembers.map(function (m, i) {
-                                    return h('div', { key: m.role_assignment_sys_id || i, className: 'oi-member-item' },
-                                      h('div', { className: 'oi-member-avatar' }, initials(m.name || '')),
-                                      h('div', { className: 'oi-member-info' },
-                                        h('div', { className: 'oi-member-name' }, m.name || '—'),
-                                        m.email ? h('div', { className: 'oi-member-role' }, m.email) : null
-                                      ),
-                                      h('button', {
-                                        className: 'oi-icon-btn danger',
-                                        title: 'Revoke access',
-                                        onClick: function () { revokeRoleAccess(role.key, m); }
-                                      }, h(OIIcon, { name: 'remove', size: 14 }))
-                                    );
-                                  })
-                                )
+                          h('table', { className: 'oi-table oi-access-table' },
+                            h('thead', null,
+                              h('tr', null,
+                                h('th', null, 'Name'),
+                                h('th', null, 'Username'),
+                                h('th', null, 'Email'),
+                                h('th', { style: { width: '2.75rem', textAlign: 'center' } }, '')
+                              )
+                            ),
+                            h('tbody', null,
+                              !accessMembers
+                                ? h('tr', null, h('td', { colSpan: 4, className: 'oi-table-empty-cell' }, 'Loading...'))
+                                : roleMembers.length === 0
+                                  ? h('tr', null, h('td', { colSpan: 4, className: 'oi-table-empty-cell' }, 'No users have been granted this role.'))
+                                  : roleMembers.map(function (m, idx) {
+                                      return h('tr', { key: m.role_assignment_sys_id || idx },
+                                        h('td', null,
+                                          h('div', { className: 'oi-person-cell' },
+                                            h('div', { className: 'oi-avatar-sm' }, initials(m.name || '')),
+                                            h('span', { className: 'oi-td-primary' }, m.name || '—')
+                                          )
+                                        ),
+                                        h('td', null, h('span', { className: 'oi-td-secondary' }, m.user_name || '—')),
+                                        h('td', null, h('span', { className: 'oi-td-secondary' }, m.email || '—')),
+                                        h('td', { style: { textAlign: 'center' } },
+                                          h('button', {
+                                            className: 'oi-icon-btn danger',
+                                            title: 'Revoke role',
+                                            onClick: (function(member) { return function() { revokeRoleAccess(roleKey, member); }; })(m)
+                                          }, h(OIIcon, { name: 'remove', size: 14 }))
+                                        )
+                                      );
+                                    })
+                            )
+                          )
                         );
                       })
                     )
