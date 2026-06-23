@@ -253,6 +253,7 @@
 .oi-action-list { display: flex; flex-direction: column; }
 .oi-action-item { display: flex; align-items: center; gap: 1.25rem; padding: 1rem 1.5rem; border-bottom: 0.0625rem solid #F0F2F5; min-height: 3.25rem; }
 .oi-action-item:last-child { border-bottom: none; }
+.oi-action-item.selected { background: #F5F7FA; border-left: 0.1875rem solid #293E40; }
 .oi-action-info { flex: 1; min-width: 0; }
 .oi-action-type { font-size: 0.8125rem; font-weight: 600; color: #00BF6F; text-transform: uppercase; letter-spacing: 0.04em; }
 .oi-action-desc { font-size: clamp(0.875rem, 1.1vw, 0.9375rem); color: #121212; margin-top: 0.1875rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

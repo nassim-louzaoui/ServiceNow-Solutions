@@ -2,7 +2,6 @@ var ScheduleManager = Class.create();
 ScheduleManager.prototype = {
     initialize: function() {
         this.SCOPE = 'x_infte_ops_int';
-        this.AUTOMATION_TABLE = 'x_infte_ops_int_automation';
         this.SYSAUTO_SCRIPT_TABLE = 'sysauto_script';
         this.SYS_SCOPE_TABLE = 'sys_scope';
         this.audit = new AuditService();
@@ -24,18 +23,19 @@ ScheduleManager.prototype = {
             gs.error('x_infte_ops_int ScheduleManager.createSchedule called without automation sys_id');
             return null;
         }
-        var auto = new GlideRecord(this.AUTOMATION_TABLE);
-        if (!auto.get(automationSysId)) {
+        var store = new OIDataStore();
+        var auto = store.get('automations', '' + automationSysId);
+        if (!auto) {
             gs.error('x_infte_ops_int ScheduleManager.createSchedule could not load automation ' + automationSysId);
             return null;
         }
 
-        var scheduleType = '' + auto.getValue('schedule_type');
+        var scheduleType = '' + (auto.schedule_type || '');
         if (!scheduleType) {
             return null;
         }
 
-        var automationName = '' + auto.getValue('name');
+        var automationName = '' + (auto.name || '');
         var scriptBody = "new ExecutionEngine().runScheduled('" + automationSysId + "');";
 
         var job = new GlideRecord(this.SYSAUTO_SCRIPT_TABLE);
@@ -44,20 +44,20 @@ ScheduleManager.prototype = {
         job.setValue('script', scriptBody);
         job.setValue('active', true);
 
-        var timezone = '' + auto.getValue('timezone');
+        var timezone = '' + (auto.timezone || '');
         if (timezone) {
             job.setValue('time_zone', timezone);
         }
 
         if (scheduleType === 'recurring') {
-            var cron = '' + auto.getValue('cron_expression');
+            var cron = '' + (auto.cron_expression || '');
             job.setValue('run_type', 'periodically');
             if (cron) {
                 job.setValue('run_period', this._cronToRunPeriod(cron));
             }
         } else if (scheduleType === 'one_time') {
             job.setValue('run_type', 'once');
-            var runAt = '' + auto.getValue('run_at');
+            var runAt = '' + (auto.run_at || '');
             if (runAt) {
                 job.setValue('run_start', runAt);
             }
@@ -74,9 +74,9 @@ ScheduleManager.prototype = {
             return null;
         }
 
-        auto.setValue('sysauto_sys_id', '' + sysautoSysId);
-        auto.setValue('schedule_active', true);
-        auto.update();
+        auto.sysauto_sys_id  = '' + sysautoSysId;
+        auto.schedule_active = true;
+        store.upsert('automations', auto);
 
         this.audit.log('schedule_created', {
             automation_sys_id: automationSysId,
@@ -94,12 +94,13 @@ ScheduleManager.prototype = {
         if (!automationSysId) {
             return false;
         }
-        var auto = new GlideRecord(this.AUTOMATION_TABLE);
-        if (!auto.get(automationSysId)) {
+        var store = new OIDataStore();
+        var auto = store.get('automations', '' + automationSysId);
+        if (!auto) {
             return false;
         }
 
-        var sysautoSysId = '' + auto.getValue('sysauto_sys_id');
+        var sysautoSysId = '' + (auto.sysauto_sys_id || '');
         var anyDeactivated = false;
 
         if (sysautoSysId) {
@@ -111,8 +112,8 @@ ScheduleManager.prototype = {
             }
         }
 
-        auto.setValue('schedule_active', false);
-        auto.update();
+        auto.schedule_active = false;
+        store.upsert('automations', auto);
 
         if (anyDeactivated) {
             this.audit.log('schedule_deactivated', { automation_sys_id: automationSysId });

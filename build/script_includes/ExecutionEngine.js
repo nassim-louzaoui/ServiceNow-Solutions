@@ -1,13 +1,9 @@
 var ExecutionEngine = Class.create();
 ExecutionEngine.prototype = {
     initialize: function() {
-        this.AUTOMATION_TABLE    = 'x_infte_ops_int_automation';
-        this.EXECUTION_TABLE     = 'x_infte_ops_int_execution';
-        this.GROUP_TABLE         = 'x_infte_ops_int_group';
-        this.PERSON_TABLE        = 'x_infte_ops_int_person';
-        this.permissions  = new PermissionResolver();
+        this.permissions   = new PermissionResolver();
         this.approvalRouter = new ApprovalRouter();
-        this.audit        = new AuditService();
+        this.audit         = new AuditService();
     },
 
     createExecution: function(automationSysId, inputValuesObject, groupSysId) {
@@ -23,8 +19,9 @@ ExecutionEngine.prototype = {
             gs.error('x_infte_ops_int ExecutionEngine._startExecution called without automation sys_id');
             return null;
         }
-        var auto = new GlideRecord(this.AUTOMATION_TABLE);
-        if (!auto.get(automationSysId)) {
+        var store = new OIDataStore();
+        var auto = store.get('automations', '' + automationSysId);
+        if (!auto) {
             gs.error('x_infte_ops_int ExecutionEngine could not load automation ' + automationSysId);
             return null;
         }
@@ -35,55 +32,48 @@ ExecutionEngine.prototype = {
             triggeredByPersonSysId = personSysId ? ('' + personSysId) : '';
         }
         var resolvedGroupSysId = groupSysId ? ('' + groupSysId) : this._resolveExecutionGroup(automationSysId, triggeringUserSysId);
-        var isTest = '' + auto.getValue('status') === 'testing';
+        var isTest = '' + (auto.status || '') === 'testing';
 
-        var exec = new GlideRecord(this.EXECUTION_TABLE);
-        exec.initialize();
-        exec.setValue('automation', '' + auto.getUniqueValue());
-        exec.setValue('automation_version', '' + auto.getValue('version'));
-        if (triggeredByPersonSysId) {
-            exec.setValue('triggered_by', triggeredByPersonSysId);
-        }
-        exec.setValue('triggered_at', new GlideDateTime().getValue());
-        exec.setValue('channel', channel);
-        exec.setValue('status', 'pending');
-        exec.setValue('is_test', isTest ? true : false);
-        if (resolvedGroupSysId) {
-            exec.setValue('group', resolvedGroupSysId);
-        }
-        try {
-            exec.setValue('input_values', JSON.stringify(inputValues));
-        } catch (e) {
-            exec.setValue('input_values', '{}');
-        }
-        exec.setValue('step_log', '[]');
-        var execSysId = exec.insert();
-        if (!execSysId) {
-            gs.error('x_infte_ops_int ExecutionEngine failed to insert execution for automation ' + automationSysId);
-            return null;
-        }
+        var execSysId = store.generateId();
+        var inputJson = '{}';
+        try { inputJson = JSON.stringify(inputValues); } catch (e) {}
+        var execRecord = {
+            sys_id:             execSysId,
+            automation:         '' + automationSysId,
+            automation_version: '' + (auto.version || ''),
+            triggered_by:       triggeredByPersonSysId,
+            triggered_at:       new GlideDateTime().getValue(),
+            channel:            channel,
+            status:             'pending',
+            is_test:            isTest,
+            group:              resolvedGroupSysId ? ('' + resolvedGroupSysId) : '',
+            input_values:       inputJson,
+            step_log:           '[]'
+        };
+        store.upsert('executions', execRecord);
         this.run('' + execSysId);
         return '' + execSysId;
     },
 
     _resolveExecutionGroup: function(automationSysId, triggeringUserSysId) {
-        var gr = new GlideRecord(this.GROUP_TABLE);
-        gr.addQuery('status', 'active');
-        gr.query();
-        while (gr.next()) {
-            var candidateGroup = '' + gr.getUniqueValue();
-            var automationsRaw = '' + gr.getValue('automations');
-            var automationsArr = [];
-            try { automationsArr = JSON.parse(automationsRaw); } catch (e) { automationsArr = []; }
-            var i;
-            for (i = 0; i < automationsArr.length; i++) {
-                if ('' + automationsArr[i].automation_sys_id === '' + automationSysId &&
-                    '' + automationsArr[i].approval_status === 'approved') {
+        var store = new OIDataStore();
+        var allGroups = store.find('groups', function(g) {
+            return g.status === 'active';
+        });
+        var i;
+        for (i = 0; i < allGroups.length; i++) {
+            var grp = allGroups[i];
+            var automationsArr = grp.automations || [];
+            var j;
+            for (j = 0; j < automationsArr.length; j++) {
+                if ('' + automationsArr[j].automation_sys_id === '' + automationSysId &&
+                    '' + automationsArr[j].approval_status === 'approved') {
+                    var grpSysId = '' + (grp.sys_id || '');
                     if (!triggeringUserSysId) {
-                        return candidateGroup;
+                        return grpSysId;
                     }
-                    if (this.permissions.isMemberOf(triggeringUserSysId, candidateGroup)) {
-                        return candidateGroup;
+                    if (this.permissions.isMemberOf(triggeringUserSysId, grpSysId)) {
+                        return grpSysId;
                     }
                 }
             }
@@ -92,26 +82,26 @@ ExecutionEngine.prototype = {
     },
 
     run: function(executionSysId) {
-        var exec = new GlideRecord(this.EXECUTION_TABLE);
-        if (!exec.get(executionSysId)) {
+        var store = new OIDataStore();
+        var exec = store.get('executions', '' + executionSysId);
+        if (!exec) {
             gs.error('x_infte_ops_int ExecutionEngine.run could not load execution ' + executionSysId);
             return false;
         }
-        var automationSysId = '' + exec.getValue('automation');
-        var inputValues = this._parseJson('' + exec.getValue('input_values'), {});
+        var automationSysId = '' + (exec.automation || '');
+        var inputValues = this._parseJson('' + (exec.input_values || ''), {});
         var context = this.buildContext(exec, inputValues);
         var dryRun = this.isDryRun(exec);
 
-        exec.setValue('status', 'running');
-        exec.update();
+        exec.status = 'running';
+        store.upsert('executions', exec);
 
         var steps = this._loadSteps(automationSysId);
         if (steps.length === 0) {
-            exec = new GlideRecord(this.EXECUTION_TABLE);
-            exec.get(executionSysId);
-            exec.setValue('status', 'success');
-            exec.setValue('completed_at', new GlideDateTime().getValue());
-            exec.update();
+            exec = store.get('executions', '' + executionSysId);
+            exec.status = 'success';
+            exec.completed_at = new GlideDateTime().getValue();
+            store.upsert('executions', exec);
             return true;
         }
 
@@ -128,9 +118,9 @@ ExecutionEngine.prototype = {
 
         while (cursor >= 0 && cursor < steps.length && guard < maxIterations) {
             guard++;
-            var stepInfo  = steps[cursor];
-            var stepObj   = stepInfo.step;
-            var stepOrder = stepInfo.order;
+            var stepInfo   = steps[cursor];
+            var stepObj    = stepInfo.step;
+            var stepOrder  = stepInfo.order;
             var actionType = '' + stepObj.action_type;
             var onFailure  = '' + stepObj.on_failure;
 
@@ -189,22 +179,22 @@ ExecutionEngine.prototype = {
             });
         }
 
-        exec = new GlideRecord(this.EXECUTION_TABLE);
-        exec.get(executionSysId);
-        exec.setValue('status', finalStatus);
+        exec = store.get('executions', '' + executionSysId);
+        exec.status = finalStatus;
         if (finalStatus !== 'awaiting_approval') {
-            exec.setValue('completed_at', new GlideDateTime().getValue());
+            exec.completed_at = new GlideDateTime().getValue();
         }
-        exec.update();
+        store.upsert('executions', exec);
         return finalStatus === 'success';
     },
 
     _loadSteps: function(automationSysId) {
-        var auto = new GlideRecord(this.AUTOMATION_TABLE);
-        if (!auto.get(automationSysId)) {
+        var store = new OIDataStore();
+        var auto = store.get('automations', '' + automationSysId);
+        if (!auto) {
             return [];
         }
-        var raw = '' + auto.getValue('step_definitions');
+        var raw = '' + (auto.step_definitions || '');
         var allSteps = this._parseJson(raw, []);
         var active = [];
         var i;
@@ -410,16 +400,16 @@ ExecutionEngine.prototype = {
         var rightNum = parseFloat(rightStr);
         var numeric  = !isNaN(leftNum) && !isNaN(rightNum);
         switch (operator) {
-            case '==':        return leftStr === rightStr;
-            case '!=':        return leftStr !== rightStr;
-            case '>':         return numeric && leftNum > rightNum;
-            case '<':         return numeric && leftNum < rightNum;
-            case '>=':        return numeric && leftNum >= rightNum;
-            case '<=':        return numeric && leftNum <= rightNum;
-            case 'contains':  return leftStr.indexOf(rightStr) > -1;
-            case 'is_empty':  return leftIsArray ? (left.length === 0)  : (leftStr === '');
-            case 'is_not_empty': return leftIsArray ? (left.length > 0) : (leftStr !== '');
-            default:          return false;
+            case '==':           return leftStr === rightStr;
+            case '!=':           return leftStr !== rightStr;
+            case '>':            return numeric && leftNum > rightNum;
+            case '<':            return numeric && leftNum < rightNum;
+            case '>=':           return numeric && leftNum >= rightNum;
+            case '<=':           return numeric && leftNum <= rightNum;
+            case 'contains':     return leftStr.indexOf(rightStr) > -1;
+            case 'is_empty':     return leftIsArray ? (left.length === 0)  : (leftStr === '');
+            case 'is_not_empty': return leftIsArray ? (left.length > 0)    : (leftStr !== '');
+            default:             return false;
         }
     },
 
@@ -472,39 +462,41 @@ ExecutionEngine.prototype = {
     },
 
     _beginStepLog: function(executionSysId, stepObj, stepOrder, actionType) {
-        var exec = new GlideRecord(this.EXECUTION_TABLE);
-        if (!exec.get(executionSysId)) { return -1; }
-        var logs = this._parseJson('' + exec.getValue('step_log'), []);
+        var store = new OIDataStore();
+        var exec = store.get('executions', '' + executionSysId);
+        if (!exec) { return -1; }
+        var logs = this._parseJson('' + (exec.step_log || ''), []);
         var entry = {
-            step_order:   stepOrder,
-            step_name:    '' + (stepObj.name || ''),
-            action_type:  actionType,
-            status:       'running',
-            started_at:   new GlideDateTime().getValue(),
-            completed_at: null,
-            output:       {},
+            step_order:    stepOrder,
+            step_name:     '' + (stepObj.name || ''),
+            action_type:   actionType,
+            status:        'running',
+            started_at:    new GlideDateTime().getValue(),
+            completed_at:  null,
+            output:        {},
             error_message: null
         };
         logs.push(entry);
         var idx = logs.length - 1;
-        try { exec.setValue('step_log', JSON.stringify(logs)); } catch(e) {}
-        exec.update();
+        exec.step_log = JSON.stringify(logs);
+        store.upsert('executions', exec);
         return idx;
     },
 
     _completeStepLog: function(executionSysId, logIndex, result) {
         if (logIndex < 0) { return; }
-        var exec = new GlideRecord(this.EXECUTION_TABLE);
-        if (!exec.get(executionSysId)) { return; }
-        var logs = this._parseJson('' + exec.getValue('step_log'), []);
+        var store = new OIDataStore();
+        var exec = store.get('executions', '' + executionSysId);
+        if (!exec) { return; }
+        var logs = this._parseJson('' + (exec.step_log || ''), []);
         if (logIndex < logs.length) {
-            logs[logIndex].status       = result.status;
-            logs[logIndex].completed_at = new GlideDateTime().getValue();
-            logs[logIndex].output       = result.output || {};
+            logs[logIndex].status        = result.status;
+            logs[logIndex].completed_at  = new GlideDateTime().getValue();
+            logs[logIndex].output        = result.output || {};
             logs[logIndex].error_message = result.error_message || null;
         }
-        try { exec.setValue('step_log', JSON.stringify(logs)); } catch(e) {}
-        exec.update();
+        exec.step_log = JSON.stringify(logs);
+        store.upsert('executions', exec);
     },
 
     resolveTemplates: function(value, context) {
@@ -548,10 +540,10 @@ ExecutionEngine.prototype = {
         var path = ('' + token).split('.');
         var head = path[0];
         var resolved;
-        if (head === 'input')   { resolved = this._walkPath(context.input,  path.slice(1)); }
-        else if (head === 'context') { resolved = this._walkPath(context,   path.slice(1)); }
-        else if (head === 'steps')   { resolved = this._walkPath(context.steps, path.slice(1)); }
-        else { resolved = null; }
+        if (head === 'input')        { resolved = this._walkPath(context.input,  path.slice(1)); }
+        else if (head === 'context') { resolved = this._walkPath(context,        path.slice(1)); }
+        else if (head === 'steps')   { resolved = this._walkPath(context.steps,  path.slice(1)); }
+        else                         { resolved = null; }
         if (resolved === null || resolved === undefined) {
             throw 'Unresolvable template token: {{' + token + '}}';
         }
@@ -575,22 +567,26 @@ ExecutionEngine.prototype = {
         return current;
     },
 
-    buildContext: function(executionGr, inputValues) {
-        var automationSysId = '' + executionGr.getValue('automation');
-        var groupSysId = '' + executionGr.getValue('group');
-        var triggeredByPersonSysId = '' + executionGr.getValue('triggered_by');
+    buildContext: function(execRecord, inputValues) {
+        var automationSysId        = '' + (execRecord.automation   || '');
+        var groupSysId             = '' + (execRecord.group        || '');
+        var triggeredByPersonSysId = '' + (execRecord.triggered_by || '');
+        var store = new OIDataStore();
         var userSysId = ''; var userEmail = ''; var userName = '';
         if (triggeredByPersonSysId) {
-            var person = new GlideRecord(this.PERSON_TABLE);
-            if (person.get(triggeredByPersonSysId)) { userSysId = '' + person.getValue('user'); }
+            var person = store.get('persons', triggeredByPersonSysId);
+            if (person) { userSysId = '' + (person.user_sys_id || ''); }
         }
         if (userSysId) {
             var u = new GlideRecord('sys_user');
-            if (u.get(userSysId)) { userEmail = '' + u.getValue('email'); userName = '' + u.getValue('name'); }
+            if (u.get(userSysId)) {
+                userEmail = '' + u.getValue('email');
+                userName  = '' + u.getValue('name');
+            }
         }
         var automationName = '';
-        var auto = new GlideRecord(this.AUTOMATION_TABLE);
-        if (auto.get(automationSysId)) { automationName = '' + auto.getValue('name'); }
+        var auto = store.get('automations', automationSysId);
+        if (auto) { automationName = '' + (auto.name || ''); }
         var primaryLeaderSysId = ''; var leaderOfLeaderSysId = '';
         if (triggeredByPersonSysId) {
             var leaderPerson = this.approvalRouter.getPrimaryLeader(triggeredByPersonSysId);
@@ -610,17 +606,18 @@ ExecutionEngine.prototype = {
             group_sys_id:            groupSysId,
             primary_leader_sys_id:   primaryLeaderSysId,
             leader_of_leader_sys_id: leaderOfLeaderSysId,
-            execution_sys_id:        '' + executionGr.getUniqueValue(),
+            execution_sys_id:        '' + (execRecord.sys_id || ''),
             steps:                   {}
         };
     },
 
-    isDryRun: function(executionGr) {
-        var isTest = executionGr.getValue('is_test');
-        if (isTest === '1' || isTest === 'true' || isTest === true) { return true; }
-        var auto = new GlideRecord(this.AUTOMATION_TABLE);
-        if (auto.get('' + executionGr.getValue('automation'))) {
-            return '' + auto.getValue('status') === 'testing';
+    isDryRun: function(execRecord) {
+        var isTest = execRecord.is_test;
+        if (isTest === true || isTest === 'true' || isTest === 1 || isTest === '1') { return true; }
+        var store = new OIDataStore();
+        var auto = store.get('automations', '' + (execRecord.automation || ''));
+        if (auto) {
+            return '' + (auto.status || '') === 'testing';
         }
         return false;
     },

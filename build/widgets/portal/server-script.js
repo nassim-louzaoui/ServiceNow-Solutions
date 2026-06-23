@@ -547,6 +547,22 @@
             e.active = gr.getValue('active') === '1';
         });
 
+        var uiPages = queryArtifacts('sys_ui_page', 'name');
+
+        var properties = [];
+        var propScopeGr = new GlideRecord('sys_properties');
+        propScopeGr.addQuery('name', 'STARTSWITH', 'x_infte_ops_int.');
+        propScopeGr.orderBy('name');
+        propScopeGr.setLimit(200);
+        propScopeGr.query();
+        while (propScopeGr.next()) {
+            properties.push({
+                sys_id: '' + propScopeGr.getUniqueValue(),
+                name:   '' + propScopeGr.getValue('name'),
+                value:  '' + propScopeGr.getValue('value')
+            });
+        }
+
         return {
             tables:           tables,
             script_includes:  scriptIncludes,
@@ -554,7 +570,9 @@
             va_topics:        vaTopics,
             roles:            roles,
             notifications:    notifications,
-            scheduled_jobs:   scheduledJobs
+            scheduled_jobs:   scheduledJobs,
+            ui_pages:         uiPages,
+            properties:       properties
         };
     }
 
@@ -1226,6 +1244,7 @@
         var raRec   = raStore.get('pending_actions', raId);
         if (!raRec) { data.resolved = { ok: false, error: 'Action not found.' }; return; }
         raRec.status     = 'resolved';
+        raRec.resolution = '' + (input.resolution || 'resolved');
         raRec.updated_at = new GlideDateTime().getValue();
         raStore.upsert('pending_actions', raRec);
         data.resolved = { ok: true };

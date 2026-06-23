@@ -2,7 +2,6 @@ var FlowBridge = Class.create();
 FlowBridge.prototype = {
     initialize: function() {
         this.SCOPE = 'x_infte_ops_int';
-        this.APPROVED_FLOW_TABLE = 'x_infte_ops_int_approved_flow';
         this.FLOW_TABLE = 'sys_hub_flow';
         this.SVC_USER = 'svc_operations_intelligence_api';
         this.SVC_PASSWORD_PROPERTY = 'x_infte_ops_int.svc_password';
@@ -13,17 +12,18 @@ FlowBridge.prototype = {
         if (!approvedFlowSysId) {
             return null;
         }
-        var approved = new GlideRecord(this.APPROVED_FLOW_TABLE);
-        if (!approved.get(approvedFlowSysId)) {
+        var store = new OIDataStore();
+        var approved = store.get('approved_flows', '' + approvedFlowSysId);
+        if (!approved) {
             return null;
         }
-        var active = approved.getValue('active');
-        if (!(active === '1' || active === 'true' || active === true)) {
+        var active = approved.active;
+        if (!(active === true || active === 'true' || active === 1 || active === '1')) {
             return null;
         }
         return {
-            flow_sys_id: '' + approved.getValue('flow_sys_id'),
-            display_name: '' + approved.getValue('display_name')
+            flow_sys_id:  '' + (approved.flow_sys_id  || ''),
+            display_name: '' + (approved.display_name || '')
         };
     },
 

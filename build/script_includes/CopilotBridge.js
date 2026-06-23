@@ -1,7 +1,6 @@
 var CopilotBridge = Class.create();
 CopilotBridge.prototype = {
     initialize: function() {
-        this.PERSON_TABLE = 'x_infte_ops_int_person';
         this.DEFAULT_TIMEOUT_MS = 15000;
         this.DEFAULT_ENDPOINT = 'https://api.githubcopilot.com';
         this.MODEL = 'gpt-4o';
@@ -14,11 +13,12 @@ CopilotBridge.prototype = {
         if (!creatorPersonSysId) {
             return false;
         }
-        var person = new GlideRecord(this.PERSON_TABLE);
-        if (!person.get('' + creatorPersonSysId)) {
+        var store = new OIDataStore();
+        var person = store.get('persons', '' + creatorPersonSysId);
+        if (!person) {
             return false;
         }
-        return '' + person.getValue('token_status') === 'active';
+        return '' + (person.token_status || '') === 'active';
     },
 
     generatePhrases: function(structuredSpecJson, creatorPersonSysId) {
@@ -111,19 +111,16 @@ CopilotBridge.prototype = {
             return null;
         }
         try {
-            var person = new GlideRecord(this.PERSON_TABLE);
-            if (!person.get('' + creatorPersonSysId)) {
+            var store = new OIDataStore();
+            var person = store.get('persons', '' + creatorPersonSysId);
+            if (!person) {
                 return null;
             }
-            if ('' + person.getValue('token_status') !== 'active') {
+            if ('' + (person.token_status || '') !== 'active') {
                 return null;
             }
-            var element = person.getElement('github_pat');
-            if (!element) {
-                return null;
-            }
-            var decrypted = '' + element.getDecryptedValue();
-            return decrypted ? decrypted : null;
+            var pat = '' + (person.github_pat || '');
+            return pat ? pat : null;
         } catch (e) {
             gs.error('x_infte_ops_int CopilotBridge._readPat failed: ' + e.message);
             return null;

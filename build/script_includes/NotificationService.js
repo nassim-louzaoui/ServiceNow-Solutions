@@ -1,11 +1,6 @@
 var NotificationService = Class.create();
 NotificationService.prototype = {
     initialize: function() {
-        this.PERSON_TABLE = 'x_infte_ops_int_person';
-        this.PENDING_ACTION_TABLE = 'x_infte_ops_int_pending_action';
-        this.ONBOARDING_REQUEST_TABLE = 'x_infte_ops_int_onboarding_request';
-        this.AUTOMATION_TABLE = 'x_infte_ops_int_automation';
-        this.GROUP_TABLE = 'x_infte_ops_int_group';
         this.NOTIFY_EVENT = 'x_infte_ops_int.notify';
 
         this.TEMPLATE_ONBOARDING_INVITATION = 'Operations Intelligence - Onboarding Invitation';
@@ -52,83 +47,89 @@ NotificationService.prototype = {
         if (!personSysId) {
             return null;
         }
-        var person = new GlideRecord(this.PERSON_TABLE);
-        if (!person.get(personSysId)) {
+        var store = new OIDataStore();
+        var person = store.get('persons', '' + personSysId);
+        if (!person) {
             return null;
         }
-        var userSysId = '' + person.getValue('user');
+        var userSysId = '' + (person.user_sys_id || '');
         return userSysId ? userSysId : null;
     },
 
     notifyOnboardingInvitation: function(onboardingRequestSysId) {
-        var req = new GlideRecord(this.ONBOARDING_REQUEST_TABLE);
-        if (!req.get(onboardingRequestSysId)) {
+        var store = new OIDataStore();
+        var req = store.get('onboarding_requests', '' + onboardingRequestSysId);
+        if (!req) {
             return false;
         }
-        var nomineeUserSysId = this._userSysIdForPerson('' + req.getValue('nominee'));
+        var nomineeUserSysId = this._userSysIdForPerson('' + (req.nominee || ''));
         var context = {
-            onboarding_request_sys_id: '' + req.getUniqueValue(),
-            number: '' + req.getValue('number'),
-            group_role: '' + req.getValue('group_role'),
-            system_role: '' + req.getValue('system_role'),
-            expiry_at: '' + req.getValue('expiry_at')
+            onboarding_request_sys_id: '' + (req.sys_id || onboardingRequestSysId),
+            number: '' + (req.number || ''),
+            group_role: '' + (req.group_role || ''),
+            system_role: '' + (req.system_role || ''),
+            expiry_at: '' + (req.expiry_at || '')
         };
         return this.send(this.TEMPLATE_ONBOARDING_INVITATION, nomineeUserSysId, context);
     },
 
     notifyAutomationSubmitted: function(pendingActionSysId) {
-        var pa = new GlideRecord(this.PENDING_ACTION_TABLE);
-        if (!pa.get(pendingActionSysId)) {
+        var store = new OIDataStore();
+        var pa = store.get('pending_actions', '' + pendingActionSysId);
+        if (!pa) {
             return false;
         }
-        var approverUserSysId = this._userSysIdForPerson('' + pa.getValue('assigned_to'));
+        var approverUserSysId = this._userSysIdForPerson('' + (pa.assigned_to || ''));
         var template = this.TEMPLATE_AUTOMATION_SUBMITTED;
-        if ('' + pa.getValue('action_type') === 'artifact_approval') {
+        if ('' + (pa.action_type || '') === 'artifact_approval') {
             template = this.TEMPLATE_CROSS_GROUP_APPROVAL;
         }
         var context = {
-            pending_action_sys_id: '' + pa.getUniqueValue(),
-            number: '' + pa.getValue('number'),
-            action_type: '' + pa.getValue('action_type'),
-            related_automation: '' + pa.getValue('related_automation'),
-            related_artifact: '' + pa.getValue('related_artifact'),
-            related_group: '' + pa.getValue('related_group'),
-            deadline_at: '' + pa.getValue('deadline_at')
+            pending_action_sys_id: '' + (pa.sys_id || pendingActionSysId),
+            number: '' + (pa.number || ''),
+            action_type: '' + (pa.action_type || ''),
+            related_automation: '' + (pa.related_automation || ''),
+            related_artifact: '' + (pa.related_artifact || ''),
+            related_group: '' + (pa.related_group || ''),
+            deadline_at: '' + (pa.deadline_at || '')
         };
         return this.send(template, approverUserSysId, context);
     },
 
     notifyApprovalEscalated: function(pendingActionSysId) {
-        var pa = new GlideRecord(this.PENDING_ACTION_TABLE);
-        if (!pa.get(pendingActionSysId)) {
+        var store = new OIDataStore();
+        var pa = store.get('pending_actions', '' + pendingActionSysId);
+        if (!pa) {
             return false;
         }
         var targetPersonSysId = this.resolveEscalationTarget(pendingActionSysId);
         var targetUserSysId = this._userSysIdForPerson(targetPersonSysId);
         var context = {
-            pending_action_sys_id: '' + pa.getUniqueValue(),
-            number: '' + pa.getValue('number'),
-            action_type: '' + pa.getValue('action_type'),
-            related_automation: '' + pa.getValue('related_automation'),
-            related_group: '' + pa.getValue('related_group'),
+            pending_action_sys_id: '' + (pa.sys_id || pendingActionSysId),
+            number: '' + (pa.number || ''),
+            action_type: '' + (pa.action_type || ''),
+            related_automation: '' + (pa.related_automation || ''),
+            related_group: '' + (pa.related_group || ''),
             escalated_to_person: targetPersonSysId ? ('' + targetPersonSysId) : '',
-            deadline_at: '' + pa.getValue('deadline_at')
+            deadline_at: '' + (pa.deadline_at || '')
         };
         return this.send(this.TEMPLATE_APPROVAL_ESCALATED, targetUserSysId, context);
     },
 
     notifyAutomationApproved: function(automationSysId) {
-        var auto = new GlideRecord(this.AUTOMATION_TABLE);
-        if (!auto.get(automationSysId)) {
+        var store = new OIDataStore();
+        var auto = store.get('automations', '' + automationSysId);
+        if (!auto) {
             return false;
         }
+        var autoSysId = '' + (auto.sys_id || automationSysId);
         var context = {
-            automation_sys_id: '' + auto.getUniqueValue(),
-            number: '' + auto.getValue('number'),
-            name: '' + auto.getValue('name'),
-            owner_group: '' + auto.getValue('owner_group')
+            automation_sys_id: autoSysId,
+            number: '' + (auto.number || ''),
+            name: '' + (auto.name || ''),
+            owner_group: '' + (auto.owner_group || '')
         };
-        var creatorUserSysId = this._userSysIdForPerson('' + auto.getValue('created_by'));
+        var creatorUserSysId = this._userSysIdForPerson('' + (auto.created_by || ''));
         if (creatorUserSysId) {
             this.send(this.TEMPLATE_AUTOMATION_APPROVED, creatorUserSysId, context);
         }
@@ -136,14 +137,13 @@ NotificationService.prototype = {
         if (creatorUserSysId) {
             sent[creatorUserSysId] = true;
         }
-        var autoSysId = '' + auto.getUniqueValue();
-        var grp = new GlideRecord(this.GROUP_TABLE);
-        grp.addQuery('status', 'active');
-        grp.query();
-        while (grp.next()) {
-            var automationsRaw = '' + grp.getValue('automations');
-            var automationsArr = [];
-            try { automationsArr = JSON.parse(automationsRaw); } catch (e) { automationsArr = []; }
+        var allGroups = store.find('groups', function(g) {
+            return g.status === 'active';
+        });
+        var gi;
+        for (gi = 0; gi < allGroups.length; gi++) {
+            var grp = allGroups[gi];
+            var automationsArr = grp.automations || [];
             var hasApprovedAuto = false;
             var ai;
             for (ai = 0; ai < automationsArr.length; ai++) {
@@ -156,9 +156,7 @@ NotificationService.prototype = {
             if (!hasApprovedAuto) {
                 continue;
             }
-            var membersRaw = '' + grp.getValue('members');
-            var membersArr = [];
-            try { membersArr = JSON.parse(membersRaw); } catch (e) { membersArr = []; }
+            var membersArr = grp.members || [];
             var mi;
             for (mi = 0; mi < membersArr.length; mi++) {
                 if ('' + membersArr[mi].status !== 'active') {
@@ -175,16 +173,17 @@ NotificationService.prototype = {
     },
 
     notifyAutomationRejected: function(automationSysId) {
-        var auto = new GlideRecord(this.AUTOMATION_TABLE);
-        if (!auto.get(automationSysId)) {
+        var store = new OIDataStore();
+        var auto = store.get('automations', '' + automationSysId);
+        if (!auto) {
             return false;
         }
-        var creatorUserSysId = this._userSysIdForPerson('' + auto.getValue('created_by'));
+        var creatorUserSysId = this._userSysIdForPerson('' + (auto.created_by || ''));
         var context = {
-            automation_sys_id: '' + auto.getUniqueValue(),
-            number: '' + auto.getValue('number'),
-            name: '' + auto.getValue('name'),
-            rejected_reason: '' + auto.getValue('rejected_reason')
+            automation_sys_id: '' + (auto.sys_id || automationSysId),
+            number: '' + (auto.number || ''),
+            name: '' + (auto.name || ''),
+            rejected_reason: '' + (auto.rejected_reason || '')
         };
         return this.send(this.TEMPLATE_AUTOMATION_REJECTED, creatorUserSysId, context);
     },

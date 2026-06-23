@@ -1,29 +1,5 @@
-// ============================================================
-// SCRIPT INCLUDE: MaintenanceManager
-// ============================================================
-// Extends AbstractAjaxProcessor — client-callable from widget
-// client controllers via GlideAjax, and directly callable from
-// other server-side Script Includes.
-//
-// BUILD ORDER: Build after AuditService (step 14 in the build
-// order). This is the 15th Script Include.
-//
-// ServiceNow record fields:
-//   Name              : MaintenanceManager
-//   API Name          : {scope}.MaintenanceManager
-//   Client callable   : true   (checkbox on)
-//   Access            : public
-//   Active            : true
-// ============================================================
-
 var MaintenanceManager = Class.create();
 MaintenanceManager.prototype = Object.extendsObject(AbstractAjaxProcessor, {
-
-    // ── GlideAjax entry points (client-callable) ──────────────
-    // Called by widget client controllers via:
-    //   var ga = new GlideAjax('MaintenanceManager');
-    //   ga.addParam('sysparm_name', 'ajaxXxx');
-    //   ga.getXMLAnswer(function(answer) { ... });
 
     ajaxIsInMaintenance: function() {
         var section = this.getParameter('sysparm_section') || '';
@@ -64,8 +40,6 @@ MaintenanceManager.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         return JSON.stringify({ url: url });
     },
 
-    // ── Server-side public API (callable from other Script Includes) ──
-
     setMaintenance: function(sections, message, returnAt) {
         this._setMaintenance(sections, message, returnAt);
     },
@@ -85,8 +59,6 @@ MaintenanceManager.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     getExportURL: function() {
         return this._getExportURL();
     },
-
-    // ── Private implementation ─────────────────────────────────
 
     _scope: function() {
         return gs.getCurrentScopeName();
@@ -115,12 +87,19 @@ MaintenanceManager.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         if (sections.indexOf('all') !== -1) {
             newSections = ['all'];
         } else {
-            var merged = existing.filter(function(s) { return s !== 'all'; });
-            sections.forEach(function(s) {
-                if (merged.indexOf(s) === -1) {
-                    merged.push(s);
+            var merged = [];
+            var ei;
+            for (ei = 0; ei < existing.length; ei++) {
+                if (existing[ei] !== 'all') {
+                    merged.push(existing[ei]);
                 }
-            });
+            }
+            var si;
+            for (si = 0; si < sections.length; si++) {
+                if (merged.indexOf(sections[si]) === -1) {
+                    merged.push(sections[si]);
+                }
+            }
             newSections = merged;
         }
 
@@ -152,9 +131,13 @@ MaintenanceManager.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             this._setProp('maintenance_initiated_at', '');
         } else {
             var existing = this._getActiveSections();
-            var updated  = existing.filter(function(s) {
-                return sections.indexOf(s) === -1;
-            });
+            var updated  = [];
+            var i;
+            for (i = 0; i < existing.length; i++) {
+                if (sections.indexOf(existing[i]) === -1) {
+                    updated.push(existing[i]);
+                }
+            }
             this._setProp('maintenance_sections', JSON.stringify(updated));
         }
 

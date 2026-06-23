@@ -1,8 +1,6 @@
 var ArtifactManager = Class.create();
 ArtifactManager.prototype = {
     initialize: function() {
-        this.MANAGED_ARTIFACT_TABLE = 'x_infte_ops_int_managed_artifact';
-        this.PERSON_TABLE = 'x_infte_ops_int_person';
         this.APPROVAL_REQUIRED_TYPES = {
             custom_table: true,
             ui_page: true
@@ -13,32 +11,24 @@ ArtifactManager.prototype = {
     createArtifact: function(artifactType, displayName, description, ownerGroupSysId, createdByPersonSysId, creationSpec, copilotAssisted) {
         var type = '' + artifactType;
         var approvalRequired = this.APPROVAL_REQUIRED_TYPES[type] ? true : false;
-
-        var gr = new GlideRecord(this.MANAGED_ARTIFACT_TABLE);
-        gr.initialize();
-        gr.setValue('display_name', '' + (displayName || ''));
-        gr.setValue('description', '' + (description || ''));
-        gr.setValue('artifact_type', type);
-        if (ownerGroupSysId) {
-            gr.setValue('owner_group', '' + ownerGroupSysId);
-        }
-        if (createdByPersonSysId) {
-            gr.setValue('created_by_person', '' + createdByPersonSysId);
-        }
-        gr.setValue('approval_required', approvalRequired ? 'true' : 'false');
-        gr.setValue('copilot_assisted', copilotAssisted ? 'true' : 'false');
-        gr.setValue('creation_spec', this._specToString(creationSpec));
-        gr.setValue('artifact_sys_ids', '[]');
-        gr.setValue('status', approvalRequired ? 'pending_approval' : 'draft');
-        gr.setValue('created_at', new GlideDateTime().getValue());
-        gr.setValue('updated_at', new GlideDateTime().getValue());
-        var artifactSysId = gr.insert();
-
-        if (!artifactSysId) {
-            this.audit.log('artifact_create_failed', { artifact_type: type });
-            return null;
-        }
-        artifactSysId = '' + artifactSysId;
+        var store = new OIDataStore();
+        var artifactSysId = store.generateId();
+        var artifactRecord = {
+            sys_id: artifactSysId,
+            display_name: '' + (displayName || ''),
+            description: '' + (description || ''),
+            artifact_type: type,
+            owner_group: ownerGroupSysId ? ('' + ownerGroupSysId) : '',
+            created_by_person: createdByPersonSysId ? ('' + createdByPersonSysId) : '',
+            approval_required: approvalRequired,
+            copilot_assisted: copilotAssisted ? true : false,
+            creation_spec: this._specToString(creationSpec),
+            artifact_sys_ids: '[]',
+            status: approvalRequired ? 'pending_approval' : 'draft',
+            created_at: new GlideDateTime().getValue(),
+            updated_at: new GlideDateTime().getValue()
+        };
+        store.upsert('managed_artifacts', artifactRecord);
 
         this.audit.log('artifact_created', {
             artifact_sys_id: artifactSysId,
@@ -80,25 +70,22 @@ ArtifactManager.prototype = {
     },
 
     build: function(managedArtifactSysId) {
-        var gr = new GlideRecord(this.MANAGED_ARTIFACT_TABLE);
-        if (!gr.get(managedArtifactSysId)) {
+        var store = new OIDataStore();
+        var artifact = store.get('managed_artifacts', '' + managedArtifactSysId);
+        if (!artifact) {
             return null;
         }
-        var type = '' + gr.getValue('artifact_type');
-        var spec = gr.getValue('creation_spec');
-        var creatorPersonSysId = '' + gr.getValue('created_by_person');
+        var type = '' + (artifact.artifact_type || '');
+        var spec = artifact.creation_spec;
+        var creatorPersonSysId = '' + (artifact.created_by_person || '');
 
         var result = this._dispatchBuild(type, spec, creatorPersonSysId);
         var sysIds = (result && result.sys_ids) ? result.sys_ids : [];
 
-        gr.setValue('artifact_sys_ids', JSON.stringify(sysIds));
-        gr.setValue('status', 'active');
-        gr.setValue('updated_at', new GlideDateTime().getValue());
-        gr.update();
-
-        if (type === 'flow') {
-            this._notifyFlowActivated(managedArtifactSysId);
-        }
+        artifact.artifact_sys_ids = JSON.stringify(sysIds);
+        artifact.status = 'active';
+        artifact.updated_at = new GlideDateTime().getValue();
+        store.upsert('managed_artifacts', artifact);
 
         this.audit.log('artifact_built', {
             artifact_sys_id: '' + managedArtifactSysId,
@@ -132,15 +119,16 @@ ArtifactManager.prototype = {
     },
 
     approveArtifact: function(managedArtifactSysId, approverPersonSysId) {
-        var gr = new GlideRecord(this.MANAGED_ARTIFACT_TABLE);
-        if (!gr.get(managedArtifactSysId)) {
+        var store = new OIDataStore();
+        var artifact = store.get('managed_artifacts', '' + managedArtifactSysId);
+        if (!artifact) {
             return false;
         }
-        gr.setValue('status', 'active');
-        gr.setValue('approved_by', '' + (approverPersonSysId || ''));
-        gr.setValue('approved_at', new GlideDateTime().getValue());
-        gr.setValue('updated_at', new GlideDateTime().getValue());
-        gr.update();
+        artifact.status = 'active';
+        artifact.approved_by = '' + (approverPersonSysId || '');
+        artifact.approved_at = new GlideDateTime().getValue();
+        artifact.updated_at = new GlideDateTime().getValue();
+        store.upsert('managed_artifacts', artifact);
 
         this.audit.log('artifact_approved', {
             artifact_sys_id: '' + managedArtifactSysId,
@@ -151,14 +139,15 @@ ArtifactManager.prototype = {
     },
 
     rejectArtifact: function(managedArtifactSysId, reason) {
-        var gr = new GlideRecord(this.MANAGED_ARTIFACT_TABLE);
-        if (!gr.get(managedArtifactSysId)) {
+        var store = new OIDataStore();
+        var artifact = store.get('managed_artifacts', '' + managedArtifactSysId);
+        if (!artifact) {
             return false;
         }
-        gr.setValue('status', 'draft');
-        gr.setValue('rejected_reason', '' + (reason || ''));
-        gr.setValue('updated_at', new GlideDateTime().getValue());
-        gr.update();
+        artifact.status = 'draft';
+        artifact.rejected_reason = '' + (reason || '');
+        artifact.updated_at = new GlideDateTime().getValue();
+        store.upsert('managed_artifacts', artifact);
 
         this.audit.log('artifact_rejected', {
             artifact_sys_id: '' + managedArtifactSysId,
@@ -168,17 +157,18 @@ ArtifactManager.prototype = {
     },
 
     deactivate: function(managedArtifactSysId) {
-        var gr = new GlideRecord(this.MANAGED_ARTIFACT_TABLE);
-        if (!gr.get(managedArtifactSysId)) {
+        var store = new OIDataStore();
+        var artifact = store.get('managed_artifacts', '' + managedArtifactSysId);
+        if (!artifact) {
             return false;
         }
-        var type = '' + gr.getValue('artifact_type');
-        var sysIds = this._sysIdsFromArtifact(gr);
+        var type = '' + (artifact.artifact_type || '');
+        var sysIds = this._sysIdsFromArtifact(artifact);
         this._builderDeactivate(type, sysIds);
 
-        gr.setValue('status', 'inactive');
-        gr.setValue('updated_at', new GlideDateTime().getValue());
-        gr.update();
+        artifact.status = 'inactive';
+        artifact.updated_at = new GlideDateTime().getValue();
+        store.upsert('managed_artifacts', artifact);
 
         this.audit.log('artifact_deactivated', {
             artifact_sys_id: '' + managedArtifactSysId,
@@ -188,17 +178,18 @@ ArtifactManager.prototype = {
     },
 
     reactivate: function(managedArtifactSysId) {
-        var gr = new GlideRecord(this.MANAGED_ARTIFACT_TABLE);
-        if (!gr.get(managedArtifactSysId)) {
+        var store = new OIDataStore();
+        var artifact = store.get('managed_artifacts', '' + managedArtifactSysId);
+        if (!artifact) {
             return false;
         }
-        var type = '' + gr.getValue('artifact_type');
-        var sysIds = this._sysIdsFromArtifact(gr);
+        var type = '' + (artifact.artifact_type || '');
+        var sysIds = this._sysIdsFromArtifact(artifact);
         this._builderReactivate(type, sysIds);
 
-        gr.setValue('status', 'active');
-        gr.setValue('updated_at', new GlideDateTime().getValue());
-        gr.update();
+        artifact.status = 'active';
+        artifact.updated_at = new GlideDateTime().getValue();
+        store.upsert('managed_artifacts', artifact);
 
         this.audit.log('artifact_reactivated', {
             artifact_sys_id: '' + managedArtifactSysId,
@@ -208,17 +199,18 @@ ArtifactManager.prototype = {
     },
 
     archive: function(managedArtifactSysId) {
-        var gr = new GlideRecord(this.MANAGED_ARTIFACT_TABLE);
-        if (!gr.get(managedArtifactSysId)) {
+        var store = new OIDataStore();
+        var artifact = store.get('managed_artifacts', '' + managedArtifactSysId);
+        if (!artifact) {
             return false;
         }
-        var type = '' + gr.getValue('artifact_type');
-        var sysIds = this._sysIdsFromArtifact(gr);
+        var type = '' + (artifact.artifact_type || '');
+        var sysIds = this._sysIdsFromArtifact(artifact);
         this._builderRemove(type, sysIds);
 
-        gr.setValue('status', 'archived');
-        gr.setValue('updated_at', new GlideDateTime().getValue());
-        gr.update();
+        artifact.status = 'archived';
+        artifact.updated_at = new GlideDateTime().getValue();
+        store.upsert('managed_artifacts', artifact);
 
         this.audit.log('artifact_archived', {
             artifact_sys_id: '' + managedArtifactSysId,
@@ -277,19 +269,8 @@ ArtifactManager.prototype = {
         }
     },
 
-    _notifyFlowActivated: function(managedArtifactSysId) {
-        try {
-            if (typeof NotificationService !== 'undefined' &&
-                typeof new NotificationService().notifyFlowActivated === 'function') {
-                new NotificationService().notifyFlowActivated(managedArtifactSysId);
-            }
-        } catch (e) {
-            gs.error('x_infte_ops_int ArtifactManager flow notification failed: ' + e.message);
-        }
-    },
-
-    _sysIdsFromArtifact: function(gr) {
-        var raw = '' + gr.getValue('artifact_sys_ids');
+    _sysIdsFromArtifact: function(artifact) {
+        var raw = '' + (artifact.artifact_sys_ids || '');
         if (!raw) {
             return [];
         }
@@ -306,12 +287,13 @@ ArtifactManager.prototype = {
         if (!personSysId) {
             return null;
         }
-        var person = new GlideRecord(this.PERSON_TABLE);
-        if (person.get(personSysId)) {
-            var u = '' + person.getValue('user');
-            return u ? u : null;
+        var store = new OIDataStore();
+        var person = store.get('persons', '' + personSysId);
+        if (!person) {
+            return null;
         }
-        return null;
+        var u = '' + (person.user_sys_id || '');
+        return u ? u : null;
     },
 
     _specToString: function(creationSpec) {

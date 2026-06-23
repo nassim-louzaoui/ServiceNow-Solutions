@@ -300,10 +300,10 @@
         }
         var reply   = (data && data.reply) || 'I could not process that request.';
         var choices = (data && data.choices) || [];
-        var aMsg    = { id: ++_msgId, role: 'assistant', text: reply, choices: choices, dataHint: data && data.dataHint };
+        var aMsg    = { id: ++_msgId, role: 'assistant', text: reply, choices: choices, dataHint: data && data.type };
         setMessages(function (prev) { return prev.concat([aMsg]); });
-        if (data && data.dataHint && props.onDataHint) {
-          props.onDataHint(data.dataHint, data.entityRef);
+        if (data && data.type && props.onDataHint) {
+          props.onDataHint(data.type, data.entityRef);
         }
         setChoicesLocked(false);
       });
@@ -957,7 +957,6 @@
                 ? h(EmptyState, { icon: 'group', title: 'No groups configured', sub: 'Groups are managed through the system.' })
                 : h('div', { className: 'oi-action-list' },
                     groups.map(function (g) {
-                      var memberCount = (g.members || []).filter(function (m) { return m.status !== 'inactive'; }).length;
                       return h('div', {
                         key: g.sys_id,
                         className: 'oi-action-item' + (selGroup && selGroup.sys_id === g.sys_id ? ' selected' : ''),
@@ -1013,7 +1012,7 @@
 
     function approveProject(proj) {
       setSaving(proj.sys_id + '_approve');
-      callBridge({ action: 'approve_project', project_sys_id: proj.sys_id, feedback: feedback }, function (d, err) {
+      callBridge({ action: 'approve_project', project_sys_id: proj.sys_id, review_note: feedback }, function (d, err) {
         setSaving(null);
         if (err) { ctx.toast(err, 'error'); return; }
         ctx.toast('Project "' + proj.name + '" approved.', 'success');
@@ -1026,7 +1025,7 @@
     function rejectProject(proj) {
       if (!feedback.trim()) { ctx.toast('Please provide rejection feedback.', 'warning'); return; }
       setSaving(proj.sys_id + '_reject');
-      callBridge({ action: 'reject_project', project_sys_id: proj.sys_id, feedback: feedback }, function (d, err) {
+      callBridge({ action: 'reject_project', project_sys_id: proj.sys_id, review_note: feedback }, function (d, err) {
         setSaving(null);
         if (err) { ctx.toast(err, 'error'); return; }
         ctx.toast('Project "' + proj.name + '" rejected.', 'success');
