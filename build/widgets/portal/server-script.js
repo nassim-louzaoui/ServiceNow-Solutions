@@ -672,10 +672,7 @@
     var hasUser       = oiRoles.user;
 
     if (!hasAdmin && !hasDeveloper && !hasLeadership && !hasCreator && !hasUser) {
-        data.denied = true;
-        var dGr = new GlideRecord('sys_user');
-        if (dGr.get(userSysId)) { data.deniedLogin = '' + dGr.getValue('user_name'); }
-        return;
+        data.userRole = 'user';
     }
 
     var su = new GlideRecord('sys_user');

@@ -2,15 +2,17 @@
 """
 Portal Access Control Phase
 
-Locks the Operations Intelligence portal so only users holding an OI role
-(admin, user, creator, leadership) can access it. Platform administrators
-without an OI role are redirected to the portal login page.
+Opens the Operations Intelligence portal to all authenticated ServiceNow users.
+Any user who can log into the instance can reach the portal; their experience is
+determined at runtime by the widget server script:
+  - admin / developer / leadership / creator roles → full role-scoped experience
+  - no OI role → user-level view (read-only, assistant available, no write actions)
 
-Two layers:
-  1. sp_page.roles on both portal pages — enforced by the SP processor before
-     any widget renders.
-  2. Portal widget server script — server-side guard that sets data.denied
-     when no OI role is detected.
+Two layers remain in effect:
+  1. sp_page.roles is cleared on both portal pages so the SP processor does not
+     block any authenticated session.
+  2. Portal widget server script — determines the active role and scopes data
+     returned to match that role's permitted view.
 """
 import os
 import sys
@@ -21,7 +23,7 @@ import urllib.parse
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 import engine_client as ec
 
-OI_ROLES = "x_infte_ops_int.admin,x_infte_ops_int.user,x_infte_ops_int.creator,x_infte_ops_int.leadership"
+OI_ROLES = ""
 
 PAGES = [
     ("oi_main",       "ed4829262b610b90efe3f355fe91bf6a"),
