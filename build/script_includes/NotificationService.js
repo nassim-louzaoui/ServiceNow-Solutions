@@ -1,30 +1,49 @@
 var NotificationService = Class.create();
 NotificationService.prototype = {
     initialize: function() {
-        this.NOTIFY_EVENT = 'x_infte_ops_int.notify';
-
-        this.TEMPLATE_ONBOARDING_INVITATION = 'Operations Intelligence - Onboarding Invitation';
-        this.TEMPLATE_ONBOARDING_REMINDER = 'Operations Intelligence - Onboarding Reminder';
-        this.TEMPLATE_ONBOARDING_EXPIRED = 'Operations Intelligence - Onboarding Expired';
-        this.TEMPLATE_INVITATION_DECLINED = 'Operations Intelligence - Invitation Declined';
-        this.TEMPLATE_ONBOARDING_COMPLETE = 'Operations Intelligence - Onboarding Complete';
-        this.TEMPLATE_ADDED_TO_GROUP = 'Operations Intelligence - Added to Group';
-        this.TEMPLATE_AUTOMATION_SUBMITTED = 'Operations Intelligence - Automation Submitted';
-        this.TEMPLATE_CROSS_GROUP_APPROVAL = 'Operations Intelligence - Cross-Group Approval Request';
-        this.TEMPLATE_APPROVAL_ESCALATED = 'Operations Intelligence - Approval Escalated';
-        this.TEMPLATE_AUTOMATION_APPROVED = 'Operations Intelligence - Automation Approved';
-        this.TEMPLATE_AUTOMATION_REJECTED = 'Operations Intelligence - Automation Rejected';
+        this.TEMPLATE_ONBOARDING_INVITATION  = 'Operations Intelligence - Onboarding Invitation';
+        this.TEMPLATE_ONBOARDING_REMINDER    = 'Operations Intelligence - Onboarding Reminder';
+        this.TEMPLATE_ONBOARDING_EXPIRED     = 'Operations Intelligence - Onboarding Expired';
+        this.TEMPLATE_INVITATION_DECLINED    = 'Operations Intelligence - Invitation Declined';
+        this.TEMPLATE_ONBOARDING_COMPLETE    = 'Operations Intelligence - Onboarding Complete';
+        this.TEMPLATE_ADDED_TO_GROUP         = 'Operations Intelligence - Added to Group';
+        this.TEMPLATE_AUTOMATION_SUBMITTED   = 'Operations Intelligence - Automation Submitted';
+        this.TEMPLATE_CROSS_GROUP_APPROVAL   = 'Operations Intelligence - Cross-Group Approval Request';
+        this.TEMPLATE_APPROVAL_ESCALATED     = 'Operations Intelligence - Approval Escalated';
+        this.TEMPLATE_AUTOMATION_APPROVED    = 'Operations Intelligence - Automation Approved';
+        this.TEMPLATE_AUTOMATION_REJECTED    = 'Operations Intelligence - Automation Rejected';
         this.TEMPLATE_USER_DEACTIVATION_ALERT = 'Operations Intelligence - User Deactivation Alert';
-        this.TEMPLATE_AUTO_REMOVAL_EXECUTED = 'Operations Intelligence - Auto Removal Executed';
-        this.TEMPLATE_LEADER_REASSIGNMENT = 'Operations Intelligence - Leader Reassignment Required';
+        this.TEMPLATE_AUTO_REMOVAL_EXECUTED  = 'Operations Intelligence - Auto Removal Executed';
+        this.TEMPLATE_LEADER_REASSIGNMENT    = 'Operations Intelligence - Leader Reassignment Required';
+
+        this._EVENT_MAP = {
+            'Operations Intelligence - Onboarding Invitation':       'x_infte_ops_int.onboarding_invitation',
+            'Operations Intelligence - Onboarding Reminder':         'x_infte_ops_int.onboarding_reminder',
+            'Operations Intelligence - Onboarding Expired':          'x_infte_ops_int.onboarding_expired',
+            'Operations Intelligence - Invitation Declined':         'x_infte_ops_int.invitation_declined',
+            'Operations Intelligence - Onboarding Complete':         'x_infte_ops_int.onboarding_complete',
+            'Operations Intelligence - Added to Group':              'x_infte_ops_int.added_to_group',
+            'Operations Intelligence - Automation Submitted':        'x_infte_ops_int.automation_submitted',
+            'Operations Intelligence - Cross-Group Approval Request':'x_infte_ops_int.cross_group_approval_req',
+            'Operations Intelligence - Approval Escalated':          'x_infte_ops_int.approval_escalated',
+            'Operations Intelligence - Automation Approved':         'x_infte_ops_int.automation_approved',
+            'Operations Intelligence - Automation Rejected':         'x_infte_ops_int.automation_rejected',
+            'Operations Intelligence - User Deactivation Alert':     'x_infte_ops_int.user_deactivation_alert',
+            'Operations Intelligence - Auto Removal Executed':       'x_infte_ops_int.auto_removal_executed',
+            'Operations Intelligence - Leader Reassignment Required':'x_infte_ops_int.leader_reassignment_requ'
+        };
     },
 
     send: function(templateName, recipientUserSysId, contextObject) {
         if (!templateName) {
-            gs.error('x_infte_ops_int NotificationService.send called without a template name');
+            gs.error('x_infte_ops_int NotificationService.send: missing templateName');
             return false;
         }
-        var recipient = recipientUserSysId ? ('' + recipientUserSysId) : '';
+        var eventName = this._EVENT_MAP[templateName];
+        if (!eventName) {
+            gs.warn('x_infte_ops_int NotificationService.send: no event mapped for template ' + templateName);
+            return false;
+        }
         var contextJson;
         try {
             contextJson = (contextObject === null || contextObject === undefined) ?
@@ -32,14 +51,17 @@ NotificationService.prototype = {
         } catch (e) {
             contextJson = '{}';
         }
-        var payload = {
-            template: '' + templateName,
-            recipient: recipient,
-            context: contextJson
-        };
-        gs.eventQueue(this.NOTIFY_EVENT, null, JSON.stringify(payload), recipient);
-        gs.info('x_infte_ops_int NotificationService dispatched ' + templateName +
-            ' to user ' + recipient + ' context ' + contextJson);
+        var recipient = recipientUserSysId ? ('' + recipientUserSysId) : '';
+        var personGr = new GlideRecord('x_infte_ops_int_person');
+        personGr.addQuery('user', recipient);
+        personGr.setLimit(1);
+        personGr.query();
+        if (personGr.next()) {
+            gs.eventQueue(eventName, personGr, contextJson, recipient);
+        } else {
+            gs.eventQueue(eventName, null, contextJson, recipient);
+        }
+        gs.info('x_infte_ops_int NotificationService dispatched ' + templateName + ' to user ' + recipient);
         return true;
     },
 

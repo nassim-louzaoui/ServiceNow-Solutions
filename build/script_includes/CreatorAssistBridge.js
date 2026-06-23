@@ -133,13 +133,13 @@ CreatorAssistBridge.prototype = {
         if (isNaN(timeoutMs) || timeoutMs <= 0) {
             timeoutMs = this.DEFAULT_TIMEOUT_MS;
         }
-        var base = '' + gs.getProperty('x_infte_ops_int.assist_api_endpoint', 'https://api.githubcopilot.com');
+        var base = '' + gs.getProperty('x_infte_ops_int.assist_api_endpoint', '');
         if (!base) {
-            base = 'https://api.githubcopilot.com';
+            return null;
         }
         base = base.replace(/\/+$/, '');
-        var model = '' + gs.getProperty('x_infte_ops_int.assist_model', 'gpt-4o');
-        if (!model) { model = 'gpt-4o'; }
+        var model = '' + gs.getProperty('x_infte_ops_int.assist_model', '');
+        if (!model) { return null; }
         var temperature = (maxTokens >= 3000) ? 0.2 : 0.3;
 
         var body = {
