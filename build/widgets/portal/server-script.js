@@ -711,6 +711,8 @@
           roles: ['admin','developer','leadership','creator','user'] },
         { id: 'automations',        label: 'Automations Workspace',  icon: 'fa-cube',
           roles: ['admin','developer','leadership','creator','user'] },
+        { id: 'agentic-workspace',  label: 'Agentic Workspace',      icon: 'fa-compass',
+          roles: ['admin','developer','leadership','creator','user'] },
         { id: 'creator-studio',     label: 'Creator Studio',         icon: 'fa-code',
           roles: ['admin','developer','creator'] },
         { id: 'governance-control', label: 'Governance Control',     icon: 'fa-shield',
@@ -743,6 +745,9 @@
 
         } else if (sectionId === 'automations') {
             data.automations_workspace = loadAutomationsWorkspace(data.personSysId, data.userGroups);
+
+        } else if (sectionId === 'agentic-workspace') {
+            data.agentic_workspace = { ready: true };
 
         } else if (sectionId === 'creator-studio') {
             if (!hasAdmin && !hasDeveloper && !hasCreator) { return; }

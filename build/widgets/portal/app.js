@@ -56,7 +56,10 @@
       chat:         'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z',
       pipeline:     'M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z',
       analytics:    'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z',
-      journal:      'M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z'
+      journal:      'M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z',
+      explore:      'M12 10.9c-.61 0-1.1.49-1.1 1.1s.49 1.1 1.1 1.1c.61 0 1.1-.49 1.1-1.1s-.49-1.1-1.1-1.1zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm2.19 12.19L6 18l3.81-8.19L18 6l-3.81 8.19z',
+      launch:       'M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z',
+      database:     'M12 3C7.58 3 4 4.79 4 7v10c0 2.21 3.58 4 8 4s8-1.79 8-4V7c0-2.21-3.58-4-8-4zm6 14c0 .5-2.13 2-6 2s-6-1.5-6-2v-2.23c1.61.78 3.72 1.23 6 1.23s4.39-.45 6-1.23V17zm0-4.55c-1.3.95-3.58 1.55-6 1.55s-4.7-.6-6-1.55V9.64c1.47.83 3.61 1.36 6 1.36s4.53-.53 6-1.36v2.81zM12 9C8.13 9 6 7.5 6 7s2.13-2 6-2 6 1.5 6 2-2.13 2-6 2z'
     };
     var d = paths[props.name] || paths['command'];
     return h('svg', {
@@ -142,6 +145,7 @@
   var NAV_ITEMS = [
     { id: 'workspace',          label: 'Operations Workspace', icon: 'workspace',  roles: ['admin','developer','leadership','creator','user'] },
     { id: 'automations',        label: 'Automations Workspace',icon: 'gallery',    roles: ['admin','developer','leadership','creator','user'] },
+    { id: 'agentic-workspace',  label: 'Agentic Workspace',    icon: 'explore',    roles: ['admin','developer','leadership','creator','user'] },
     { id: 'creator-studio',     label: 'Creator Studio',       icon: 'studio',     roles: ['admin','developer','creator'] },
     { id: 'governance-control', label: 'Governance Control',   icon: 'governance', roles: ['admin','developer','leadership'] },
     { id: 'leadership-insights',label: 'Leadership Insights',  icon: 'inbox',      roles: ['admin','leadership'] },
@@ -450,6 +454,111 @@
             : (isOpen && items.length === 0 ? h('div', { className: 'oi-empty-inline', style: { paddingLeft: '3rem', fontSize: '0.8125rem' } }, 'No items in this category.') : null)
         );
       })
+    );
+  }
+
+  /* ─── Fullscreen Workspace Modal ─────────────────────────────────────── */
+  function FullscreenWorkspaceModal(props) {
+    if (!props.open) { return null; }
+    var loadedState = useState(false);
+    var loaded    = loadedState[0];
+    var setLoaded = loadedState[1];
+    return h('div', { className: 'oi-fs-overlay' },
+      h('div', { className: 'oi-fs-header' },
+        h('div', { className: 'oi-fs-title' }, h(OIIcon, { name: 'workspace', size: 16, fill: '#00BF6F' }), ' ', props.title || 'Workspace'),
+        h('button', { className: 'oi-fs-close', onClick: props.onClose },
+          h(OIIcon, { name: 'close', size: 16 }),
+          h('span', null, 'Close')
+        )
+      ),
+      h('div', { className: 'oi-fs-iframe-wrap' },
+        !loaded
+          ? h('div', { className: 'oi-fs-loader' },
+              h(Spinner, { center: true, large: true, label: 'Loading workspace…' })
+            )
+          : null,
+        h('iframe', {
+          key: props.url,
+          className: 'oi-fs-iframe' + (loaded ? '' : ' oi-fs-iframe-hidden'),
+          src:   props.url,
+          title: props.title,
+          onLoad: function () { setLoaded(true); }
+        })
+      )
+    );
+  }
+
+  /* ─── Agentic Workspace ───────────────────────────────────────────────── */
+  function AgenticWorkspaceSection(props) {
+    var openState      = useState(null);
+    var openWorkspace  = openState[0];
+    var setOpenWorkspace = openState[1];
+
+    var WORKSPACES = [
+      {
+        id:          'cmdb',
+        title:       'CMDB Workspace',
+        description: 'Configuration Management Database — explore configuration items, relationships, and impact analysis.',
+        url:         '/cmdb_workspace',
+        iconName:    'database',
+        color:       '#1F7BB6'
+      },
+      {
+        id:          'service-ops',
+        title:       'Service Operations Workspace',
+        description: 'Monitor service health, manage incidents, and coordinate operational response in real time.',
+        url:         '/now/workspace/service-operations',
+        iconName:    'workspace',
+        color:       '#00BF6F'
+      }
+    ];
+
+    return h('div', { className: 'oi-aw-layout' },
+      h('div', { className: 'oi-aw-main' },
+        h('div', { className: 'oi-section-hdr' },
+          h(OIIcon, { name: 'explore', size: 20, fill: '#00BF6F' }),
+          h('div', null,
+            h('div', { className: 'oi-section-title' }, 'Agentic Workspace'),
+            h('div', { className: 'oi-section-sub' }, 'Access platform workspaces and the intelligent assistant from one unified view.')
+          )
+        ),
+        h('div', { className: 'oi-aw-workspace-cards' },
+          WORKSPACES.map(function (ws) {
+            return h('button', {
+              key:       ws.id,
+              className: 'oi-aw-workspace-card',
+              onClick:   function () { setOpenWorkspace(ws); }
+            },
+              h('div', { className: 'oi-aw-card-icon', style: { background: ws.color + '18' } },
+                h(OIIcon, { name: ws.iconName, size: 26, fill: ws.color })
+              ),
+              h('div', { className: 'oi-aw-card-title' }, ws.title),
+              h('div', { className: 'oi-aw-card-desc' }, ws.description),
+              h('div', { className: 'oi-aw-card-launch' },
+                h(OIIcon, { name: 'launch', size: 13 }),
+                h('span', null, 'Open fullscreen')
+              )
+            );
+          })
+        )
+      ),
+      h('div', { className: 'oi-ws-assistant-panel' },
+        h(AssistantChat, {
+          key:           'agentic-chat',
+          assistantType: 'operations',
+          title:         'Agentic Assistant',
+          tagline:       'Intelligent reasoning across all platform capabilities',
+          sectionId:     'agentic-workspace'
+        })
+      ),
+      openWorkspace
+        ? h(FullscreenWorkspaceModal, {
+            open:    true,
+            title:   openWorkspace.title,
+            url:     openWorkspace.url,
+            onClose: function () { setOpenWorkspace(null); }
+          })
+        : null
     );
   }
 
@@ -1694,12 +1803,13 @@
         case 'governance-control':  return h(GovernanceControlSection,  { data: d.governance            || {}, onRefresh: refreshSection });
         case 'leadership-insights': return h(LeadershipInsightsSection, { data: d.leadership            || {}, onRefresh: refreshSection });
         case 'developer-hub':       return h(DeveloperHubSection,       { data: d.developer_hub         || {}, onRefresh: refreshSection });
+        case 'agentic-workspace':   return h(AgenticWorkspaceSection,   { data: d.agentic_workspace     || {}, onRefresh: refreshSection });
         case 'admin-hub':           return h(AdminHubSection,           { data: d.admin_hub             || {}, onRefresh: refreshSection });
         default:                    return h('div', { style: { padding: '2rem' } }, 'Section not found.');
       }
     }
 
-    var isSplitSection = (state.section === 'workspace' || state.section === 'automations' || state.section === 'creator-studio' || state.section === 'governance-control' || state.section === 'leadership-insights' || state.section === 'developer-hub' || state.section === 'admin-hub');
+    var isSplitSection = (state.section === 'workspace' || state.section === 'automations' || state.section === 'agentic-workspace' || state.section === 'creator-studio' || state.section === 'governance-control' || state.section === 'leadership-insights' || state.section === 'developer-hub' || state.section === 'admin-hub');
 
     var ctxValue = { toast: toast, callServer: callServer, userName: userName, sysRole: sysRole };
 
