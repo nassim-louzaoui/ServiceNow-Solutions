@@ -214,5 +214,30 @@ VirtualAgentHelper.prototype = {
         return pa.getRowCount();
     },
 
+    processMessage: function(message, context, assistantType) {
+        var aType   = assistantType || 'operations';
+        var hist    = [];
+        if (context && context.length) {
+            var ci;
+            for (ci = 0; ci < context.length; ci++) {
+                var c = context[ci];
+                if (c && c.role && c.text) {
+                    hist.push({ role: '' + c.role, text: '' + c.text });
+                }
+            }
+        }
+        var perm    = new PermissionResolver();
+        var uid     = gs.getUserID();
+        var userCtx = {
+            user_sys_id:   uid,
+            full_name:     gs.getUser().getFullName(),
+            system_role:   perm.getSystemRole(uid),
+            person_sys_id: perm.getPersonByUser(uid),
+            groups:        perm.getUserGroups(uid)
+        };
+        var advisor = new ConversationAdvisor(aType);
+        return advisor.analyze('' + (message || ''), userCtx, hist);
+    },
+
     type: 'VirtualAgentHelper'
 };

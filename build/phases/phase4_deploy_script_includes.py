@@ -21,7 +21,8 @@ SRC_DIR = os.path.join(os.path.dirname(__file__), "..", "script_includes")
 
 # Architecture dependency order (build sequence step 4).
 ORDER = [
-    "PermissionResolver", "VAHelper", "NotificationService", "RoleSyncService", "GroupManager",
+    "PermissionResolver", "ConversationAdvisor", "VirtualAgentHelper",
+    "VAHelper", "NotificationService", "RoleSyncService", "GroupManager",
     "CatalogService", "ScheduleManager", "ExecutionEngine", "ApprovalRouter",
     "OnboardingService", "DeactivationHandler", "FlowBridge", "RESTBridge",
     "CopilotBridge", "AuditService", "MaintenanceManager", "ArtifactManager",

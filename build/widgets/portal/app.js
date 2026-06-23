@@ -101,6 +101,7 @@
 
   var ROLE_LABELS = {
     admin:      'Administrator',
+    developer:  'Developer',
     leadership: 'Leadership',
     creator:    'Creator',
     user:       'User'
@@ -127,128 +128,13 @@
     { id: 'gallery',    label: 'Operations Gallery',    icon: 'gallery'    },
     { id: 'studio',     label: 'Operations Studio',     icon: 'studio'     },
     { id: 'governance', label: 'Operations Governance', icon: 'governance' },
+    { id: 'developer',  label: 'Developer Workspace',   icon: 'document'   },
     { id: 'command',    label: 'Operations Command',    icon: 'command'    }
   ];
 
   var _msgId = 0;
 
-  var SYSTEM_FLOWS = [
-    {
-      id: 'report_builder',
-      name: 'Report Builder',
-      desc: 'Build a custom report from any ServiceNow table.',
-      icon: 'document',
-      color: '#00BF6F',
-      steps: [
-        { key: 'name', label: 'Report Name', question: 'What would you like to name this report?', type: 'text', placeholder: 'e.g. Monthly Incident Summary' },
-        { key: 'table', label: 'Source Table', question: 'Which table should the report be built from?', type: 'choice', choices: [
-          { value: 'incident', label: 'Incidents' },
-          { value: 'change_request', label: 'Change Requests' },
-          { value: 'problem', label: 'Problems' },
-          { value: 'task', label: 'Tasks' },
-          { value: 'sc_request', label: 'Service Requests' }
-        ]},
-        { key: 'report_type', label: 'Report Type', question: 'What type of report would you like?', type: 'choice', choices: [
-          { value: 'list', label: 'List Report' },
-          { value: 'pie', label: 'Pie Chart' },
-          { value: 'bar', label: 'Bar Chart' },
-          { value: 'trend', label: 'Trend Chart' },
-          { value: 'pivot', label: 'Pivot Table' }
-        ]},
-        { key: 'group_by', label: 'Group By', question: 'How should the data be grouped?', type: 'choice', choices: [
-          { value: 'assignment_group', label: 'Assignment Group' },
-          { value: 'state', label: 'State' },
-          { value: 'priority', label: 'Priority' },
-          { value: 'category', label: 'Category' },
-          { value: 'assigned_to', label: 'Assigned To' }
-        ]},
-        { key: 'conditions', label: 'Conditions', question: 'Any specific conditions to filter the data? Type "none" to skip.', type: 'text', placeholder: 'e.g. Priority is 1-Critical, or type "none"' }
-      ]
-    },
-    {
-      id: 'dashboard_builder',
-      name: 'Dashboard Builder',
-      desc: 'Create a performance dashboard for any focus area.',
-      icon: 'workspace',
-      color: '#293E40',
-      steps: [
-        { key: 'name', label: 'Dashboard Name', question: 'What would you like to call this dashboard?', type: 'text', placeholder: 'e.g. IT Operations Overview' },
-        { key: 'focus_area', label: 'Focus Area', question: 'What is the primary focus area for this dashboard?', type: 'choice', choices: [
-          { value: 'incidents', label: 'Incident Management' },
-          { value: 'changes', label: 'Change Management' },
-          { value: 'service_requests', label: 'Service Requests' },
-          { value: 'problems', label: 'Problem Management' },
-          { value: 'general', label: 'General Operations' }
-        ]},
-        { key: 'timeframe', label: 'Timeframe', question: 'What time period should the dashboard cover?', type: 'choice', choices: [
-          { value: 'last_7_days', label: 'Last 7 Days' },
-          { value: 'last_30_days', label: 'Last 30 Days' },
-          { value: 'last_90_days', label: 'Last 90 Days' },
-          { value: 'current_month', label: 'Current Month' },
-          { value: 'current_year', label: 'Current Year' }
-        ]},
-        { key: 'visibility', label: 'Visibility', question: 'Who should be able to see this dashboard?', type: 'choice', choices: [
-          { value: 'private', label: 'Private — Only Me' },
-          { value: 'team', label: 'My Groups' },
-          { value: 'organization', label: 'All Operations Intelligence Users' }
-        ]}
-      ]
-    },
-    {
-      id: 'data_alert',
-      name: 'Data Alert',
-      desc: 'Monitor a table and receive email alerts when conditions match.',
-      icon: 'warning_icon',
-      color: '#E57323',
-      steps: [
-        { key: 'name', label: 'Alert Name', question: 'What would you like to call this alert?', type: 'text', placeholder: 'e.g. Critical Incidents Alert' },
-        { key: 'table', label: 'Source Table', question: 'Which table should be monitored?', type: 'choice', choices: [
-          { value: 'incident', label: 'Incidents' },
-          { value: 'change_request', label: 'Change Requests' },
-          { value: 'problem', label: 'Problems' },
-          { value: 'task', label: 'Tasks' },
-          { value: 'sc_request', label: 'Service Requests' }
-        ]},
-        { key: 'conditions', label: 'Alert Conditions', question: 'Describe the conditions that should trigger this alert:', type: 'text', placeholder: 'e.g. Priority is 1-Critical and State is New' },
-        { key: 'frequency', label: 'Check Frequency', question: 'How often should this alert check for matching records?', type: 'choice', choices: [
-          { value: 'hourly', label: 'Every Hour' },
-          { value: 'twice_daily', label: 'Twice Daily' },
-          { value: 'daily', label: 'Once Daily' },
-          { value: 'weekly', label: 'Weekly' }
-        ]},
-        { key: 'recipients', label: 'Recipients', question: 'Who should receive this alert? Enter email addresses separated by commas:', type: 'text', placeholder: 'e.g. admin@company.com, team@company.com' }
-      ]
-    },
-    {
-      id: 'notification_rule',
-      name: 'Notification Rule',
-      desc: 'Send automatic notifications when specific events occur.',
-      icon: 'send',
-      color: '#00BF6F',
-      steps: [
-        { key: 'name', label: 'Rule Name', question: 'What would you like to call this notification rule?', type: 'text', placeholder: 'e.g. New Priority 1 Incident Alert' },
-        { key: 'table', label: 'Source Table', question: 'Which table should trigger notifications?', type: 'choice', choices: [
-          { value: 'incident', label: 'Incidents' },
-          { value: 'change_request', label: 'Change Requests' },
-          { value: 'problem', label: 'Problems' },
-          { value: 'task', label: 'Tasks' }
-        ]},
-        { key: 'trigger_event', label: 'Trigger Event', question: 'When should the notification be sent?', type: 'choice', choices: [
-          { value: 'insert', label: 'When a new record is created' },
-          { value: 'update', label: 'When a record is updated' },
-          { value: 'state_change', label: 'When the state changes' },
-          { value: 'priority_change', label: 'When priority changes' }
-        ]},
-        { key: 'recipients', label: 'Recipients', question: 'Who should receive these notifications?', type: 'choice', choices: [
-          { value: 'assigned_to', label: 'Assigned Person' },
-          { value: 'watch_list', label: 'Watch List' },
-          { value: 'group', label: 'Assignment Group' },
-          { value: 'custom', label: 'Custom Email List' }
-        ]},
-        { key: 'message', label: 'Message Template', question: 'What should the notification message say?', type: 'text', placeholder: 'e.g. New Priority 1 incident: ${short_description}' }
-      ]
-    }
-  ];
+
 
   var initialState = {
     section: 'workspace',
@@ -516,6 +402,7 @@
       case 'gallery':      return h(GallerySection, { data: data });
       case 'studio':       return h(StudioSection, { data: data });
       case 'governance':   return h(GovernanceSection, { data: data });
+      case 'developer':    return h(DeveloperSection, { data: data });
       case 'command':      return h(CommandSection, { data: data });
       default:             return h(WorkspaceSection, { data: data });
     }
@@ -526,16 +413,14 @@
   function WorkspaceSection(props) {
     var ctx = React.useContext(AppContext);
     var data = props.data;
-    var groupAutomations = data.automations || [];
-
-    var TYPE_LABELS_WS = { report: 'Report', dashboard: 'Dashboard', data_alert: 'Data Alert', notification_rule: 'Notification Rule' };
+    var catalogCategories = data.catalog_categories || [];
 
     var chatEndRef = React.useRef(null);
 
     var messagesResult = React.useState([{
       id: 0, role: 'assistant', type: 'text',
-      text: 'Welcome to Operations Intelligence. Select a flow from the catalog to build a report, dashboard, data alert, or notification rule — or type a question and I will assist you.',
-      choices: null, choiceSelected: null, result: null
+      text: 'Welcome to Operations Intelligence. How can I assist you today?',
+      choices: null, choiceSelected: null, dataItems: null, dataType: null
     }]);
     var messages = messagesResult[0];
     var setMessages = messagesResult[1];
@@ -548,13 +433,9 @@
     var chatBusy = chatBusyResult[0];
     var setChatBusy = chatBusyResult[1];
 
-    var flowStateResult = React.useState({ mode: 'idle', flow: null, step: 0, collected: {} });
-    var flowState = flowStateResult[0];
-    var setFlowState = flowStateResult[1];
-
-    var autoTriggerBusyResult = React.useState({});
-    var autoTriggerBusy = autoTriggerBusyResult[0];
-    var setAutoTriggerBusy = autoTriggerBusyResult[1];
+    var openCatsResult = React.useState({});
+    var openCats = openCatsResult[0];
+    var setOpenCats = openCatsResult[1];
 
     React.useEffect(function() {
       if (chatEndRef.current) { chatEndRef.current.scrollIntoView({ behavior: 'smooth' }); }
@@ -562,64 +443,70 @@
 
     function nextId() { _msgId += 1; return _msgId; }
 
-    function makeMsg(role, text, choices, type, result, items) {
-      return { id: nextId(), role: role, text: text || '', choices: choices || null, choiceSelected: null, type: type || 'text', result: result || null, items: items || null };
+    function makeMsg(role, text, choices, type, dataItems, dataType) {
+      return { id: nextId(), role: role, text: text || '', choices: choices || null,
+               choiceSelected: null, type: type || 'text',
+               dataItems: dataItems || null, dataType: dataType || null };
     }
 
     function appendMsg(msg) {
       setMessages(function(prev) { return prev.concat([msg]); });
     }
 
-    function addAssistantDelayed(text, choices, type, result, items) {
-      var delay = 350 + Math.min((text || '').length * 7, 900);
+    function sendQuery(q) {
+      var history = messages.slice(-6).map(function(m) { return { role: m.role, text: m.text || '' }; });
       setChatBusy(true);
-      setTimeout(function() {
+      ctx.callServer({
+        action: 'assistant_query',
+        query: q,
+        assistant_type: 'operations',
+        context: history
+      }, function(d, err) {
         setChatBusy(false);
-        appendMsg(makeMsg('assistant', text, choices, type, result, items));
-      }, delay);
+        if (err) {
+          appendMsg(makeMsg('assistant', 'I encountered an error. Please try again.', null, 'error', null, null));
+          return;
+        }
+        var reply    = (d && d.reply)      || '';
+        var type     = (d && d.type)       || 'text';
+        var choices  = (d && d.choices)    || null;
+        var ditems   = (d && d.data_items) || null;
+        var dtype    = (d && d.data_type)  || null;
+        appendMsg(makeMsg('assistant', reply, choices, type, ditems, dtype));
+      });
     }
 
-    function renderItems(type, items) {
+    function handleTextSubmit() {
+      var q = wsInput.trim();
+      if (!q || chatBusy) { return; }
+      setWsInput('');
+      appendMsg(makeMsg('user', q, null, 'text', null, null));
+      sendQuery(q);
+    }
+
+    function handleChoiceClick(msgId, value, label) {
+      setMessages(function(prev) {
+        return prev.map(function(m) {
+          if (m.id === msgId) { return Object.assign({}, m, { choiceSelected: value }); }
+          return m;
+        }).concat([makeMsg('user', label, null, 'text', null, null)]);
+      });
+      sendQuery(label);
+    }
+
+    function toggleCategory(catId) {
+      setOpenCats(function(prev) {
+        var next = {};
+        var k;
+        for (k in prev) { if (prev.hasOwnProperty(k)) { next[k] = prev[k]; } }
+        next[catId] = !prev[catId];
+        return next;
+      });
+    }
+
+    function renderDataItems(dtype, items) {
       if (!items || !items.length) { return null; }
-      if (type === 'catalog') {
-        return h('div', { className: 'oi-chat-items' },
-          items.map(function(item, idx) {
-            return h('a', {
-              key: item.sys_id || idx,
-              className: 'oi-chat-item-card catalog',
-              href: item.url || '#',
-              target: '_blank'
-            },
-              h('div', { className: 'oi-chat-item-card-row' },
-                h('span', { className: 'oi-chat-item-card-name' }, item.name || item.title || ''),
-                h('span', { className: 'oi-chat-item-card-action' }, h(OIIcon, { name: 'link', size: 13, fill: '#00BF6F' }))
-              ),
-              item.short_description ? h('div', { className: 'oi-chat-item-card-desc' }, item.short_description) : null,
-              item.category ? h('div', { className: 'oi-chat-item-card-cat' }, item.category) : null
-            );
-          })
-        );
-      }
-      if (type === 'knowledge') {
-        return h('div', { className: 'oi-chat-items' },
-          items.map(function(item, idx) {
-            return h('a', {
-              key: item.sys_id || idx,
-              className: 'oi-chat-item-card knowledge',
-              href: item.url || '#',
-              target: '_blank'
-            },
-              h('div', { className: 'oi-chat-item-card-row' },
-                item.number ? h('span', { className: 'oi-chat-item-card-num' }, item.number) : null,
-                h('span', { className: 'oi-chat-item-card-name' }, item.title || item.name || ''),
-                h('span', { className: 'oi-chat-item-card-action' }, h(OIIcon, { name: 'link', size: 13, fill: '#293E40' }))
-              ),
-              item.kb_knowledge_base ? h('div', { className: 'oi-chat-item-card-cat' }, item.kb_knowledge_base) : null
-            );
-          })
-        );
-      }
-      if (type === 'requests') {
+      if (dtype === 'approvals' || dtype === 'incidents' || dtype === 'requests') {
         return h('div', { className: 'oi-chat-items' },
           items.map(function(item, idx) {
             return h('a', {
@@ -629,14 +516,29 @@
               target: '_blank'
             },
               h('div', { className: 'oi-chat-item-card-row' },
-                h('span', { className: 'oi-chat-item-card-num' }, item.number || ''),
+                item.number ? h('span', { className: 'oi-chat-item-card-num' }, item.number) : null,
                 h('span', { className: 'oi-chat-item-card-name' }, item.short_description || ''),
-                h('span', { className: 'oi-chat-item-card-action' }, h(OIIcon, { name: 'link', size: 13, fill: '#6E6E6E' }))
+                h('span', { className: 'oi-chat-item-card-action' },
+                  h(OIIcon, { name: 'link', size: 13, fill: '#6E6E6E' }))
               ),
               h('div', { className: 'oi-chat-item-card-row' },
-                h('span', { className: 'oi-chat-item-card-cat' }, item.state || ''),
+                h('span', { className: 'oi-chat-item-card-cat' }, item.state || item.priority || ''),
                 item.opened_at ? h('span', { className: 'oi-chat-item-card-date' }, item.opened_at) : null
               )
+            );
+          })
+        );
+      }
+      if (dtype === 'catalog') {
+        return h('div', { className: 'oi-chat-items' },
+          items.map(function(cat, idx) {
+            return h('div', { key: cat.sys_id || idx, className: 'oi-chat-item-card' },
+              h('div', { className: 'oi-chat-item-card-row' },
+                h('span', { className: 'oi-chat-item-card-name' }, cat.name || ''),
+                h('span', { className: 'oi-chat-item-card-cat' },
+                  (cat.items || []).length + ' item' + ((cat.items || []).length === 1 ? '' : 's'))
+              ),
+              cat.description ? h('div', { className: 'oi-chat-item-card-desc' }, cat.description) : null
             );
           })
         );
@@ -644,281 +546,66 @@
       return null;
     }
 
-    function buildSummaryText(flow, collected) {
-      var lines = ['Here is a summary of your ' + flow.name + ':'];
-      var si;
-      for (si = 0; si < flow.steps.length; si++) {
-        var step = flow.steps[si];
-        var val = collected[step.key] || '(not set)';
-        var displayVal = val;
-        if (step.choices) {
-          var ci;
-          for (ci = 0; ci < step.choices.length; ci++) {
-            if (step.choices[ci].value === val) { displayVal = step.choices[ci].label; break; }
-          }
-        }
-        lines.push('  ' + step.label + ': ' + displayVal);
-      }
-      lines.push('');
-      lines.push('Shall I create this for you?');
-      return lines.join('\n');
-    }
-
-    function startFlow(flow) {
-      var firstStep = flow.steps[0];
-      setFlowState({ mode: 'gathering', flow: flow, step: 0, collected: {} });
-      appendMsg(makeMsg('assistant',
-        'Let\'s build your ' + flow.name + '.\n\n' + firstStep.question,
-        firstStep.type === 'choice' ? firstStep.choices : null,
-        'text', null
-      ));
-    }
-
-    function cancelFlow() {
-      setFlowState({ mode: 'idle', flow: null, step: 0, collected: {} });
-      addAssistantDelayed('Flow cancelled. Select a flow from the catalog or ask me a question.', null, 'text', null);
-    }
-
-    function advanceFlow(fs, value, displayLabel) {
-      var flow = fs.flow;
-      var step = fs.step;
-      var newCollected = {};
-      var k;
-      for (k in fs.collected) { if (fs.collected.hasOwnProperty(k)) { newCollected[k] = fs.collected[k]; } }
-      newCollected[flow.steps[step].key] = value;
-      appendMsg(makeMsg('user', displayLabel, null, 'text', null));
-      var nextStep = step + 1;
-      if (nextStep < flow.steps.length) {
-        var nxtDef = flow.steps[nextStep];
-        setFlowState({ mode: 'gathering', flow: flow, step: nextStep, collected: newCollected });
-        addAssistantDelayed(nxtDef.question, nxtDef.type === 'choice' ? nxtDef.choices : null, 'text', null);
-      } else {
-        setFlowState({ mode: 'confirming', flow: flow, step: nextStep, collected: newCollected });
-        addAssistantDelayed(buildSummaryText(flow, newCollected), null, 'confirm', null);
-      }
-    }
-
-    function handleChoiceClick(msgId, value, label, fs) {
-      setMessages(function(prev) {
-        return prev.map(function(m) {
-          if (m.id === msgId) { return Object.assign({}, m, { choiceSelected: value }); }
-          return m;
-        });
-      });
-      if (fs.mode === 'gathering') { advanceFlow(fs, value, label); }
-    }
-
-    function handleTextSubmit() {
-      var q = wsInput.trim();
-      if (!q || chatBusy) return;
-      setWsInput('');
-      if (flowState.mode === 'gathering') {
-        advanceFlow(flowState, q, q);
-      } else {
-        appendMsg(makeMsg('user', q, null, 'text', null));
-        setChatBusy(true);
-        ctx.callServer({ action: 'assistant_query', query: q }, function(d, err) {
-          setChatBusy(false);
-          var reply = (d && d.reply) || 'I could not process that request.';
-          var msgType = err ? 'error' : ((d && d.type) || 'text');
-          var msgItems = (d && d.items) || null;
-          appendMsg(makeMsg('assistant', reply, null, msgType, null, msgItems));
-        });
-      }
-    }
-
-    function confirmCreate() {
-      var fs = flowState;
-      setFlowState(Object.assign({}, fs, { mode: 'creating' }));
-      setChatBusy(true);
-      ctx.callServer({
-        action: 'create_deliverable',
-        flow_id: fs.flow.id,
-        collected: JSON.stringify(fs.collected)
-      }, function(d, err) {
-        setChatBusy(false);
-        var result = d && d.deliverable_result;
-        if (err || !result || !result.ok) {
-          appendMsg(makeMsg('assistant', 'Something went wrong: ' + (err || (result && result.error) || 'Unknown error') + '. Please try again.', null, 'error', null));
-          setFlowState({ mode: 'idle', flow: null, step: 0, collected: {} });
-          return;
-        }
-        var typeLabel = TYPE_LABELS_WS[result.type] || result.type;
-        appendMsg(makeMsg('assistant', 'Your ' + typeLabel + ' has been created and saved to the Operations Gallery.', null, 'result', {
-          name: result.name,
-          type: result.type,
-          type_label: typeLabel,
-          url: result.url || ''
-        }));
-        setFlowState({ mode: 'idle', flow: null, step: 0, collected: {} });
-      });
-    }
-
-    function triggerGroupAuto(auto) {
-      var b = Object.assign({}, autoTriggerBusy);
-      b[auto.sys_id] = true;
-      setAutoTriggerBusy(b);
-      ctx.callServer({ action: 'trigger_automation', automation_sys_id: auto.sys_id, group_sys_id: auto.owner_group_sys_id }, function(d, err) {
-        var b2 = Object.assign({}, autoTriggerBusy);
-        b2[auto.sys_id] = false;
-        setAutoTriggerBusy(b2);
-        if (err) { ctx.toast(err, 'error'); return; }
-        var result = d && d.triggered;
-        if (result && result.ok) {
-          ctx.toast('Triggered: ' + (result.number || auto.name), 'success');
-          addAssistantDelayed('Automation "' + auto.name + '" triggered. Execution ' + (result.number || '') + ' is now ' + (result.status || 'running') + '.', null, 'text', null);
-        } else {
-          ctx.toast((result && result.error) || 'Failed to trigger.', 'error');
-        }
-      });
-    }
-
-    var fs = flowState;
-    var catalogContent;
-    if (fs.mode !== 'idle') {
-      var totalSteps = fs.flow ? fs.flow.steps.length : 0;
-      var doneSteps  = Math.min(fs.step, totalSteps);
-      var pct = totalSteps > 0 ? Math.round((doneSteps / totalSteps) * 100) : 0;
-      catalogContent = h('div', { className: 'oi-ws-flow-active' },
-        h('div', { className: 'oi-ws-flow-active-hdr' },
-          h('div', { className: 'oi-ws-flow-active-icon', style: { background: fs.flow ? (fs.flow.color || '#00BF6F') : '#00BF6F' } },
-            h(OIIcon, { name: fs.flow ? fs.flow.icon : 'document', size: 16, fill: '#FFFFFF' })
-          ),
-          h('div', { className: 'oi-ws-flow-active-body' },
-            h('div', { className: 'oi-ws-flow-active-name' }, fs.flow ? fs.flow.name : ''),
-            h('div', { className: 'oi-ws-flow-active-step' },
-              fs.mode === 'confirming' ? 'Review' :
-              fs.mode === 'creating'   ? 'Creating...' :
-              ('Step ' + (doneSteps + 1) + ' of ' + totalSteps)
-            )
-          ),
-          h('button', { className: 'oi-icon-btn', title: 'Cancel flow', onClick: cancelFlow },
-            h(OIIcon, { name: 'close', size: 16 })
-          )
-        ),
-        h('div', { className: 'oi-progress-bar' },
-          h('div', { className: 'oi-progress-fill', style: { width: pct + '%' } })
-        ),
-        fs.flow
-          ? h('div', { className: 'oi-flow-steps-preview' },
-              fs.flow.steps.map(function(step, idx) {
-                var isDone    = idx < doneSteps;
-                var isCurrent = idx === doneSteps && fs.mode === 'gathering';
-                var colVal = fs.collected[step.key];
-                var dispVal = colVal;
-                if (colVal && step.choices) {
-                  var ci;
-                  for (ci = 0; ci < step.choices.length; ci++) {
-                    if (step.choices[ci].value === colVal) { dispVal = step.choices[ci].label; break; }
-                  }
-                }
-                return h('div', { key: step.key, className: 'oi-flow-step-item' + (isDone ? ' done' : isCurrent ? ' current' : '') },
-                  h('div', { className: 'oi-flow-step-dot' }),
-                  h('div', { className: 'oi-flow-step-info' },
-                    h('div', { className: 'oi-flow-step-label' }, step.label),
-                    isDone && dispVal ? h('div', { className: 'oi-flow-step-val' }, dispVal) : null
-                  )
-                );
-              })
-            )
-          : null
+    var catalogPanel;
+    if (catalogCategories.length === 0) {
+      catalogPanel = h('div', { className: 'oi-ws-catalog-empty' },
+        h('div', { className: 'oi-empty-icon' },
+          h(OIIcon, { name: 'automation', size: 32, fill: '#DCDCDC' })),
+        h('div', { className: 'oi-empty-text' }, 'No automation categories configured.'),
+        h('div', { className: 'oi-empty-sub' }, 'Contact your Administrator to set up the Automation Catalog.')
       );
     } else {
-      catalogContent = h('div', { className: 'oi-ws-catalog-body' },
-        h('div', { className: 'oi-catalog-section' },
-          h('div', { className: 'oi-catalog-section-hdr' }, 'System Automations'),
-          h('div', { className: 'oi-flow-list' },
-            SYSTEM_FLOWS.map(function(flow) {
-              return h('div', {
-                key: flow.id,
-                className: 'oi-flow-item',
-                onClick: function() { startFlow(flow); }
-              },
-                h('div', { className: 'oi-flow-item-icon', style: { background: flow.color } },
-                  h(OIIcon, { name: flow.icon, size: 16, fill: '#FFFFFF' })
-                ),
-                h('div', { className: 'oi-flow-item-body' },
-                  h('div', { className: 'oi-flow-item-name' }, flow.name),
-                  h('div', { className: 'oi-flow-item-desc' }, flow.desc)
-                ),
-                h('div', { className: 'oi-flow-item-arrow' },
-                  h(OIIcon, { name: 'chevron_right', size: 14, fill: '#DCDCDC' })
-                )
-              );
-            })
-          )
-        ),
-        groupAutomations.length > 0
-          ? h('div', { className: 'oi-catalog-section' },
-              h('div', { className: 'oi-catalog-section-hdr' }, 'Group Automations'),
-              h('div', { className: 'oi-flow-list' },
-                groupAutomations.map(function(auto) {
-                  var isBusy = !!autoTriggerBusy[auto.sys_id];
-                  var capturedAuto = auto;
-                  return h('div', { key: auto.sys_id, className: 'oi-flow-item' },
-                    h('div', { className: 'oi-flow-item-icon', style: { background: auto.category_color || '#00BF6F' } },
-                      h(OIIcon, { name: 'automation', size: 16, fill: '#FFFFFF' })
-                    ),
-                    h('div', { className: 'oi-flow-item-body' },
-                      h('div', { className: 'oi-flow-item-name' }, auto.name),
-                      h('div', { className: 'oi-flow-item-desc' }, auto.short_description || auto.owner_group || '')
-                    ),
-                    h('button', {
-                      className: 'oi-btn primary xs',
-                      disabled: isBusy,
-                      onClick: function(e) { e.stopPropagation(); triggerGroupAuto(capturedAuto); }
-                    }, isBusy ? h('div', { className: 'oi-spinner sm' }) : h(OIIcon, { name: 'play', size: 12 }))
-                  );
-                })
+      catalogPanel = h('div', { className: 'oi-ws-catalog-body' },
+        catalogCategories.map(function(cat) {
+          var isOpen = !!openCats[cat.sys_id];
+          var capturedCat = cat;
+          return h('div', { key: cat.sys_id, className: 'oi-catalog-accordion' },
+            h('div', {
+              className: 'oi-catalog-accordion-hdr' + (isOpen ? ' open' : ''),
+              onClick: function() { toggleCategory(capturedCat.sys_id); }
+            },
+              h('div', { className: 'oi-catalog-accordion-icon', style: { background: cat.color || '#00BF6F' } },
+                h(OIIcon, { name: cat.icon || 'automation', size: 14, fill: '#FFFFFF' })
+              ),
+              h('div', { className: 'oi-catalog-accordion-name' }, cat.name),
+              h('span', { className: 'oi-catalog-accordion-count' }, (cat.items || []).length),
+              h('div', { className: 'oi-catalog-accordion-chevron' },
+                h(OIIcon, { name: isOpen ? 'chevron_down' : 'chevron_right', size: 13, fill: '#6E6E6E' })
               )
-            )
-          : null
-      );
-    }
-
-    var currentStepDef = (fs.mode === 'gathering' && fs.flow) ? fs.flow.steps[fs.step] : null;
-    var isChoiceStep = !!(currentStepDef && currentStepDef.type === 'choice');
-    var inputArea;
-    if (fs.mode === 'confirming') {
-      inputArea = h('div', { className: 'oi-chat-confirm-area' },
-        h('button', { className: 'oi-btn primary', onClick: confirmCreate },
-          h(OIIcon, { name: 'check', size: 16 }), ' Yes, create it'
-        ),
-        h('button', { className: 'oi-btn ghost', onClick: cancelFlow }, 'Start Over')
-      );
-    } else if (fs.mode === 'creating') {
-      inputArea = h('div', { className: 'oi-chat-confirm-area' },
-        h('div', { className: 'oi-spinner sm' }),
-        h('span', { style: { color: '#6E6E6E', fontSize: '0.9375rem' } }, 'Creating your deliverable...')
-      );
-    } else {
-      inputArea = h('div', { className: 'oi-chat-input-area' },
-        h('input', {
-          className: 'oi-input',
-          value: wsInput,
-          placeholder: isChoiceStep
-            ? 'Select an option from the buttons above...'
-            : (currentStepDef ? (currentStepDef.placeholder || 'Type your answer...') : 'Ask a question...'),
-          disabled: chatBusy || isChoiceStep,
-          onChange: function(e) { setWsInput(e.target.value); },
-          onKeyDown: function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTextSubmit(); } }
-        }),
-        h('button', {
-          className: 'oi-btn primary',
-          disabled: chatBusy || !wsInput.trim() || isChoiceStep,
-          onClick: handleTextSubmit
-        }, chatBusy ? h('div', { className: 'oi-spinner sm' }) : h(OIIcon, { name: 'send', size: 16 }))
+            ),
+            isOpen
+              ? h('div', { className: 'oi-catalog-accordion-items' },
+                  (cat.items || []).length === 0
+                    ? h('div', { className: 'oi-catalog-accordion-empty' }, 'No items in this category.')
+                    : (cat.items || []).map(function(item, iidx) {
+                        var capturedItem = item;
+                        return h('div', {
+                          key: item.sys_id || iidx,
+                          className: 'oi-catalog-item-row',
+                          onClick: function() {
+                            appendMsg(makeMsg('user', capturedItem.name, null, 'text', null, null));
+                            sendQuery('Tell me about ' + capturedItem.name);
+                          }
+                        },
+                          h('div', { className: 'oi-catalog-item-name' }, item.name),
+                          item.description
+                            ? h('div', { className: 'oi-catalog-item-desc' }, item.description)
+                            : null
+                        );
+                      })
+                )
+              : null
+          );
+        })
       );
     }
 
     return h('div', { className: 'oi-section oi-workspace-layout' },
       h('div', { className: 'oi-ws-catalog-panel' },
         h('div', { className: 'oi-ws-catalog-head' },
-          h('div', { className: 'oi-ws-catalog-title' },
-            fs.mode !== 'idle' && fs.flow ? fs.flow.name : 'Automation Catalog'
-          )
+          h('div', { className: 'oi-ws-catalog-title' }, 'Automation Catalog')
         ),
-        catalogContent
+        catalogPanel
       ),
       h('div', { className: 'oi-ws-assistant-panel' },
         h('div', { className: 'oi-ws-assistant-head' },
@@ -932,30 +619,14 @@
         ),
         h('div', { className: 'oi-chat-messages' },
           messages.map(function(m) {
-            var capturedFs = fs;
             if (m.role === 'user') {
               return h('div', { key: m.id, className: 'oi-chat-msg user' },
                 h('div', { className: 'oi-chat-bubble' }, m.text)
               );
             }
             return h('div', { key: m.id, className: 'oi-chat-msg assistant' + (m.type === 'error' ? ' error' : '') },
-              h('div', { className: 'oi-chat-bubble' },
-                m.type === 'result'
-                  ? h('div', { className: 'oi-result-card' },
-                      h('div', { className: 'oi-result-card-icon' },
-                        h(OIIcon, { name: 'check', size: 20, fill: '#00BF6F' })
-                      ),
-                      h('div', { className: 'oi-result-card-body' },
-                        h('div', { className: 'oi-result-card-name' }, m.result.name),
-                        h('div', { className: 'oi-result-card-type' }, m.result.type_label || m.result.type),
-                        m.result.url
-                          ? h('a', { className: 'oi-result-card-link', href: m.result.url, target: '_blank' }, 'Open in ServiceNow')
-                          : h('span', { className: 'oi-result-card-type', style: { color: '#6E6E6E' } }, 'Saved to Operations Gallery')
-                      )
-                    )
-                  : m.text
-              ),
-              m.items ? renderItems(m.type, m.items) : null,
+              h('div', { className: 'oi-chat-bubble' }, m.text),
+              m.dataItems ? renderDataItems(m.dataType, m.dataItems) : null,
               m.choices && m.choices.length > 0
                 ? h('div', { className: 'oi-chat-choices' },
                     m.choices.map(function(c) {
@@ -967,7 +638,9 @@
                         key: c.value,
                         className: 'oi-choice-btn' + (sel ? ' selected' : '') + (inactive && !sel ? ' dimmed' : ''),
                         disabled: inactive,
-                        onClick: function() { if (!inactive) { handleChoiceClick(capturedMsgId, capturedC.value, capturedC.label, capturedFs); } }
+                        onClick: function() {
+                          if (!inactive) { handleChoiceClick(capturedMsgId, capturedC.value, capturedC.label); }
+                        }
                       }, c.label);
                     })
                   )
@@ -985,7 +658,23 @@
             : null,
           h('div', { ref: chatEndRef })
         ),
-        inputArea
+        h('div', { className: 'oi-chat-input-area' },
+          h('input', {
+            className: 'oi-input',
+            value: wsInput,
+            placeholder: 'Ask a question...',
+            disabled: chatBusy,
+            onChange: function(e) { setWsInput(e.target.value); },
+            onKeyDown: function(e) {
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTextSubmit(); }
+            }
+          }),
+          h('button', {
+            className: 'oi-btn primary',
+            disabled: chatBusy || !wsInput.trim(),
+            onClick: handleTextSubmit
+          }, chatBusy ? h('div', { className: 'oi-spinner sm' }) : h(OIIcon, { name: 'send', size: 16 }))
+        )
       )
     );
   }
@@ -998,7 +687,6 @@
     );
   }
 
-  /* ── Gallery Section ────────────────────────────────────────── */
 
   function GallerySection(props) {
     var ctx = React.useContext(AppContext);
@@ -1125,6 +813,222 @@
   }
 
   /* ── Studio Section ──────────────────────────────────────────── */
+
+  /* ── Developer Section ───────────────────────────────────────── */
+
+  function DeveloperSection(props) {
+    var ctx = React.useContext(AppContext);
+    var data = props.data;
+    var inventory = data.inventory || {};
+
+    var activeTabResult = React.useState('tables');
+    var activeTab = activeTabResult[0];
+    var setActiveTab = activeTabResult[1];
+
+    var chatEndRef = React.useRef(null);
+
+    var messagesResult = React.useState([{
+      id: 0, role: 'assistant', type: 'text',
+      text: 'Developer Workspace ready. I have access to all Operations Intelligence application artifacts. What would you like to inspect?',
+      choices: null, choiceSelected: null, dataItems: null, dataType: null
+    }]);
+    var messages = messagesResult[0];
+    var setMessages = messagesResult[1];
+
+    var devInputResult = React.useState('');
+    var devInput = devInputResult[0];
+    var setDevInput = devInputResult[1];
+
+    var chatBusyResult = React.useState(false);
+    var chatBusy = chatBusyResult[0];
+    var setChatBusy = chatBusyResult[1];
+
+    React.useEffect(function() {
+      if (chatEndRef.current) { chatEndRef.current.scrollIntoView({ behavior: 'smooth' }); }
+    }, [messages, chatBusy]);
+
+    function nextId() { _msgId += 1; return _msgId; }
+
+    function makeMsg(role, text, choices, type, dataItems, dataType) {
+      return { id: nextId(), role: role, text: text || '', choices: choices || null,
+               choiceSelected: null, type: type || 'text',
+               dataItems: dataItems || null, dataType: dataType || null };
+    }
+
+    function appendMsg(msg) {
+      setMessages(function(prev) { return prev.concat([msg]); });
+    }
+
+    function sendQuery(q) {
+      var history = messages.slice(-6).map(function(m) { return { role: m.role, text: m.text || '' }; });
+      setChatBusy(true);
+      ctx.callServer({
+        action: 'assistant_query',
+        query: q,
+        assistant_type: 'developer',
+        context: history
+      }, function(d, err) {
+        setChatBusy(false);
+        if (err) {
+          appendMsg(makeMsg('assistant', 'I encountered an error. Please try again.', null, 'error', null, null));
+          return;
+        }
+        var reply   = (d && d.reply)      || '';
+        var type    = (d && d.type)       || 'text';
+        var choices = (d && d.choices)    || null;
+        var ditems  = (d && d.data_items) || null;
+        var dtype   = (d && d.data_type)  || null;
+        appendMsg(makeMsg('assistant', reply, choices, type, ditems, dtype));
+      });
+    }
+
+    function handleDevSubmit() {
+      var q = devInput.trim();
+      if (!q || chatBusy) { return; }
+      setDevInput('');
+      appendMsg(makeMsg('user', q, null, 'text', null, null));
+      sendQuery(q);
+    }
+
+    function handleChoiceClick(msgId, value, label) {
+      setMessages(function(prev) {
+        return prev.map(function(m) {
+          if (m.id === msgId) { return Object.assign({}, m, { choiceSelected: value }); }
+          return m;
+        }).concat([makeMsg('user', label, null, 'text', null, null)]);
+      });
+      sendQuery(label);
+    }
+
+    var DEV_TABS = [
+      { id: 'tables',          label: 'Tables' },
+      { id: 'script_includes', label: 'Script Includes' },
+      { id: 'business_rules',  label: 'Business Rules' },
+      { id: 'va_topics',       label: 'VA Topics' },
+      { id: 'roles',           label: 'Roles' },
+      { id: 'notifications',   label: 'Notifications' }
+    ];
+
+    var tabItems = inventory[activeTab] || [];
+
+    var inventoryContent;
+    if (tabItems.length === 0) {
+      inventoryContent = h('div', { className: 'oi-empty' },
+        h('div', { className: 'oi-empty-text' }, 'No records found in scope x_infte_ops_int.')
+      );
+    } else {
+      inventoryContent = h('div', { className: 'oi-dev-inventory-list' },
+        tabItems.map(function(item, idx) {
+          return h('div', { key: item.sys_id || idx, className: 'oi-dev-inventory-item' },
+            h('div', { className: 'oi-dev-inventory-name' }, item.name || ''),
+            h('div', { className: 'oi-dev-inventory-meta' },
+              item.label && item.label !== item.name
+                ? h('span', { className: 'oi-dev-inventory-label' }, item.label) : null,
+              item.table
+                ? h('span', { className: 'oi-dev-inventory-tag' }, item.table) : null,
+              item.active !== undefined
+                ? h('span', { className: 'oi-dev-inventory-tag ' + (item.active ? 'active' : 'inactive') },
+                    item.active ? 'Active' : 'Inactive')
+                : null
+            )
+          );
+        })
+      );
+    }
+
+    return h('div', { className: 'oi-section oi-workspace-layout' },
+      h('div', { className: 'oi-ws-catalog-panel' },
+        h('div', { className: 'oi-ws-catalog-head' },
+          h('div', { className: 'oi-ws-catalog-title' }, 'Application Inventory'),
+          h('div', { className: 'oi-ws-catalog-sub' }, 'x_infte_ops_int — View Only')
+        ),
+        h('div', { className: 'oi-dev-tabs' },
+          DEV_TABS.map(function(tab) {
+            var capturedTab = tab;
+            var count = (inventory[tab.id] || []).length;
+            return h('button', {
+              key: tab.id,
+              className: 'oi-dev-tab' + (activeTab === tab.id ? ' active' : ''),
+              onClick: function() { setActiveTab(capturedTab.id); }
+            },
+              tab.label,
+              h('span', { className: 'oi-dev-tab-count' }, '' + count)
+            );
+          })
+        ),
+        h('div', { className: 'oi-dev-inventory-body' }, inventoryContent)
+      ),
+      h('div', { className: 'oi-ws-assistant-panel' },
+        h('div', { className: 'oi-ws-assistant-head' },
+          h('div', { className: 'oi-ws-assistant-icon-wrap' },
+            h(OIIcon, { name: 'document', size: 22, fill: '#293E40' })
+          ),
+          h('div', null,
+            h('div', { className: 'oi-ws-assistant-name' }, 'Developer Assistant'),
+            h('div', { className: 'oi-ws-assistant-tagline' }, 'Application artifact intelligence')
+          )
+        ),
+        h('div', { className: 'oi-chat-messages' },
+          messages.map(function(m) {
+            if (m.role === 'user') {
+              return h('div', { key: m.id, className: 'oi-chat-msg user' },
+                h('div', { className: 'oi-chat-bubble' }, m.text)
+              );
+            }
+            return h('div', { key: m.id, className: 'oi-chat-msg assistant' + (m.type === 'error' ? ' error' : '') },
+              h('div', { className: 'oi-chat-bubble' }, m.text),
+              m.choices && m.choices.length > 0
+                ? h('div', { className: 'oi-chat-choices' },
+                    m.choices.map(function(c) {
+                      var sel      = m.choiceSelected === c.value;
+                      var inactive = m.choiceSelected != null;
+                      var capturedC     = c;
+                      var capturedMsgId = m.id;
+                      return h('button', {
+                        key: c.value,
+                        className: 'oi-choice-btn' + (sel ? ' selected' : '') + (inactive && !sel ? ' dimmed' : ''),
+                        disabled: inactive,
+                        onClick: function() {
+                          if (!inactive) { handleChoiceClick(capturedMsgId, capturedC.value, capturedC.label); }
+                        }
+                      }, c.label);
+                    })
+                  )
+                : null
+            );
+          }),
+          chatBusy
+            ? h('div', { className: 'oi-chat-msg assistant' },
+                h('div', { className: 'oi-chat-bubble oi-typing' },
+                  h('span', { className: 'oi-dot' }),
+                  h('span', { className: 'oi-dot' }),
+                  h('span', { className: 'oi-dot' })
+                )
+              )
+            : null,
+          h('div', { ref: chatEndRef })
+        ),
+        h('div', { className: 'oi-chat-input-area' },
+          h('input', {
+            className: 'oi-input',
+            value: devInput,
+            placeholder: 'Ask about application artifacts...',
+            disabled: chatBusy,
+            onChange: function(e) { setDevInput(e.target.value); },
+            onKeyDown: function(e) {
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleDevSubmit(); }
+            }
+          }),
+          h('button', {
+            className: 'oi-btn primary',
+            disabled: chatBusy || !devInput.trim(),
+            onClick: handleDevSubmit
+          }, chatBusy ? h('div', { className: 'oi-spinner sm' }) : h(OIIcon, { name: 'send', size: 16 }))
+        )
+      )
+    );
+  }
+
 
   function StudioSection(props) {
     var ctx = React.useContext(AppContext);
@@ -2248,16 +2152,27 @@
     var ctx = React.useContext(AppContext);
     var data = props.data;
     var sysStats = data.stats || {};
+    var catalogCategories = data.catalog_categories || [];
+
+    var CMD_TABS = [
+      { id: 'catalog',    label: 'Catalog Management' },
+      { id: 'assistant',  label: 'Assistant Configuration' },
+      { id: 'system',     label: 'System' }
+    ];
+
+    var activeTabResult = React.useState('catalog');
+    var activeTab = activeTabResult[0];
+    var setActiveTab = activeTabResult[1];
 
     var MAINTENANCE_SECTIONS = [
-      { key: 'workspace',  label: 'Workspace',             desc: 'Disable the Workspace section for all users.',             prop: 'x_infte_ops_int.maintenance.workspace' },
-      { key: 'gallery',      label: 'Operations Gallery',     desc: 'Disable the Operations Gallery section for all users.',    prop: 'x_infte_ops_int.maintenance.gallery' },
-      { key: 'studio',     label: 'Operations Studio',      desc: 'Disable the Operations Studio section for all users.',      prop: 'x_infte_ops_int.maintenance.studio' },
-      { key: 'governance', label: 'Operations Governance',  desc: 'Disable the Operations Governance section for all users.',  prop: 'x_infte_ops_int.maintenance.governance' }
+      { key: 'workspace',  label: 'Workspace',            prop: 'x_infte_ops_int.maintenance.workspace' },
+      { key: 'gallery',    label: 'Operations Gallery',   prop: 'x_infte_ops_int.maintenance.gallery' },
+      { key: 'studio',     label: 'Operations Studio',    prop: 'x_infte_ops_int.maintenance.studio' },
+      { key: 'governance', label: 'Operations Governance', prop: 'x_infte_ops_int.maintenance.governance' }
     ];
 
     var initMaint = {};
-    MAINTENANCE_SECTIONS.forEach(function (s) {
+    MAINTENANCE_SECTIONS.forEach(function(s) {
       initMaint[s.key] = !!(data.maintenance && data.maintenance[s.key]);
     });
 
@@ -2265,120 +2180,562 @@
     var maint = maintResult[0];
     var setMaint = maintResult[1];
 
-    var busyResult = React.useState({});
-    var busy = busyResult[0];
-    var setBusy = busyResult[1];
+    var maintBusyResult = React.useState({});
+    var maintBusy = maintBusyResult[0];
+    var setMaintBusy = maintBusyResult[1];
 
-    function toggleMaint(section) {
-      var propName = MAINTENANCE_SECTIONS.find(function (s) { return s.key === section; }).prop;
-      var newVal = !maint[section];
-      var busyOn = Object.assign({}, busy); busyOn[section] = true; setBusy(busyOn);
-      ctx.callServer({ action: 'toggle_maintenance', prop_name: propName, value: newVal }, function (d, err) {
-        var busyOff = Object.assign({}, busy); busyOff[section] = false; setBusy(busyOff);
-        if (err) { ctx.toast(err, 'error'); return; }
-        var next = Object.assign({}, maint);
-        next[section] = newVal;
-        setMaint(next);
-        ctx.toast('Maintenance ' + (newVal ? 'enabled' : 'disabled') + ' for ' + section + '.', newVal ? 'warning' : 'success');
+    var catsResult = React.useState(catalogCategories);
+    var cats = catsResult[0];
+    var setCats = catsResult[1];
+
+    var catFormResult = React.useState(null);
+    var catForm = catFormResult[0];
+    var setCatForm = catFormResult[1];
+
+    var itemFormResult = React.useState(null);
+    var itemForm = itemFormResult[0];
+    var setItemForm = itemFormResult[1];
+
+    var saveBusyResult = React.useState(false);
+    var saveBusy = saveBusyResult[0];
+    var setSaveBusy = saveBusyResult[1];
+
+    var openCatResult = React.useState(null);
+    var openCat = openCatResult[0];
+    var setOpenCat = openCatResult[1];
+
+    var chatEndRef = React.useRef(null);
+
+    var admMsgResult = React.useState([{
+      id: 0, role: 'assistant', type: 'text',
+      text: 'Administrator Assistant ready. I can help with catalog configuration, system status, and platform administration. What do you need?',
+      choices: null, choiceSelected: null
+    }]);
+    var admMsgs = admMsgResult[0];
+    var setAdmMsgs = admMsgResult[1];
+
+    var admInputResult = React.useState('');
+    var admInput = admInputResult[0];
+    var setAdmInput = admInputResult[1];
+
+    var admBusyResult = React.useState(false);
+    var admBusy = admBusyResult[0];
+    var setAdmBusy = admBusyResult[1];
+
+    React.useEffect(function() {
+      if (chatEndRef.current) { chatEndRef.current.scrollIntoView({ behavior: 'smooth' }); }
+    }, [admMsgs, admBusy]);
+
+    function nextId() { _msgId += 1; return _msgId; }
+
+    function makeAdmMsg(role, text, choices, type) {
+      return { id: nextId(), role: role, text: text || '', choices: choices || null,
+               choiceSelected: null, type: type || 'text' };
+    }
+
+    function appendAdmMsg(msg) {
+      setAdmMsgs(function(prev) { return prev.concat([msg]); });
+    }
+
+    function sendAdmQuery(q) {
+      var history = admMsgs.slice(-6).map(function(m) { return { role: m.role, text: m.text || '' }; });
+      setAdmBusy(true);
+      ctx.callServer({
+        action: 'assistant_query',
+        query: q,
+        assistant_type: 'admin',
+        context: history
+      }, function(d, err) {
+        setAdmBusy(false);
+        if (err) {
+          appendAdmMsg(makeAdmMsg('assistant', 'I encountered an error. Please try again.', null, 'error'));
+          return;
+        }
+        appendAdmMsg(makeAdmMsg('assistant', (d && d.reply) || '', (d && d.choices) || null, (d && d.type) || 'text'));
       });
     }
 
-    return h('div', { className: 'oi-section' },
-      h('div', { className: 'oi-toolbar' },
-        h('div', { className: 'oi-toolbar-left' },
-          h('h1', { className: 'oi-section-title' }, 'Operations Command')
-        )
+    function handleAdmSubmit() {
+      var q = admInput.trim();
+      if (!q || admBusy) { return; }
+      setAdmInput('');
+      appendAdmMsg(makeAdmMsg('user', q, null, 'text'));
+      sendAdmQuery(q);
+    }
+
+    function toggleMaint(section) {
+      var mSec;
+      var mi;
+      for (mi = 0; mi < MAINTENANCE_SECTIONS.length; mi++) {
+        if (MAINTENANCE_SECTIONS[mi].key === section) { mSec = MAINTENANCE_SECTIONS[mi]; break; }
+      }
+      if (!mSec) { return; }
+      var newVal = !maint[section];
+      var busyOn = Object.assign({}, maintBusy); busyOn[section] = true; setMaintBusy(busyOn);
+      ctx.callServer({ action: 'toggle_maintenance', prop_name: mSec.prop, value: newVal }, function(d, err) {
+        var busyOff = Object.assign({}, maintBusy); busyOff[section] = false; setMaintBusy(busyOff);
+        if (err) { ctx.toast(err, 'error'); return; }
+        var next = Object.assign({}, maint); next[section] = newVal; setMaint(next);
+        ctx.toast('Maintenance ' + (newVal ? 'enabled' : 'disabled') + ' for ' + mSec.label + '.', newVal ? 'warning' : 'success');
+      });
+    }
+
+    function saveCat() {
+      if (!catForm || !catForm.name) { ctx.toast('Category name is required.', 'error'); return; }
+      setSaveBusy(true);
+      ctx.callServer({
+        action: 'save_catalog_category',
+        sys_id: catForm.sys_id || '',
+        name: catForm.name,
+        description: catForm.description || '',
+        icon: catForm.icon || 'fa-folder',
+        color: catForm.color || '#00BF6F',
+        sort_order: catForm.sort_order || 0
+      }, function(d, err) {
+        setSaveBusy(false);
+        if (err || !(d && d.saved_category && d.saved_category.ok)) {
+          ctx.toast((d && d.saved_category && d.saved_category.error) || err || 'Save failed.', 'error');
+          return;
+        }
+        ctx.toast('Category ' + (catForm.sys_id ? 'updated' : 'created') + '.', 'success');
+        setCatForm(null);
+        ctx.callServer({ action: 'load_section', section: 'command' }, function(ld) {
+          if (ld && ld.sectionData && ld.sectionData.catalog_categories) {
+            setCats(ld.sectionData.catalog_categories);
+          }
+        });
+      });
+    }
+
+    function deleteCat(catId) {
+      if (!confirm('Delete this category and all its items?')) { return; }
+      ctx.callServer({ action: 'delete_catalog_category', sys_id: catId }, function(d, err) {
+        if (err || !(d && d.deleted_category && d.deleted_category.ok)) {
+          ctx.toast((d && d.deleted_category && d.deleted_category.error) || err || 'Delete failed.', 'error');
+          return;
+        }
+        ctx.toast('Category deleted.', 'success');
+        setCats(function(prev) { return prev.filter(function(c) { return c.sys_id !== catId; }); });
+        if (openCat === catId) { setOpenCat(null); }
+      });
+    }
+
+    function saveItem() {
+      if (!itemForm || !itemForm.name || !itemForm.category_sys_id) {
+        ctx.toast('Item name and category are required.', 'error'); return;
+      }
+      setSaveBusy(true);
+      ctx.callServer({
+        action: 'save_catalog_item',
+        sys_id: itemForm.sys_id || '',
+        name: itemForm.name,
+        description: itemForm.description || '',
+        category_sys_id: itemForm.category_sys_id,
+        sort_order: itemForm.sort_order || 0,
+        action_type: itemForm.action_type || '',
+        action_value: itemForm.action_value || ''
+      }, function(d, err) {
+        setSaveBusy(false);
+        if (err || !(d && d.saved_item && d.saved_item.ok)) {
+          ctx.toast((d && d.saved_item && d.saved_item.error) || err || 'Save failed.', 'error');
+          return;
+        }
+        ctx.toast('Item ' + (itemForm.sys_id ? 'updated' : 'created') + '.', 'success');
+        setItemForm(null);
+        ctx.callServer({ action: 'load_section', section: 'command' }, function(ld) {
+          if (ld && ld.sectionData && ld.sectionData.catalog_categories) {
+            setCats(ld.sectionData.catalog_categories);
+          }
+        });
+      });
+    }
+
+    function deleteItem(itemId) {
+      if (!confirm('Delete this item?')) { return; }
+      ctx.callServer({ action: 'delete_catalog_item', sys_id: itemId }, function(d, err) {
+        if (err || !(d && d.deleted_item && d.deleted_item.ok)) {
+          ctx.toast((d && d.deleted_item && d.deleted_item.error) || err || 'Delete failed.', 'error');
+          return;
+        }
+        ctx.toast('Item deleted.', 'success');
+        ctx.callServer({ action: 'load_section', section: 'command' }, function(ld) {
+          if (ld && ld.sectionData && ld.sectionData.catalog_categories) {
+            setCats(ld.sectionData.catalog_categories);
+          }
+        });
+      });
+    }
+
+    var catalogTab = h('div', { className: 'oi-cmd-catalog' },
+      h('div', { className: 'oi-cmd-catalog-hdr' },
+        h('div', { className: 'oi-cmd-catalog-title' }, 'Automation Catalog Configuration'),
+        h('button', {
+          className: 'oi-btn primary sm',
+          onClick: function() { setCatForm({ name: '', description: '', icon: 'fa-folder', color: '#00BF6F', sort_order: 0 }); }
+        }, h(OIIcon, { name: 'add', size: 14 }), ' New Category')
       ),
-      h('div', { className: 'oi-cmd-grid' },
-        h('div', { className: 'oi-card' },
-          h('div', { className: 'oi-card-hdr' },
-            h('span', { className: 'oi-card-title' }, 'System Statistics')
-          ),
-          h('div', { className: 'oi-card-body' },
-            h('div', { className: 'oi-info-list' },
-              h('div', { className: 'oi-info-row' },
-                h('span', { className: 'oi-info-label' }, 'Application Scope'),
-                h('span', { className: 'oi-info-value oi-mono' }, 'x_infte_ops_int')
+      catForm
+        ? h('div', { className: 'oi-cmd-form oi-card' },
+            h('div', { className: 'oi-card-hdr' },
+              h('span', { className: 'oi-card-title' }, (catForm.sys_id ? 'Edit' : 'New') + ' Category'),
+              h('button', { className: 'oi-icon-btn', onClick: function() { setCatForm(null); } },
+                h(OIIcon, { name: 'close', size: 16 }))
+            ),
+            h('div', { className: 'oi-card-body' },
+              h('div', { className: 'oi-form-row' },
+                h('label', { className: 'oi-label' }, 'Name'),
+                h('input', {
+                  className: 'oi-input',
+                  value: catForm.name,
+                  onChange: function(e) { setCatForm(Object.assign({}, catForm, { name: e.target.value })); }
+                })
               ),
-              h('div', { className: 'oi-info-row' },
-                h('span', { className: 'oi-info-label' }, 'Engine Endpoint'),
-                h('span', { className: 'oi-info-value oi-mono' }, '/api/x_infte_ops_int/ops_int_engine/v1')
+              h('div', { className: 'oi-form-row' },
+                h('label', { className: 'oi-label' }, 'Description'),
+                h('input', {
+                  className: 'oi-input',
+                  value: catForm.description || '',
+                  onChange: function(e) { setCatForm(Object.assign({}, catForm, { description: e.target.value })); }
+                })
               ),
-              h('div', { className: 'oi-info-row' },
-                h('span', { className: 'oi-info-label' }, 'Service Account'),
-                h('span', { className: 'oi-info-value oi-mono' }, 'svc_operations_intelligence_api')
+              h('div', { className: 'oi-form-row-pair' },
+                h('div', { className: 'oi-form-row' },
+                  h('label', { className: 'oi-label' }, 'Icon (Font Awesome class)'),
+                  h('input', {
+                    className: 'oi-input',
+                    value: catForm.icon || '',
+                    placeholder: 'fa-folder',
+                    onChange: function(e) { setCatForm(Object.assign({}, catForm, { icon: e.target.value })); }
+                  })
+                ),
+                h('div', { className: 'oi-form-row' },
+                  h('label', { className: 'oi-label' }, 'Color'),
+                  h('input', {
+                    className: 'oi-input',
+                    value: catForm.color || '',
+                    placeholder: '#00BF6F',
+                    onChange: function(e) { setCatForm(Object.assign({}, catForm, { color: e.target.value })); }
+                  })
+                )
               ),
-              h('div', { className: 'oi-info-row' },
-                h('span', { className: 'oi-info-label' }, 'Total Persons'),
-                h('span', { className: 'oi-info-value' }, sysStats.persons != null ? sysStats.persons : '--')
-              ),
-              h('div', { className: 'oi-info-row' },
-                h('span', { className: 'oi-info-label' }, 'Total Groups'),
-                h('span', { className: 'oi-info-value' }, sysStats.groups != null ? sysStats.groups : '--')
-              ),
-              h('div', { className: 'oi-info-row' },
-                h('span', { className: 'oi-info-label' }, 'Published Automations'),
-                h('span', { className: 'oi-info-value' }, sysStats.automations != null ? sysStats.automations : '--')
-              ),
-              h('div', { className: 'oi-info-row' },
-                h('span', { className: 'oi-info-label' }, 'Executions Today'),
-                h('span', { className: 'oi-info-value' }, sysStats.executions_today != null ? sysStats.executions_today : '--')
+              h('div', { className: 'oi-form-actions' },
+                h('button', { className: 'oi-btn primary', disabled: saveBusy, onClick: saveCat },
+                  saveBusy ? h('div', { className: 'oi-spinner sm' }) : 'Save Category'),
+                h('button', { className: 'oi-btn ghost', onClick: function() { setCatForm(null); } }, 'Cancel')
               )
             )
           )
-        ),
-        h('div', { className: 'oi-card' },
-          h('div', { className: 'oi-card-hdr' },
-            h('span', { className: 'oi-card-title' }, 'Maintenance Mode')
-          ),
-          h('div', { className: 'oi-card-body' },
-            h('div', { className: 'oi-maintenance-list' },
-              MAINTENANCE_SECTIONS.map(function (s) {
-                var isOn = !!maint[s.key];
-                var isBusy = !!busy[s.key];
-                return h('div', { key: s.key, className: 'oi-maintenance-item' + (isOn ? ' active' : '') },
-                  h('div', { className: 'oi-maintenance-info' },
-                    h('div', { className: 'oi-maintenance-label' }, s.label + (isOn ? ' — Maintenance' : '')),
-                    h('div', { className: 'oi-maintenance-desc' }, s.desc),
-                    h('div', { className: 'oi-maintenance-prop' }, s.prop)
-                  ),
-                  isBusy
-                    ? h('div', { className: 'oi-spinner sm' })
-                    : h('button', {
-                        className: 'oi-toggle' + (isOn ? ' on' : ''),
-                        onClick: function () { toggleMaint(s.key); },
-                        title: isOn ? 'Disable maintenance' : 'Enable maintenance'
-                      },
-                        h('span', { className: 'oi-toggle-knob' })
-                      )
-                );
-              })
-            )
+        : null,
+      cats.length === 0
+        ? h('div', { className: 'oi-empty' },
+            h('div', { className: 'oi-empty-text' }, 'No categories configured. Create the first category above.')
           )
-        ),
-        h('div', { className: 'oi-card oi-full-col' },
-          h('div', { className: 'oi-card-hdr' },
-            h('span', { className: 'oi-card-title' }, 'Security')
-          ),
-          h('div', { className: 'oi-card-body' },
-            h('div', { className: 'oi-security-notice' },
-              h('div', { className: 'oi-security-icon' }, h(OIIcon, { name: 'lock', size: 24, fill: '#00BF6F' })),
-              h('div', null,
-                h('div', { className: 'oi-security-title' }, 'Credential Storage'),
-                h('p', { className: 'oi-security-desc' },
-                  'The engine API key is stored as ServiceNow system property ' +
-                  'x_infte_ops_int.engine_key and is never exposed to the client. ' +
-                  'The service account password is stored as x_infte_ops_int.svc_password. ' +
-                  'Neither property is committed to source control. ' +
-                  'All portal API calls are authenticated via the ServiceNow session and validated server-side.'
+        : cats.map(function(cat) {
+            var isOpen = openCat === cat.sys_id;
+            var capturedCat = cat;
+            return h('div', { key: cat.sys_id, className: 'oi-cmd-cat-block' },
+              h('div', { className: 'oi-cmd-cat-hdr' },
+                h('div', {
+                  className: 'oi-catalog-accordion-hdr' + (isOpen ? ' open' : ''),
+                  onClick: function() { setOpenCat(isOpen ? null : capturedCat.sys_id); }
+                },
+                  h('div', { className: 'oi-catalog-accordion-icon', style: { background: cat.color || '#00BF6F' } },
+                    h(OIIcon, { name: cat.icon || 'automation', size: 14, fill: '#FFFFFF' })
+                  ),
+                  h('div', { className: 'oi-catalog-accordion-name' }, cat.name),
+                  h('span', { className: 'oi-catalog-accordion-count' }, (cat.items || []).length + ' items'),
+                  h('div', { className: 'oi-catalog-accordion-chevron' },
+                    h(OIIcon, { name: isOpen ? 'chevron_down' : 'chevron_right', size: 13, fill: '#6E6E6E' })
+                  )
+                ),
+                h('div', { className: 'oi-cmd-cat-actions' },
+                  h('button', {
+                    className: 'oi-btn ghost xs',
+                    onClick: function() { setCatForm(Object.assign({}, capturedCat)); }
+                  }, h(OIIcon, { name: 'edit', size: 13 }), ' Edit'),
+                  h('button', {
+                    className: 'oi-btn danger xs',
+                    onClick: function() { deleteCat(capturedCat.sys_id); }
+                  }, h(OIIcon, { name: 'delete', size: 13 }), ' Delete')
                 )
+              ),
+              isOpen
+                ? h('div', { className: 'oi-cmd-cat-items' },
+                    h('div', { className: 'oi-cmd-cat-items-hdr' },
+                      h('span', null, 'Items'),
+                      h('button', {
+                        className: 'oi-btn ghost xs',
+                        onClick: function() { setItemForm({ name: '', description: '', category_sys_id: capturedCat.sys_id, sort_order: 0, action_type: '', action_value: '' }); }
+                      }, h(OIIcon, { name: 'add', size: 12 }), ' Add Item')
+                    ),
+                    itemForm && itemForm.category_sys_id === cat.sys_id
+                      ? h('div', { className: 'oi-cmd-item-form oi-card' },
+                          h('div', { className: 'oi-card-hdr' },
+                            h('span', { className: 'oi-card-title' }, (itemForm.sys_id ? 'Edit' : 'New') + ' Item'),
+                            h('button', { className: 'oi-icon-btn', onClick: function() { setItemForm(null); } },
+                              h(OIIcon, { name: 'close', size: 14 }))
+                          ),
+                          h('div', { className: 'oi-card-body' },
+                            h('div', { className: 'oi-form-row' },
+                              h('label', { className: 'oi-label' }, 'Item Name'),
+                              h('input', {
+                                className: 'oi-input',
+                                value: itemForm.name,
+                                onChange: function(e) { setItemForm(Object.assign({}, itemForm, { name: e.target.value })); }
+                              })
+                            ),
+                            h('div', { className: 'oi-form-row' },
+                              h('label', { className: 'oi-label' }, 'Description'),
+                              h('input', {
+                                className: 'oi-input',
+                                value: itemForm.description || '',
+                                onChange: function(e) { setItemForm(Object.assign({}, itemForm, { description: e.target.value })); }
+                              })
+                            ),
+                            h('div', { className: 'oi-form-actions' },
+                              h('button', { className: 'oi-btn primary', disabled: saveBusy, onClick: saveItem },
+                                saveBusy ? h('div', { className: 'oi-spinner sm' }) : 'Save Item'),
+                              h('button', { className: 'oi-btn ghost', onClick: function() { setItemForm(null); } }, 'Cancel')
+                            )
+                          )
+                        )
+                      : null,
+                    (cat.items || []).length === 0 && !(itemForm && itemForm.category_sys_id === cat.sys_id)
+                      ? h('div', { className: 'oi-catalog-accordion-empty' }, 'No items. Use Add Item above.')
+                      : (cat.items || []).map(function(item, idx) {
+                          var capturedItem = item;
+                          return h('div', { key: item.sys_id || idx, className: 'oi-cmd-item-row' },
+                            h('div', { className: 'oi-cmd-item-info' },
+                              h('div', { className: 'oi-catalog-item-name' }, item.name),
+                              item.description ? h('div', { className: 'oi-catalog-item-desc' }, item.description) : null
+                            ),
+                            h('div', { className: 'oi-cmd-item-actions' },
+                              h('button', {
+                                className: 'oi-btn ghost xs',
+                                onClick: function() { setItemForm(Object.assign({}, capturedItem, { category_sys_id: capturedCat.sys_id })); }
+                              }, h(OIIcon, { name: 'edit', size: 12 })),
+                              h('button', {
+                                className: 'oi-btn danger xs',
+                                onClick: function() { deleteItem(capturedItem.sys_id); }
+                              }, h(OIIcon, { name: 'delete', size: 12 }))
+                            )
+                          );
+                        })
+                  )
+                : null
+            );
+          })
+    );
+
+    var assistantTab = h('div', { className: 'oi-cmd-assistant-config' },
+      h('div', { className: 'oi-card' },
+        h('div', { className: 'oi-card-hdr' },
+          h('span', { className: 'oi-card-title' }, 'Operations Assistant Configuration')
+        ),
+        h('div', { className: 'oi-card-body' },
+          h('div', { className: 'oi-info-notice' },
+            h('div', { className: 'oi-security-icon' }, h(OIIcon, { name: 'assistant', size: 22, fill: '#00BF6F' })),
+            h('div', null,
+              h('div', { className: 'oi-security-title' }, 'Reasoning Engine Active'),
+              h('p', { className: 'oi-security-desc' },
+                'The Operations Assistant uses the ConversationAdvisor reasoning engine for all three assistant types: ' +
+                'Operations, Developer, and Administrator. The engine performs multi-dimensional intent analysis, ' +
+                'extracts entities, and maintains conversation context. Advanced configuration will be available in a future release.'
               )
             )
           )
         )
       )
     );
+
+    var systemTab = h('div', { className: 'oi-cmd-grid' },
+      h('div', { className: 'oi-card' },
+        h('div', { className: 'oi-card-hdr' },
+          h('span', { className: 'oi-card-title' }, 'System Statistics')
+        ),
+        h('div', { className: 'oi-card-body' },
+          h('div', { className: 'oi-info-list' },
+            h('div', { className: 'oi-info-row' },
+              h('span', { className: 'oi-info-label' }, 'Application Scope'),
+              h('span', { className: 'oi-info-value oi-mono' }, 'x_infte_ops_int')
+            ),
+            h('div', { className: 'oi-info-row' },
+              h('span', { className: 'oi-info-label' }, 'Engine Endpoint'),
+              h('span', { className: 'oi-info-value oi-mono' }, '/api/x_infte_ops_int/ops_int_engine/v1')
+            ),
+            h('div', { className: 'oi-info-row' },
+              h('span', { className: 'oi-info-label' }, 'Service Account'),
+              h('span', { className: 'oi-info-value oi-mono' }, 'svc_operations_intelligence_api')
+            ),
+            h('div', { className: 'oi-info-row' },
+              h('span', { className: 'oi-info-label' }, 'Total Persons'),
+              h('span', { className: 'oi-info-value' }, sysStats.persons != null ? sysStats.persons : '--')
+            ),
+            h('div', { className: 'oi-info-row' },
+              h('span', { className: 'oi-info-label' }, 'Total Groups'),
+              h('span', { className: 'oi-info-value' }, sysStats.groups != null ? sysStats.groups : '--')
+            ),
+            h('div', { className: 'oi-info-row' },
+              h('span', { className: 'oi-info-label' }, 'Published Automations'),
+              h('span', { className: 'oi-info-value' }, sysStats.automations != null ? sysStats.automations : '--')
+            ),
+            h('div', { className: 'oi-info-row' },
+              h('span', { className: 'oi-info-label' }, 'Executions Today'),
+              h('span', { className: 'oi-info-value' }, sysStats.executions_today != null ? sysStats.executions_today : '--')
+            )
+          )
+        )
+      ),
+      h('div', { className: 'oi-card' },
+        h('div', { className: 'oi-card-hdr' },
+          h('span', { className: 'oi-card-title' }, 'Maintenance Mode')
+        ),
+        h('div', { className: 'oi-card-body' },
+          h('div', { className: 'oi-maintenance-list' },
+            MAINTENANCE_SECTIONS.map(function(s) {
+              var isOn   = !!maint[s.key];
+              var isBusy = !!maintBusy[s.key];
+              var capturedS = s;
+              return h('div', { key: s.key, className: 'oi-maintenance-item' + (isOn ? ' active' : '') },
+                h('div', { className: 'oi-maintenance-info' },
+                  h('div', { className: 'oi-maintenance-label' }, s.label + (isOn ? ' — Maintenance' : '')),
+                  h('div', { className: 'oi-maintenance-prop' }, s.prop)
+                ),
+                isBusy
+                  ? h('div', { className: 'oi-spinner sm' })
+                  : h('button', {
+                      className: 'oi-toggle' + (isOn ? ' on' : ''),
+                      onClick: function() { toggleMaint(capturedS.key); },
+                      title: isOn ? 'Disable maintenance' : 'Enable maintenance'
+                    },
+                      h('span', { className: 'oi-toggle-knob' })
+                    )
+              );
+            })
+          )
+        )
+      ),
+      h('div', { className: 'oi-card oi-full-col' },
+        h('div', { className: 'oi-card-hdr' },
+          h('span', { className: 'oi-card-title' }, 'Security')
+        ),
+        h('div', { className: 'oi-card-body' },
+          h('div', { className: 'oi-security-notice' },
+            h('div', { className: 'oi-security-icon' }, h(OIIcon, { name: 'lock', size: 24, fill: '#00BF6F' })),
+            h('div', null,
+              h('div', { className: 'oi-security-title' }, 'Credential Storage'),
+              h('p', { className: 'oi-security-desc' },
+                'The engine API key is stored as ServiceNow system property x_infte_ops_int.engine_key and is never exposed to the client. ' +
+                'The service account password is stored as x_infte_ops_int.svc_password. ' +
+                'Neither property is committed to source control. ' +
+                'All portal API calls are authenticated via the ServiceNow session and validated server-side.'
+              )
+            )
+          )
+        )
+      )
+    );
+
+    return h('div', { className: 'oi-section oi-workspace-layout' },
+      h('div', { className: 'oi-ws-catalog-panel' },
+        h('div', { className: 'oi-ws-catalog-head' },
+          h('div', { className: 'oi-ws-catalog-title' }, 'Operations Command')
+        ),
+        h('div', { className: 'oi-cmd-tabs' },
+          CMD_TABS.map(function(tab) {
+            var capturedTab = tab;
+            return h('button', {
+              key: tab.id,
+              className: 'oi-dev-tab' + (activeTab === tab.id ? ' active' : ''),
+              onClick: function() { setActiveTab(capturedTab.id); }
+            }, tab.label);
+          })
+        ),
+        h('div', { className: 'oi-cmd-tab-body' },
+          activeTab === 'catalog'   ? catalogTab   : null,
+          activeTab === 'assistant' ? assistantTab : null,
+          activeTab === 'system'    ? systemTab    : null
+        )
+      ),
+      h('div', { className: 'oi-ws-assistant-panel' },
+        h('div', { className: 'oi-ws-assistant-head' },
+          h('div', { className: 'oi-ws-assistant-icon-wrap' },
+            h(OIIcon, { name: 'command', size: 22, fill: '#293E40' })
+          ),
+          h('div', null,
+            h('div', { className: 'oi-ws-assistant-name' }, 'Administrator Assistant'),
+            h('div', { className: 'oi-ws-assistant-tagline' }, 'Platform administration intelligence')
+          )
+        ),
+        h('div', { className: 'oi-chat-messages' },
+          admMsgs.map(function(m) {
+            if (m.role === 'user') {
+              return h('div', { key: m.id, className: 'oi-chat-msg user' },
+                h('div', { className: 'oi-chat-bubble' }, m.text)
+              );
+            }
+            return h('div', { key: m.id, className: 'oi-chat-msg assistant' + (m.type === 'error' ? ' error' : '') },
+              h('div', { className: 'oi-chat-bubble' }, m.text),
+              m.choices && m.choices.length > 0
+                ? h('div', { className: 'oi-chat-choices' },
+                    m.choices.map(function(c) {
+                      var sel      = m.choiceSelected === c.value;
+                      var inactive = m.choiceSelected != null;
+                      var capturedC     = c;
+                      var capturedMsgId = m.id;
+                      return h('button', {
+                        key: c.value,
+                        className: 'oi-choice-btn' + (sel ? ' selected' : '') + (inactive && !sel ? ' dimmed' : ''),
+                        disabled: inactive,
+                        onClick: function() {
+                          if (!inactive) {
+                            setAdmMsgs(function(prev) {
+                              return prev.map(function(msg) {
+                                if (msg.id === capturedMsgId) { return Object.assign({}, msg, { choiceSelected: capturedC.value }); }
+                                return msg;
+                              }).concat([makeAdmMsg('user', capturedC.label, null, 'text')]);
+                            });
+                            sendAdmQuery(capturedC.label);
+                          }
+                        }
+                      }, c.label);
+                    })
+                  )
+                : null
+            );
+          }),
+          admBusy
+            ? h('div', { className: 'oi-chat-msg assistant' },
+                h('div', { className: 'oi-chat-bubble oi-typing' },
+                  h('span', { className: 'oi-dot' }),
+                  h('span', { className: 'oi-dot' }),
+                  h('span', { className: 'oi-dot' })
+                )
+              )
+            : null,
+          h('div', { ref: chatEndRef })
+        ),
+        h('div', { className: 'oi-chat-input-area' },
+          h('input', {
+            className: 'oi-input',
+            value: admInput,
+            placeholder: 'Ask about catalog, system status, or platform...',
+            disabled: admBusy,
+            onChange: function(e) { setAdmInput(e.target.value); },
+            onKeyDown: function(e) {
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAdmSubmit(); }
+            }
+          }),
+          h('button', {
+            className: 'oi-btn primary',
+            disabled: admBusy || !admInput.trim(),
+            onClick: handleAdmSubmit
+          }, admBusy ? h('div', { className: 'oi-spinner sm' }) : h(OIIcon, { name: 'send', size: 16 }))
+        )
+      )
+    );
   }
+
 
   /* ── Requests Modal ─────────────────────────────────────────── */
 

@@ -3,7 +3,8 @@ PermissionResolver.prototype = {
     initialize: function() {
         this.PERSON_TABLE = 'x_infte_ops_int_person';
         this.GROUP_TABLE  = 'x_infte_ops_int_group';
-        this.ROLE_OI_ADMIN  = 'x_infte_ops_int.admin';
+        this.ROLE_OI_ADMIN   = 'x_infte_ops_int.admin';
+        this.ROLE_DEVELOPER  = 'x_infte_ops_int.developer';
         this.ROLE_LEADERSHIP = 'x_infte_ops_int.leadership';
         this.ROLE_CREATOR    = 'x_infte_ops_int.creator';
         this.ROLE_USER       = 'x_infte_ops_int.user';
@@ -25,6 +26,9 @@ PermissionResolver.prototype = {
         var uid = this._resolveUserId(userSysId);
         if (this._userHasRole(uid, this.ROLE_OI_ADMIN)) {
             return 'admin';
+        }
+        if (this._userHasRole(uid, this.ROLE_DEVELOPER)) {
+            return 'developer';
         }
         if (this._userHasRole(uid, this.ROLE_LEADERSHIP)) {
             return 'leadership';
