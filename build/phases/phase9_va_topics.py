@@ -1,53 +1,48 @@
 #!/usr/bin/env python3
 """
-Phase 9c — Virtual Agent: NLU model wiring and the 23 system topic headers.
+Phase 9 — Virtual Agent Topic Cleanup
 
-Creates the 23 Operations Assistant system topics as topic records linked to the
-dedicated "Operations Intelligence NLU" model. Topic headers form the system
-topic registry; per-automation topics are created dynamically by
-CatalogService.onPublish. Conversational step authoring is completed in the
-Conversation Designer on the instance.
+Operations Intelligence does not use the ServiceNow Virtual Agent framework
+(sys_cs_topic). This phase removes any Operations Intelligence topic records
+that may have been created in a previous deployment, preventing them from
+appearing in platform-level portals such as Now Support.
+
+The application's assistant experience is delivered entirely through the
+ReasoningEngine Script Include and the Operations Intelligence portal widget,
+both scoped to x_infte_ops_int.
 """
 import os
 import sys
-import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 import engine_client as ec
 
-NLU = "75d8e16a3bed8f506d91a21864e45a7f"
-
-TOPICS = [
-    "Welcome", "Complete Onboarding", "Creator Assist Setup", "Onboard Leadership",
-    "Onboard Sub-Leadership", "Onboard User", "Appoint Creator", "Create Group",
-    "Create Automation", "Review Approvals", "Deactivation Action", "Re-invite User",
-    "Check Status", "Help and Fallback", "Approval Review",
-    "Create Report or Dashboard", "Create Notification Rule",
-    "Create Scheduled Data Report", "Create Flow", "Request Custom Table",
-    "Request UI Page", "Manage My Artifacts", "Check Artifact Status",
-]
+OI_TOPIC_PREFIX = "[Operations Intelligence]"
 
 
 def build():
     log = []
-    created = existed = failed = 0
-    for t in TOPICS:
-        name = "[Operations Intelligence] " + t
-        chk = ec.op("record.query", table="sys_cs_topic",
-                    encoded_query="name=%s" % name, fields=["sys_id"], limit=1)
-        if chk.get("records"):
-            existed += 1
-            continue
-        r = ec.op("record.insert", table="sys_cs_topic", platform=True, scope=True,
-                  data={"name": name, "label": name, "nlu_model": NLU, "live": "false"})
-        if r.get("ok"):
-            created += 1
+    r = ec.op("record.query", table="sys_cs_topic",
+              encoded_query="nameLIKE" + OI_TOPIC_PREFIX,
+              fields=["sys_id", "name"], limit=100)
+    records = r.get("records", [])
+    if not records:
+        log.append("No Operations Intelligence Virtual Agent topics found — nothing to clean up.")
+        return log
+
+    deleted = failed = 0
+    for rec in records:
+        d = ec.op("record.delete", table="sys_cs_topic", platform=True,
+                  data={"sys_id": rec["sys_id"]})
+        if d.get("deleted", 0) >= 1 or d.get("ok"):
+            deleted += 1
+            log.append("Deleted topic: %s" % rec.get("name", rec["sys_id"]))
         else:
             failed += 1
-            log.append("FAIL %s: %s" % (name, str(r.get("body", r))[:120]))
-        time.sleep(0.3)
-    log.append("=== topics: %d created, %d existed, %d failed (of %d) ===" % (
-        created, existed, failed, len(TOPICS)))
+            log.append("FAIL deleting %s: %s" % (rec.get("name", rec["sys_id"]), str(d)[:120]))
+
+    log.append("=== topics cleaned: %d deleted, %d failed (of %d found) ===" % (
+        deleted, failed, len(records)))
     return log
 
 

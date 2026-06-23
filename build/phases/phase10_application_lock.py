@@ -13,16 +13,12 @@ unauthorized administrators:
      every custom table ensuring only users with x_infte_ops_int.admin can
      perform write operations. Complements the ACL layer from Phase 3.
 
-  3. Virtual Agent protection — creates write-blocking ACLs on the Virtual Agent
-     authored topic and flow tables scoped to only allow OI admins to modify
-     VA artifacts that belong to the x_infte_ops_int scope.
-
-  4. Application scope verification — queries each expected artifact type and
+  3. Application scope verification — queries each expected artifact type and
      confirms all records carry sys_scope = x_infte_ops_int, ensuring a clean
      exportable application package.
 
 Idempotent: Script Include updates re-deploy with correct access; Business Rules
-and ACLs upsert by name.
+upsert by name.
 """
 import os
 import sys
@@ -41,12 +37,14 @@ SRC_DIR = os.path.join(os.path.dirname(__file__), "..", "script_includes")
 CLIENT_CALLABLE = {"MaintenanceManager"}
 
 SCRIPT_INCLUDE_ORDER = [
-    "PermissionResolver", "VAHelper", "NotificationService", "RoleSyncService",
-    "GroupManager", "CatalogService", "ScheduleManager", "ExecutionEngine",
-    "ApprovalRouter", "OnboardingService", "DeactivationHandler", "FlowBridge",
-    "RESTBridge", "CreatorAssistBridge", "AuditService", "MaintenanceManager",
-    "ArtifactManager", "ReportBuilder", "NotificationBuilder", "FlowBuilder",
-    "TableBuilder", "UIPageBuilder",
+    "OIDataStore", "OIJournal",
+    "PermissionResolver", "ReasoningEngine", "VirtualAgentHelper",
+    "NotificationService", "RoleSyncService", "GroupManager",
+    "CatalogService", "ScheduleManager", "ExecutionEngine", "ApprovalRouter",
+    "OnboardingService", "DeactivationHandler", "FlowBridge", "RestBridge",
+    "CreatorAssistBridge", "AuditService", "MaintenanceManager", "ArtifactManager",
+    "ReportBuilder", "NotificationBuilder", "FlowBuilder", "TableBuilder",
+    "UserInterfacePageBuilder",
 ]
 
 CUSTOM_TABLES = [
@@ -159,58 +157,6 @@ def link_role_to_acl(acl_id, role_id):
     return True
 
 
-def protect_virtual_agent_artifacts(log):
-    va_guard_script = (
-        "(function executeRule(current, previous) {\n"
-        "    var scopeVal = '' + current.getValue('sys_scope');\n"
-        "    var appScopeGr = new GlideRecord('sys_scope');\n"
-        "    appScopeGr.addQuery('scope', 'x_infte_ops_int');\n"
-        "    appScopeGr.setLimit(1);\n"
-        "    appScopeGr.query();\n"
-        "    if (!appScopeGr.next()) { return; }\n"
-        "    var oiScopeId = '' + appScopeGr.getUniqueValue();\n"
-        "    if (scopeVal !== oiScopeId) { return; }\n"
-        "    var uid = gs.getUserID();\n"
-        "    var hr = new GlideRecord('sys_user_has_role');\n"
-        "    hr.addQuery('user', uid);\n"
-        "    hr.addQuery('role.name', 'x_infte_ops_int.admin');\n"
-        "    hr.setLimit(1);\n"
-        "    hr.query();\n"
-        "    if (!hr.next()) {\n"
-        "        current.setAbortAction(true);\n"
-        "        gs.addErrorMessage('Modification of Operations Intelligence Virtual Agent artifacts requires the Administrator role.');\n"
-        "    }\n"
-        "})(current, previous);"
-    )
-
-    va_tables = [
-        ("sn_va_authored_topic", "Operations Intelligence - Virtual Agent Topic Write Guard"),
-        ("sn_va_authored_flow",  "Operations Intelligence - Virtual Agent Flow Write Guard"),
-    ]
-
-    ok = fail = 0
-    for table, rule_name in va_tables:
-        data = {
-            "name":       rule_name,
-            "collection": table,
-            "script":     va_guard_script,
-            "when":       "before",
-            "query":      False,
-            "insert":     False,
-            "update":     True,
-            "delete":     True,
-            "order":      50,
-            "active":     True,
-        }
-        r = ec.op("artifact.business_rule", data=data)
-        if r.get("ok"):
-            ok += 1
-            log.append("  %-55s %s" % (rule_name[:55], r.get("action", "ok")))
-        else:
-            fail += 1
-            log.append("  %-55s FAIL: %s" % (rule_name[:55], str(r)[:120]))
-        time.sleep(0.4)
-    log.append("Virtual Agent write guards: %d deployed, %d failed" % (ok, fail))
 
 
 def verify_scope_completeness(log):
@@ -249,10 +195,7 @@ def build():
     log.append("\n--- Step 2: Write-Guard Business Rules ---")
     deploy_write_guards(log)
 
-    log.append("\n--- Step 3: Virtual Agent Artifact Protection ---")
-    protect_virtual_agent_artifacts(log)
-
-    log.append("\n--- Step 4: Scope Completeness Verification ---")
+    log.append("\n--- Step 3: Scope Completeness Verification ---")
     verify_scope_completeness(log)
 
     log.append("\n=== Phase 10 complete ===")

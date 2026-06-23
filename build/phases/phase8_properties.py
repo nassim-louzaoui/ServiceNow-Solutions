@@ -26,6 +26,11 @@ PROPS = [
      "string", "Sys ID of the Operations Intelligence NLU model (set during VA setup)."),
     ("x_infte_ops_int.debug_mode", "false",
      "true_false", "Enables verbose Operations Intelligence diagnostic logging."),
+    # Specification Assist integration controls (read by ReasoningEngine)
+    ("x_infte_ops_int.spec_assist_integration_enabled", "false",
+     "true_false", "Master toggle enabling Specification Assist integration for eligible roles."),
+    ("x_infte_ops_int.spec_assist_mode", "internal",
+     "string", "Reasoning mode: internal (default), balanced, or copilot."),
     # Maintenance-mode state (read/written by MaintenanceManager)
     ("x_infte_ops_int.maintenance_sections", "[]",
      "string", "JSON array of portal sections currently in maintenance, or [\"all\"]."),
