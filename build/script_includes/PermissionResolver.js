@@ -1,8 +1,6 @@
 var PermissionResolver = Class.create();
 PermissionResolver.prototype = {
     initialize: function() {
-        this.PERSON_TABLE = 'x_infte_ops_int_person';
-        this.GROUP_TABLE  = 'x_infte_ops_int_group';
         this.ROLE_OI_ADMIN   = 'x_infte_ops_int.admin';
         this.ROLE_DEVELOPER  = 'x_infte_ops_int.developer';
         this.ROLE_LEADERSHIP = 'x_infte_ops_int.leadership';
@@ -17,25 +15,12 @@ PermissionResolver.prototype = {
         return '' + userSysId;
     },
 
-    _parseJson: function(raw, fallback) {
-        if (!raw) { return fallback; }
-        try { return JSON.parse(raw); } catch (e) { return fallback; }
-    },
-
     getSystemRole: function(userSysId) {
         var uid = this._resolveUserId(userSysId);
-        if (this._userHasRole(uid, this.ROLE_OI_ADMIN)) {
-            return 'admin';
-        }
-        if (this._userHasRole(uid, this.ROLE_DEVELOPER)) {
-            return 'developer';
-        }
-        if (this._userHasRole(uid, this.ROLE_LEADERSHIP)) {
-            return 'leadership';
-        }
-        if (this._userHasRole(uid, this.ROLE_CREATOR)) {
-            return 'creator';
-        }
+        if (this._userHasRole(uid, this.ROLE_OI_ADMIN))   { return 'admin'; }
+        if (this._userHasRole(uid, this.ROLE_DEVELOPER))  { return 'developer'; }
+        if (this._userHasRole(uid, this.ROLE_LEADERSHIP)) { return 'leadership'; }
+        if (this._userHasRole(uid, this.ROLE_CREATOR))    { return 'creator'; }
         return 'user';
     },
 
@@ -55,35 +40,32 @@ PermissionResolver.prototype = {
     },
 
     getPersonByUser: function(userSysId) {
-        var uid = this._resolveUserId(userSysId);
-        var gr = new GlideRecord(this.PERSON_TABLE);
-        gr.addQuery('user', uid);
-        gr.setLimit(1);
-        gr.query();
-        if (gr.next()) {
-            return '' + gr.getUniqueValue();
-        }
+        var uid   = this._resolveUserId(userSysId);
+        var store = new OIDataStore();
+        var found = store.find('persons', function(p) {
+            return ('' + p.user_sys_id) === uid && p.active !== false;
+        });
+        if (found.length > 0) { return '' + found[0].sys_id; }
         return null;
     },
 
     getUserGroups: function(userSysId) {
-        var groups = [];
+        var groups      = [];
         var personSysId = this.getPersonByUser(userSysId);
         if (!personSysId) { return groups; }
 
-        var grp = new GlideRecord(this.GROUP_TABLE);
-        grp.addQuery('status', 'active');
-        grp.query();
-        while (grp.next()) {
-            var members = this._parseJson('' + grp.getValue('members'), []);
-            var i;
-            for (i = 0; i < members.length; i++) {
-                if ('' + members[i].person_sys_id === '' + personSysId &&
-                        members[i].status !== 'inactive') {
+        var store     = new OIDataStore();
+        var allGroups = store.find('groups', function(g) { return g.status === 'active'; });
+        var i, grp, members, j;
+        for (i = 0; i < allGroups.length; i++) {
+            grp     = allGroups[i];
+            members = grp.members || [];
+            for (j = 0; j < members.length; j++) {
+                if ('' + members[j].person_sys_id === personSysId && members[j].status !== 'inactive') {
                     groups.push({
-                        group_sys_id: '' + grp.getUniqueValue(),
-                        group_name:   '' + grp.getValue('name'),
-                        group_role:   '' + (members[i].group_role || 'user')
+                        group_sys_id: '' + grp.sys_id,
+                        group_name:   '' + grp.name,
+                        group_role:   '' + (members[j].group_role || 'user')
                     });
                     break;
                 }
@@ -96,14 +78,14 @@ PermissionResolver.prototype = {
         var personSysId = this.getPersonByUser(userSysId);
         if (!personSysId) { return null; }
 
-        var grp = new GlideRecord(this.GROUP_TABLE);
-        if (!grp.get(groupSysId)) { return null; }
+        var store = new OIDataStore();
+        var grp   = store.get('groups', groupSysId);
+        if (!grp) { return null; }
 
-        var members = this._parseJson('' + grp.getValue('members'), []);
+        var members = grp.members || [];
         var i;
         for (i = 0; i < members.length; i++) {
-            if ('' + members[i].person_sys_id === '' + personSysId &&
-                    members[i].status !== 'inactive') {
+            if ('' + members[i].person_sys_id === personSysId && members[i].status !== 'inactive') {
                 return '' + (members[i].group_role || 'user');
             }
         }
@@ -120,9 +102,11 @@ PermissionResolver.prototype = {
         if (!this._userHasRole(uid, this.ROLE_LEADERSHIP)) { return false; }
         var personSysId = this.getPersonByUser(uid);
         if (!personSysId) { return false; }
-        var grp = new GlideRecord(this.GROUP_TABLE);
-        if (!grp.get(groupSysId)) { return false; }
-        return '' + grp.getValue('owner') === '' + personSysId;
+
+        var store = new OIDataStore();
+        var grp   = store.get('groups', groupSysId);
+        if (!grp) { return false; }
+        return '' + grp.owner === personSysId;
     },
 
     type: 'PermissionResolver'

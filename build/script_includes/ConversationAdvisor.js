@@ -3,12 +3,12 @@ ConversationAdvisor.prototype = {
 
     initialize: function(assistantType) {
         this.assistantType = assistantType || 'operations';
-        this.PERSON_TABLE   = 'x_infte_ops_int_person';
-        this.GROUP_TABLE    = 'x_infte_ops_int_group';
-        this.AUTO_TABLE     = 'x_infte_ops_int_automation';
-        this.PENDING_TABLE  = 'x_infte_ops_int_pending_action';
-        this.CAT_TABLE      = 'x_infte_ops_int_catalog_category';
-        this.ITEM_TABLE     = 'x_infte_ops_int_catalog_item';
+        this.PERSON_TABLE  = 'x_infte_ops_int_person';
+        this.GROUP_TABLE   = 'x_infte_ops_int_group';
+        this.AUTO_TABLE    = 'x_infte_ops_int_automation';
+        this.PENDING_TABLE = 'x_infte_ops_int_pending_action';
+        this.CAT_TABLE     = 'x_infte_ops_int_catalog_category';
+        this.ITEM_TABLE    = 'x_infte_ops_int_catalog_item';
     },
 
     /*
@@ -22,33 +22,35 @@ ConversationAdvisor.prototype = {
      *   dataHint: null | 'load_incidents' | 'load_approvals' | 'load_automations' | 'show_catalog' etc.
      */
     analyze: function(rawMessage, userCtx, history) {
-        var msg     = this._norm(rawMessage);
-        var tokens  = this._tok(msg);
-        var ctx     = userCtx   || {};
-        var hist    = history   || [];
+        var msg    = this._norm(rawMessage);
+        var tokens = this._tok(msg);
+        var ctx    = userCtx || {};
+        var hist   = history || [];
 
-        /* ── 1. Micro-intents (greetings, gratitude, frustration) ── */
         var micro = this._microIntent(msg);
         if (micro) { return micro; }
 
-        /* ── 2. History context ── */
-        var hCtx = this._histCtx(hist);
-
-        /* ── 3. Score domains & actions ── */
+        var hCtx    = this._histCtx(hist);
         var domains = this._scoreDomains(msg, tokens);
         var actions = this._scoreActions(msg, tokens);
-        var topDom  = domains[0]  || { name: '', score: 0 };
-        var topAct  = actions[0]  || { name: '', score: 0 };
-
-        /* ── 4. Entity extraction ── */
+        var topDom  = domains[0] || { name: '', score: 0 };
+        var topAct  = actions[0] || { name: '', score: 0 };
         var entities = this._entities(msg);
 
-        /* ── 5. Route by assistant type ── */
         if (this.assistantType === 'developer') {
             return this._routeDeveloper(msg, tokens, topDom, topAct, entities, hCtx, ctx);
         }
         if (this.assistantType === 'admin') {
             return this._routeAdmin(msg, tokens, topDom, topAct, entities, hCtx, ctx);
+        }
+        if (this.assistantType === 'automations') {
+            return this._routeAutomations(msg, tokens, topDom, topAct, entities, hCtx, ctx);
+        }
+        if (this.assistantType === 'creator') {
+            return this._routeCreator(msg, tokens, topDom, topAct, entities, hCtx, ctx);
+        }
+        if (this.assistantType === 'leadership') {
+            return this._routeLeadership(msg, tokens, topDom, topAct, entities, hCtx, ctx);
         }
         return this._routeOperations(msg, tokens, topDom, topAct, entities, hCtx, ctx);
     },
@@ -59,7 +61,6 @@ ConversationAdvisor.prototype = {
     _routeOperations: function(msg, tokens, topDom, topAct, entities, hCtx, ctx) {
         var firstName = this._firstName(ctx.full_name);
 
-        /* Show pending approvals */
         if (this._m(msg, ['show my approval','my pending approval','what needs my approval',
                 'approval queue','review approval','pending review','waiting for my approval',
                 'anything to approve','need to approve'])) {
@@ -67,14 +68,12 @@ ConversationAdvisor.prototype = {
                      choices: null, ctx: hCtx };
         }
 
-        /* Show incidents */
         if (this._m(msg, ['show my incident','my open incident','my ticket','list incident',
                 'view my incident','my incidents','check my incident'])) {
             return { reply: null, type: 'data', dataHint: 'load_incidents',
                      choices: null, ctx: hCtx };
         }
 
-        /* Show available automations / catalog */
         if (this._m(msg, ['show automation','available automation','what automation',
                 'what can i run','what is available','list automation','view catalog',
                 'show catalog','what items','browse catalog'])) {
@@ -82,7 +81,6 @@ ConversationAdvisor.prototype = {
                      choices: null, ctx: hCtx };
         }
 
-        /* What is my role */
         if (this._m(msg, ['what is my role','my role','what role am i','my access level',
                 'what can i do','my permission'])) {
             var roleMap = { admin: 'Administrator', leadership: 'Leadership',
@@ -99,7 +97,6 @@ ConversationAdvisor.prototype = {
                      type: 'text', choices: null };
         }
 
-        /* What are my groups */
         if (this._m(msg, ['my group','which group','what group','group membership',
                 'groups i belong','am i in a group'])) {
             var grps = ctx.groups || [];
@@ -116,33 +113,27 @@ ConversationAdvisor.prototype = {
                      type: 'text', choices: null };
         }
 
-        /* Incident-specific number lookup */
         if (entities.incidentNumber) {
             return { reply: null, type: 'data', dataHint: 'lookup_incident',
                      params: { number: entities.incidentNumber }, choices: null };
         }
 
-        /* High-confidence domain + action routing */
         if (topDom.score >= 40 && topAct.score >= 30) {
             return this._opsDomainAction(msg, topDom.name, topAct.name, entities, hCtx, ctx, firstName);
         }
 
-        /* Medium confidence — domain known, action unclear */
         if (topDom.score >= 35) {
             return this._opsDomainClarify(msg, topDom.name, hCtx, firstName);
         }
 
-        /* History context continuation */
         if (hCtx.lastDomain && this._isContinuation(msg)) {
             return this._opsDomainClarify(msg, hCtx.lastDomain, hCtx, firstName);
         }
 
-        /* Low confidence — general probe */
         return this._opsGeneralProbe(msg, tokens, firstName, ctx);
     },
 
     _opsDomainAction: function(msg, domain, action, entities, hCtx, ctx, firstName) {
-        /* Incident domain */
         if (domain === 'incident') {
             if (action === 'create') {
                 return { reply: 'To log an incident, open the Service Portal and choose Report an Issue at /sp?id=new_call. Provide a clear description, when it started, how many people are affected, and any error messages. For a critical outage affecting many users, call the IT helpdesk directly so it can be triaged immediately.',
@@ -152,24 +143,22 @@ ConversationAdvisor.prototype = {
                 return { reply: null, type: 'data', dataHint: 'load_incidents', choices: null };
             }
             if (action === 'explain') {
-                return { reply: 'Incident states track progress through the lifecycle:\n\n• New — logged, not yet assigned\n• In Progress — actively being worked\n• On Hold — paused, waiting on caller, vendor, or change\n• Resolved — fix is in place, awaiting confirmation\n• Closed — confirmed resolved\n\nPriority is set from Impact and Urgency: P1 Critical through P4 Low. Ask me about a specific aspect of incident management for more detail.',
+                return { reply: 'Incident states track progress through the lifecycle:\n\n- New: logged, not yet assigned\n- In Progress: actively being worked\n- On Hold: paused, waiting on caller, vendor, or change\n- Resolved: fix is in place, awaiting confirmation\n- Closed: confirmed resolved\n\nPriority is set from Impact and Urgency: P1 Critical through P4 Low. Ask me about a specific aspect of incident management for more detail.',
                          type: 'text', choices: null };
             }
         }
 
-        /* Change domain */
         if (domain === 'change') {
             if (action === 'create') {
-                return { reply: 'To create a Change Request, use the Service Catalog at /sp?id=sc_home and search for "Change Request". You will need: a description, justification, implementation plan, back-out plan, risk assessment, and a proposed change window. Choose the change type — Standard (pre-approved), Normal (CAB review), or Emergency (expedited).',
+                return { reply: 'To create a Change Request, use the Service Catalog at /sp?id=sc_home and search for "Change Request". You will need: a description, justification, implementation plan, back-out plan, risk assessment, and a proposed change window. Choose the change type: Standard (pre-approved), Normal (CAB review), or Emergency (expedited).',
                          type: 'text', choices: null };
             }
             if (action === 'explain') {
-                return { reply: 'There are three change types:\n\n• Standard — pre-approved, low-risk, repeatable, no CAB needed\n• Normal — assessed and approved by the Change Advisory Board based on risk\n• Emergency — expedited for urgent fixes, with retrospective review afterwards\n\nChoose the type that matches the risk and urgency of your work.',
+                return { reply: 'There are three change types:\n\n- Standard: pre-approved, low-risk, repeatable, no CAB needed\n- Normal: assessed and approved by the Change Advisory Board based on risk\n- Emergency: expedited for urgent fixes, with retrospective review afterwards\n\nChoose the type that matches the risk and urgency of your work.',
                          type: 'text', choices: null };
             }
         }
 
-        /* Automation domain */
         if (domain === 'automation') {
             if (action === 'view' || action === 'trigger') {
                 return { reply: null, type: 'data', dataHint: 'show_catalog', choices: null };
@@ -180,7 +169,6 @@ ConversationAdvisor.prototype = {
             }
         }
 
-        /* Approval domain */
         if (domain === 'approval') {
             if (action === 'view' || action === 'check') {
                 return { reply: null, type: 'data', dataHint: 'load_approvals', choices: null };
@@ -191,16 +179,15 @@ ConversationAdvisor.prototype = {
             }
         }
 
-        /* Reporting domain */
         if (domain === 'reporting') {
             if (action === 'create') {
                 return { reply: 'I can help you build a report. What would you like the report to cover?',
                          type: 'clarify',
                          choices: [
-                           { label: 'Incidents', value: 'incident' },
-                           { label: 'Change Requests', value: 'change_request' },
+                           { label: 'Incidents',        value: 'incident' },
+                           { label: 'Change Requests',  value: 'change_request' },
                            { label: 'Service Requests', value: 'sc_request' },
-                           { label: 'Something else', value: 'other' }
+                           { label: 'Something else',   value: 'other' }
                          ]};
             }
             if (action === 'explain') {
@@ -209,7 +196,6 @@ ConversationAdvisor.prototype = {
             }
         }
 
-        /* People/onboarding domain */
         if (domain === 'people') {
             if (action === 'create') {
                 return { reply: 'User onboarding in Operations Intelligence is managed by Administrators and Leadership from Operations Governance. To onboard someone, navigate to Governance, select the Users tab, and use the Onboard User action. You can assign them a role and add them to groups.',
@@ -217,49 +203,47 @@ ConversationAdvisor.prototype = {
             }
         }
 
-        /* Knowledge domain */
         if (domain === 'knowledge') {
             return { reply: 'The Knowledge Base is available at /sp?id=kb_home. Search using specific terms or error messages for the best results. You can also ask me directly — I can explain procedures, policies, and platform features. What would you like to know about?',
                      type: 'text', choices: null };
         }
 
-        /* Generic high-confidence fallback */
         return this._opsDomainClarify(msg, domain, hCtx, firstName);
     },
 
     _opsDomainClarify: function(msg, domain, hCtx, firstName) {
         var questions = {
             incident:   { q: 'It looks like you\'re asking about incidents. What would you like to do?',
-                          c: [{ label: 'View my incidents', value: 'view_incidents' },
-                              { label: 'Log a new incident', value: 'create_incident' },
-                              { label: 'Understand incident management', value: 'explain_incidents' }] },
+                          c: [{ label: 'View my incidents',               value: 'view_incidents' },
+                              { label: 'Log a new incident',              value: 'create_incident' },
+                              { label: 'Understand incident management',  value: 'explain_incidents' }] },
             change:     { q: 'I can help with change management. What do you need?',
-                          c: [{ label: 'Create a change request', value: 'create_change' },
-                              { label: 'Understand change types', value: 'explain_change_types' },
-                              { label: 'Check a change status', value: 'check_change' }] },
+                          c: [{ label: 'Create a change request',         value: 'create_change' },
+                              { label: 'Understand change types',         value: 'explain_change_types' },
+                              { label: 'Check a change status',           value: 'check_change' }] },
             automation: { q: 'What would you like to do with automations?',
-                          c: [{ label: 'See available automations', value: 'view_automations' },
-                              { label: 'Build a new automation', value: 'create_automation' },
+                          c: [{ label: 'See available automations',       value: 'view_automations' },
+                              { label: 'Build a new automation',          value: 'create_automation' },
                               { label: 'Understand how automations work', value: 'explain_automations' }] },
             approval:   { q: 'I can help with approvals. Are you looking to review your pending approvals, or do you have a question about how approvals work?',
-                          c: [{ label: 'Show my pending approvals', value: 'view_approvals' },
-                              { label: 'Understand approval routing', value: 'explain_approvals' }] },
+                          c: [{ label: 'Show my pending approvals',       value: 'view_approvals' },
+                              { label: 'Understand approval routing',     value: 'explain_approvals' }] },
             reporting:  { q: 'I can assist with reporting. What are you trying to achieve?',
-                          c: [{ label: 'Create a new report', value: 'create_report' },
-                              { label: 'Create a dashboard', value: 'create_dashboard' },
-                              { label: 'Understand report types', value: 'explain_reporting' }] },
+                          c: [{ label: 'Create a new report',             value: 'create_report' },
+                              { label: 'Create a dashboard',              value: 'create_dashboard' },
+                              { label: 'Understand report types',         value: 'explain_reporting' }] },
             people:     { q: 'I can help with user and group management. What do you need?',
-                          c: [{ label: 'Onboard a user', value: 'onboard_user' },
-                              { label: 'Manage group membership', value: 'manage_group' },
-                              { label: 'Check roles and access', value: 'check_roles' }] },
+                          c: [{ label: 'Onboard a user',                  value: 'onboard_user' },
+                              { label: 'Manage group membership',         value: 'manage_group' },
+                              { label: 'Check roles and access',          value: 'check_roles' }] },
             request:    { q: 'I can help with service requests. What would you like to do?',
-                          c: [{ label: 'View my requests', value: 'view_requests' },
-                              { label: 'Browse the service catalog', value: 'view_catalog' },
-                              { label: 'Understand the request process', value: 'explain_requests' }] },
+                          c: [{ label: 'View my requests',                value: 'view_requests' },
+                              { label: 'Browse the service catalog',      value: 'view_catalog' },
+                              { label: 'Understand the request process',  value: 'explain_requests' }] },
             knowledge:  { q: 'I can help you find information or explain concepts. What are you looking for?',
-                          c: [{ label: 'Search knowledge articles', value: 'search_knowledge' },
-                              { label: 'Platform guidance', value: 'platform_help' },
-                              { label: 'Operations Intelligence help', value: 'oi_help' }] }
+                          c: [{ label: 'Search knowledge articles',       value: 'search_knowledge' },
+                              { label: 'Platform guidance',               value: 'platform_help' },
+                              { label: 'Operations Intelligence help',    value: 'oi_help' }] }
         };
         var q = questions[domain];
         if (q) { return { reply: q.q, type: 'clarify', choices: q.c }; }
@@ -269,15 +253,14 @@ ConversationAdvisor.prototype = {
     _opsGeneralProbe: function(msg, tokens, firstName, ctx) {
         var name = firstName ? ', ' + firstName : '';
 
-        /* Partial signals — at least say something useful */
         if (msg && this._any(msg, ['create','build','make','new','add'])) {
             return { reply: 'I\'d be happy to help you create something' + name + '. What are you looking to build?',
                      type: 'clarify',
                      choices: [
-                       { label: 'A report', value: 'create_report' },
-                       { label: 'A dashboard', value: 'create_dashboard' },
-                       { label: 'A data alert', value: 'create_data_alert' },
-                       { label: 'An automation', value: 'create_automation' }
+                       { label: 'A report',        value: 'create_report' },
+                       { label: 'A dashboard',     value: 'create_dashboard' },
+                       { label: 'A data alert',    value: 'create_data_alert' },
+                       { label: 'An automation',   value: 'create_automation' }
                      ]};
         }
 
@@ -285,10 +268,10 @@ ConversationAdvisor.prototype = {
             return { reply: 'What would you like to view' + name + '?',
                      type: 'clarify',
                      choices: [
-                       { label: 'My pending approvals', value: 'view_approvals' },
-                       { label: 'My open incidents', value: 'view_incidents' },
+                       { label: 'My pending approvals',  value: 'view_approvals' },
+                       { label: 'My open incidents',     value: 'view_incidents' },
                        { label: 'Available automations', value: 'view_automations' },
-                       { label: 'My service requests', value: 'view_requests' }
+                       { label: 'My service requests',   value: 'view_requests' }
                      ]};
         }
 
@@ -296,33 +279,31 @@ ConversationAdvisor.prototype = {
             return { reply: 'Of course' + name + '. I\'m your Operations Assistant — here to help you get things done. What are you working on?',
                      type: 'clarify',
                      choices: [
-                       { label: 'Run an automation', value: 'run_automation' },
-                       { label: 'View my approvals', value: 'view_approvals' },
-                       { label: 'Log or check an incident', value: 'incident_help' },
+                       { label: 'Run an automation',          value: 'run_automation' },
+                       { label: 'View my approvals',          value: 'view_approvals' },
+                       { label: 'Log or check an incident',   value: 'incident_help' },
                        { label: 'Create a report or dashboard', value: 'reporting_help' }
                      ]};
         }
 
-        /* Very short or completely ambiguous */
         if (!msg || msg.split(' ').length < 3) {
             return { reply: 'I want to make sure I understand what you need' + name + '. Could you tell me a bit more about what you\'re trying to do, or choose one of these areas?',
                      type: 'clarify',
                      choices: [
-                       { label: 'Run or browse automations', value: 'automation_help' },
+                       { label: 'Run or browse automations',  value: 'automation_help' },
                        { label: 'Incident or service request', value: 'itsm_help' },
-                       { label: 'Reports and dashboards', value: 'reporting_help' },
-                       { label: 'Platform guidance', value: 'general_help' }
+                       { label: 'Reports and dashboards',     value: 'reporting_help' },
+                       { label: 'Platform guidance',          value: 'general_help' }
                      ]};
         }
 
-        /* Longer message but still no match — reflect and probe */
         return { reply: 'I want to give you a helpful answer' + name + '. Based on what you\'ve said, I\'d like to understand this better — are you trying to view or find something, create something, or do you have a question about how something works?',
                  type: 'clarify',
                  choices: [
                    { label: 'I want to view or check something', value: 'intent_view' },
                    { label: 'I want to create or build something', value: 'intent_create' },
-                   { label: 'I have a question', value: 'intent_question' },
-                   { label: 'Something is not working', value: 'intent_issue' }
+                   { label: 'I have a question',                 value: 'intent_question' },
+                   { label: 'Something is not working',          value: 'intent_issue' }
                  ]};
     },
 
@@ -332,7 +313,6 @@ ConversationAdvisor.prototype = {
     _routeDeveloper: function(msg, tokens, topDom, topAct, entities, hCtx, ctx) {
         var firstName = this._firstName(ctx.full_name);
 
-        /* Artifact view requests */
         if (this._m(msg, ['list table','show table','what table','all table','view table','database table'])) {
             return { reply: null, type: 'data', dataHint: 'dev_list_tables', choices: null };
         }
@@ -373,15 +353,14 @@ ConversationAdvisor.prototype = {
             return this._devExplainProbe(msg, firstName);
         }
 
-        /* General developer probe */
         if (this._m(msg, ['help','what can','assist','show me'])) {
             return { reply: 'I\'m your Developer Assistant' + (firstName ? ', ' + firstName : '') + '. I can give you a read-only view of every artifact in the Operations Intelligence application. What would you like to explore?',
                      type: 'clarify',
                      choices: [
-                       { label: 'Application overview', value: 'dev_overview' },
-                       { label: 'Tables and schema', value: 'dev_tables' },
-                       { label: 'Script Includes', value: 'dev_script_includes' },
-                       { label: 'NLU topics and intents', value: 'dev_nlu' }
+                       { label: 'Application overview',       value: 'dev_overview' },
+                       { label: 'Tables and schema',          value: 'dev_tables' },
+                       { label: 'Script Includes',            value: 'dev_script_includes' },
+                       { label: 'NLU topics and intents',     value: 'dev_nlu' }
                      ]};
         }
 
@@ -389,9 +368,9 @@ ConversationAdvisor.prototype = {
                  type: 'clarify',
                  choices: [
                    { label: 'Full application overview', value: 'dev_overview' },
-                   { label: 'Tables and fields', value: 'dev_tables' },
-                   { label: 'Code artifacts', value: 'dev_code' },
-                   { label: 'Engine and API status', value: 'dev_engine' }
+                   { label: 'Tables and fields',         value: 'dev_tables' },
+                   { label: 'Code artifacts',            value: 'dev_code' },
+                   { label: 'Engine and API status',     value: 'dev_engine' }
                  ]};
     },
 
@@ -411,9 +390,9 @@ ConversationAdvisor.prototype = {
         return { reply: 'What specific aspect of the implementation would you like me to explain?',
                  type: 'clarify',
                  choices: [
-                   { label: 'Engine and REST API', value: 'explain_engine' },
-                   { label: 'NLU and conversation flow', value: 'explain_nlu' },
-                   { label: 'Roles and permissions', value: 'explain_permissions' },
+                   { label: 'Engine and REST API',        value: 'explain_engine' },
+                   { label: 'NLU and conversation flow',  value: 'explain_nlu' },
+                   { label: 'Roles and permissions',      value: 'explain_permissions' },
                    { label: 'Portal widget architecture', value: 'explain_portal' }
                  ]};
     },
@@ -424,7 +403,6 @@ ConversationAdvisor.prototype = {
     _routeAdmin: function(msg, tokens, topDom, topAct, entities, hCtx, ctx) {
         var firstName = this._firstName(ctx.full_name);
 
-        /* Catalog management */
         if (this._m(msg, ['create category','add category','new category','add a category'])) {
             return { reply: 'To create a new Automation Catalog category, go to the Catalog Management tab in Operations Command. Click "Add Category", enter a name, description, and choose an icon and colour. Once saved, the category will appear in the Workspace Automation Catalog for all users.',
                      type: 'text', choices: null };
@@ -441,7 +419,6 @@ ConversationAdvisor.prototype = {
             return { reply: null, type: 'data', dataHint: 'admin_list_items', choices: null };
         }
 
-        /* Maintenance */
         if (this._m(msg, ['enable maintenance','turn on maintenance','maintenance mode on','disable section','pause section'])) {
             return { reply: 'Maintenance mode can be toggled per section — Workspace, Operations Gallery, Operations Studio, or Operations Governance — from the System tab in Operations Command. Enabling maintenance for a section hides it from users and shows a maintenance notice until you disable it.',
                      type: 'text', choices: null };
@@ -451,50 +428,44 @@ ConversationAdvisor.prototype = {
                      type: 'text', choices: null };
         }
 
-        /* User management */
         if (this._m(msg, ['onboard user','add user','enroll user','new user','invite user','create user'])) {
             return { reply: 'To onboard a user, navigate to Operations Governance and select the Users tab. Search for the user by name, then use the Onboard action to assign them a role and add them to groups. A welcome notification will be sent automatically once onboarding is confirmed.',
                      type: 'text', choices: null };
         }
         if (this._m(msg, ['deactivate user','remove user','offboard user','disable user','revoke access'])) {
-            return { reply: 'To deactivate a user, go to Operations Governance → Users tab, find the user, and use the Deactivate action. This removes their Operations Intelligence roles and group memberships. You can reinvite them later if needed.',
+            return { reply: 'To deactivate a user, go to Operations Governance, Users tab, find the user, and use the Deactivate action. This removes their Operations Intelligence roles and group memberships. You can reinvite them later if needed.',
                      type: 'text', choices: null };
         }
 
-        /* Group management */
         if (this._m(msg, ['create group','add group','new group','create automation group'])) {
-            return { reply: 'To create a group, navigate to Operations Governance → Groups tab and click New Group. Provide a name, description, and assign a group lead. Once created, you can add members and assign automations to the group.',
+            return { reply: 'To create a group, navigate to Operations Governance, Groups tab and click New Group. Provide a name, description, and assign a group lead. Once created, you can add members and assign automations to the group.',
                      type: 'text', choices: null };
         }
 
-        /* System status */
         if (this._m(msg, ['system status','platform status','health','engine status','how is the system',
                 'system stats','statistics'])) {
             return { reply: null, type: 'data', dataHint: 'admin_system_status', choices: null };
         }
 
-        /* Configure Operations Assistant */
         if (this._m(msg, ['configure assistant','operations assistant config','assistant setting',
                 'change assistant','update assistant','assistant response'])) {
             return { reply: 'Operations Assistant configuration is managed from the Assistant Configuration tab in Operations Command. There you can define which categories are visible in the Automation Catalog and their display order, as well as manage catalog items that users see in the Workspace.',
                      type: 'text', choices: null };
         }
 
-        /* Pending actions */
         if (this._m(msg, ['pending action','approval queue','what needs approval','pending approval',
                 'outstanding action'])) {
             return { reply: null, type: 'data', dataHint: 'admin_pending_actions', choices: null };
         }
 
-        /* General admin probe */
         if (this._m(msg, ['help','what can','assist','what do'])) {
             return { reply: 'I\'m your Administrator Assistant' + (firstName ? ', ' + firstName : '') + '. I can help you configure the platform, manage the Automation Catalog, oversee users and groups, and handle maintenance. What would you like to do?',
                      type: 'clarify',
                      choices: [
                        { label: 'Manage Automation Catalog', value: 'admin_catalog' },
                        { label: 'User and group management', value: 'admin_users' },
-                       { label: 'Maintenance mode', value: 'admin_maintenance' },
-                       { label: 'System status', value: 'admin_status' }
+                       { label: 'Maintenance mode',          value: 'admin_maintenance' },
+                       { label: 'System status',             value: 'admin_status' }
                      ]};
         }
 
@@ -502,9 +473,375 @@ ConversationAdvisor.prototype = {
                  type: 'clarify',
                  choices: [
                    { label: 'Configure Automation Catalog', value: 'admin_catalog' },
-                   { label: 'Manage users or groups', value: 'admin_people' },
-                   { label: 'Maintenance and system', value: 'admin_system' },
-                   { label: 'Check pending actions', value: 'admin_approvals' }
+                   { label: 'Manage users or groups',       value: 'admin_people' },
+                   { label: 'Maintenance and system',       value: 'admin_system' },
+                   { label: 'Check pending actions',        value: 'admin_approvals' }
+                 ]};
+    },
+
+    /* ═══════════════════════════════════════════════════════════════
+       AUTOMATIONS WORKSPACE ASSISTANT
+    ═══════════════════════════════════════════════════════════════ */
+    _routeAutomations: function(msg, tokens, topDom, topAct, entities, hCtx, ctx) {
+        var firstName = this._firstName(ctx.full_name);
+        var nameSuffix = firstName ? ', ' + firstName : '';
+
+        if (this._m(msg, ['show all automation','list all automation','all automation','every automation',
+                'what automation are available','what automation do i have','see all automation',
+                'view all automation'])) {
+            return { reply: null, type: 'data', dataHint: 'load_automations', choices: null };
+        }
+
+        if (this._m(msg, ['my recent automation','recently used','last automation i ran',
+                'what did i run','my automation history','automation i used'])) {
+            return { reply: null, type: 'data', dataHint: 'my_automations', choices: null };
+        }
+
+        if (this._m(msg, ['most used','popular automation','top automation','frequently used',
+                'most popular','commonly used'])) {
+            return { reply: null, type: 'data', dataHint: 'load_automations', choices: null };
+        }
+
+        if (this._m(msg, ['browse category','show category','by category','automation category',
+                'what category','filter by category','show catalog','view catalog','categories',
+                'browse catalog','what can i browse'])) {
+            return { reply: null, type: 'data', dataHint: 'show_catalog', choices: null };
+        }
+
+        if (entities.automationName && this._m(msg, ['explain','what does','what is','how does',
+                'describe','tell me about','what is the'])) {
+            return { reply: null, type: 'data', dataHint: 'explain_automation',
+                     params: { name: entities.automationName }, choices: null };
+        }
+
+        if (this._m(msg, ['explain','what does','what is','how does','describe','tell me about']) &&
+            this._m(msg, ['automation'])) {
+            return { reply: 'Which automation would you like me to explain? You can tell me its name, or browse the catalog to find it.',
+                     type: 'clarify',
+                     choices: [
+                       { label: 'Browse Categories',  value: 'show_catalog' },
+                       { label: 'Search by Name',     value: 'search_automation' },
+                       { label: 'Show All',           value: 'load_automations' },
+                       { label: 'Show Recent',        value: 'my_automations' }
+                     ]};
+        }
+
+        if (entities.automationName && this._m(msg, ['run','trigger','execute','launch','start',
+                'kick off','fire','activate'])) {
+            return { reply: 'To confirm — you would like to run "' + entities.automationName + '". Shall I proceed?',
+                     type: 'clarify',
+                     choices: [
+                       { label: 'Yes, run it',             value: 'trigger_automation_confirm' },
+                       { label: 'No, let me check first',  value: 'show_catalog' }
+                     ],
+                     dataHint: 'trigger_automation',
+                     params: { name: entities.automationName }};
+        }
+
+        if (this._m(msg, ['run','trigger','execute','launch','start automation','kick off',
+                'fire','activate','use automation'])) {
+            return { reply: 'Which automation would you like to run' + nameSuffix + '? You can search by name or browse by category.',
+                     type: 'clarify',
+                     choices: [
+                       { label: 'Browse Categories',  value: 'show_catalog' },
+                       { label: 'Search by Name',     value: 'search_automation' },
+                       { label: 'Show All',           value: 'load_automations' },
+                       { label: 'Show Most Used',     value: 'load_automations' }
+                     ]};
+        }
+
+        if (this._m(msg, ['search','find','look for','looking for','locate','find automation',
+                'search for automation'])) {
+            return { reply: 'What would you like to search for' + nameSuffix + '? You can describe the automation or enter part of its name.',
+                     type: 'clarify',
+                     choices: [
+                       { label: 'Browse Categories',  value: 'show_catalog' },
+                       { label: 'Show All',           value: 'load_automations' },
+                       { label: 'Show Recent',        value: 'my_automations' },
+                       { label: 'Show Most Used',     value: 'load_automations' }
+                     ]};
+        }
+
+        if (this._m(msg, ['help','what can','assist','what do','how do i','what is this'])) {
+            return { reply: 'I\'m your Automations Assistant' + nameSuffix + '. I can help you find, understand, and run automations available to your groups. What would you like to do?',
+                     type: 'clarify',
+                     choices: [
+                       { label: 'Browse Categories',  value: 'show_catalog' },
+                       { label: 'Search by Name',     value: 'search_automation' },
+                       { label: 'Show Recent',        value: 'my_automations' },
+                       { label: 'Show Most Used',     value: 'load_automations' }
+                     ]};
+        }
+
+        if (this._m(msg, ['show','list','view','get','what','find'])) {
+            return { reply: null, type: 'data', dataHint: 'load_automations', choices: null };
+        }
+
+        return { reply: 'Are you looking for a specific automation, or would you like to browse by category' + nameSuffix + '?',
+                 type: 'clarify',
+                 choices: [
+                   { label: 'Browse Categories',  value: 'show_catalog' },
+                   { label: 'Search by Name',     value: 'search_automation' },
+                   { label: 'Show Recent',        value: 'my_automations' },
+                   { label: 'Show Most Used',     value: 'load_automations' }
+                 ]};
+    },
+
+    /* ═══════════════════════════════════════════════════════════════
+       CREATOR STUDIO ASSISTANT
+    ═══════════════════════════════════════════════════════════════ */
+    _routeCreator: function(msg, tokens, topDom, topAct, entities, hCtx, ctx) {
+        var firstName = this._firstName(ctx.full_name);
+        var nameSuffix = firstName ? ', ' + firstName : '';
+
+        if (this._m(msg, ['start implementation','begin implementation','implement now',
+                'ready to implement','start building','begin development','implementation onboarding'])) {
+            return { reply: null, type: 'data', dataHint: 'start_implementation', choices: null };
+        }
+
+        if (this._m(msg, ['submit project','submit for approval','submit for review',
+                'request approval','send for approval','submit initiative'])) {
+            return { reply: 'Before submitting, let\'s make sure your project is ready. I\'ll check the implementation plan for completeness.',
+                     type: 'data', dataHint: 'submit_project_for_review', choices: null };
+        }
+
+        if (this._m(msg, ['view plan','show plan','review plan','my plan','implementation plan',
+                'check plan','see the plan','what is the plan','get plan'])) {
+            return { reply: null, type: 'data', dataHint: 'get_implementation_plan', choices: null };
+        }
+
+        if (this._m(msg, ['create project','new project','start project','start a new project',
+                'begin project','new initiative','create initiative','start initiative',
+                'new automation project'])) {
+            return { reply: 'Let\'s create your project' + nameSuffix + '. What is the name of this automation initiative?',
+                     type: 'clarify',
+                     choices: [
+                       { label: 'Define Scope',            value: 'define_scope' },
+                       { label: 'List Requirements',       value: 'list_requirements' },
+                       { label: 'Technical Approach',      value: 'technical_approach' },
+                       { label: 'Review Plan',             value: 'get_implementation_plan' }
+                     ]};
+        }
+
+        if (this._m(msg, ['define scope','project scope','what is in scope','scope of','set scope',
+                'scope definition','add scope'])) {
+            var hasScopeHistory = hCtx && hCtx.lastDomain && (hCtx.lastDomain === 'project' || hCtx.lastDomain === 'design');
+            if (hasScopeHistory) {
+                return { reply: 'Please describe the scope of this project. What systems, processes, or teams are involved?',
+                         type: 'clarify',
+                         choices: [
+                           { label: 'List Requirements',   value: 'list_requirements' },
+                           { label: 'Technical Approach',  value: 'technical_approach' },
+                           { label: 'Review Plan',         value: 'get_implementation_plan' },
+                           { label: 'Submit for Approval', value: 'submit_project_for_review' }
+                         ]};
+            }
+            return { reply: 'Please describe the scope of this automation initiative. What are the boundaries — which systems, teams, or processes are involved?',
+                     type: 'clarify',
+                     choices: [
+                       { label: 'List Requirements',       value: 'list_requirements' },
+                       { label: 'Technical Approach',      value: 'technical_approach' },
+                       { label: 'Review Plan',             value: 'get_implementation_plan' },
+                       { label: 'Submit for Approval',     value: 'submit_project_for_review' }
+                     ]};
+        }
+
+        if (this._m(msg, ['add requirement','list requirement','define requirement','requirements',
+                'what are the requirement','functional requirement','non-functional',
+                'business requirement'])) {
+            return { reply: 'What are the requirements for this initiative' + nameSuffix + '? Please list them and I will add them to the implementation plan. You can provide functional and non-functional requirements.',
+                     type: 'clarify',
+                     choices: [
+                       { label: 'Define Scope',            value: 'define_scope' },
+                       { label: 'Technical Approach',      value: 'technical_approach' },
+                       { label: 'Review Plan',             value: 'get_implementation_plan' },
+                       { label: 'Submit for Approval',     value: 'submit_project_for_review' }
+                     ]};
+        }
+
+        if (this._m(msg, ['technical approach','how to build','architecture','integration',
+                'integration point','technical design','how will this work','build approach',
+                'implementation approach'])) {
+            return { reply: 'Describe the technical approach for this initiative. What systems will be integrated, what ServiceNow features will be used, and are there any dependencies or integration points?',
+                     type: 'clarify',
+                     choices: [
+                       { label: 'Define Scope',            value: 'define_scope' },
+                       { label: 'List Requirements',       value: 'list_requirements' },
+                       { label: 'Review Plan',             value: 'get_implementation_plan' },
+                       { label: 'Submit for Approval',     value: 'submit_project_for_review' }
+                     ]};
+        }
+
+        if (this._m(msg, ['risk','risks','potential issue','concern','what could go wrong',
+                'challenges','obstacles','blockers'])) {
+            return { reply: 'What risks or challenges do you foresee with this initiative? I will add them to the plan so leadership can assess them during the review.',
+                     type: 'clarify',
+                     choices: [
+                       { label: 'Define Scope',            value: 'define_scope' },
+                       { label: 'List Requirements',       value: 'list_requirements' },
+                       { label: 'Review Plan',             value: 'get_implementation_plan' },
+                       { label: 'Submit for Approval',     value: 'submit_project_for_review' }
+                     ]};
+        }
+
+        if (this._m(msg, ['success criteria','how will we know','measure success','kpi','goal',
+                'objective','success metric','done when','definition of done'])) {
+            return { reply: 'What does success look like for this initiative? Please describe the measurable outcomes or criteria that indicate the automation is working correctly.',
+                     type: 'clarify',
+                     choices: [
+                       { label: 'Define Scope',            value: 'define_scope' },
+                       { label: 'List Requirements',       value: 'list_requirements' },
+                       { label: 'Review Plan',             value: 'get_implementation_plan' },
+                       { label: 'Submit for Approval',     value: 'submit_project_for_review' }
+                     ]};
+        }
+
+        if (this._m(msg, ['compile plan','generate plan','build plan','create plan','finalise plan',
+                'finalize plan','ready to submit','put it together','assemble the plan'])) {
+            return { reply: 'I will compile the implementation plan from everything we have discussed. This will include the objective, scope, requirements, technical approach, integration points, estimated effort, risks, and success criteria.',
+                     type: 'data', dataHint: 'get_implementation_plan',
+                     choices: [
+                       { label: 'Review Plan',             value: 'get_implementation_plan' },
+                       { label: 'Submit for Approval',     value: 'submit_project_for_review' }
+                     ]};
+        }
+
+        if (this._m(msg, ['my project','list project','show project','view project',
+                'all project','what project','project list','my initiatives'])) {
+            return { reply: null, type: 'data', dataHint: 'load_creator_projects', choices: null };
+        }
+
+        if (this._m(msg, ['effort','estimate','how long','timeline','duration','time required',
+                'how much effort','level of effort'])) {
+            return { reply: 'What is the estimated level of effort for this initiative? Please provide a rough timeline or effort estimate (for example: 2 weeks, 3 sprints, or 40 hours). This will be included in the implementation plan for leadership review.',
+                     type: 'clarify',
+                     choices: [
+                       { label: 'Define Scope',            value: 'define_scope' },
+                       { label: 'Review Plan',             value: 'get_implementation_plan' },
+                       { label: 'Submit for Approval',     value: 'submit_project_for_review' }
+                     ]};
+        }
+
+        if (this._m(msg, ['help','what can','assist','what do','how do i','guide me'])) {
+            return { reply: 'I\'m your Creator Studio Assistant' + nameSuffix + '. I help you design and document automation initiatives that are ready for leadership review. We work together to build an implementation plan covering scope, requirements, technical approach, risks, and success criteria. What would you like to do?',
+                     type: 'clarify',
+                     choices: [
+                       { label: 'Define Scope',            value: 'define_scope' },
+                       { label: 'List Requirements',       value: 'list_requirements' },
+                       { label: 'Review Plan',             value: 'get_implementation_plan' },
+                       { label: 'Submit for Approval',     value: 'submit_project_for_review' }
+                     ]};
+        }
+
+        return { reply: 'I\'m here to help you build your automation initiative' + nameSuffix + '. Where would you like to focus?',
+                 type: 'clarify',
+                 choices: [
+                   { label: 'Define Scope',            value: 'define_scope' },
+                   { label: 'List Requirements',       value: 'list_requirements' },
+                   { label: 'Technical Approach',      value: 'technical_approach' },
+                   { label: 'Review Plan',             value: 'get_implementation_plan' }
+                 ]};
+    },
+
+    /* ═══════════════════════════════════════════════════════════════
+       LEADERSHIP INSIGHTS ASSISTANT
+    ═══════════════════════════════════════════════════════════════ */
+    _routeLeadership: function(msg, tokens, topDom, topAct, entities, hCtx, ctx) {
+        var firstName = this._firstName(ctx.full_name);
+        var nameSuffix = firstName ? ', ' + firstName : '';
+
+        if (this._m(msg, ['pending review','pending approval','awaiting review','need my approval',
+                'needs review','what needs review','what needs my attention','action required',
+                'outstanding review','waiting for me','pending project'])) {
+            return { reply: null, type: 'data', dataHint: 'load_pending_projects', choices: null };
+        }
+
+        if (this._m(msg, ['approved project','rejected project','past decision','previous review',
+                'what i approved','what i rejected','review history','decision history',
+                'project pipeline','pipeline status','all project','project status'])) {
+            return { reply: null, type: 'data', dataHint: 'load_project_pipeline', choices: null };
+        }
+
+        if (this._m(msg, ['portfolio','analytics','overview','dashboard','metrics',
+                'performance','kpi','stats','statistics','how are we doing',
+                'leadership analytics','portfolio overview'])) {
+            return { reply: null, type: 'data', dataHint: 'load_leadership_analytics', choices: null };
+        }
+
+        if (this._m(msg, ['team activity','what is the team doing','team performance',
+                'group activity','who is working','my team','team status',
+                'team update','what has the team done'])) {
+            return { reply: null, type: 'data', dataHint: 'load_team_activity', choices: null };
+        }
+
+        if (entities.projectName && this._m(msg, ['approve','approve this','give approval',
+                'accept','confirm approval','sign off','authorise','authorize'])) {
+            return { reply: 'To confirm — you would like to approve "' + entities.projectName + '". Approving this project will notify the creator to proceed with implementation. Shall I confirm?',
+                     type: 'clarify',
+                     choices: [
+                       { label: 'Yes, approve it',             value: 'approve_project_confirm' },
+                       { label: 'No, I need more information', value: 'load_pending_projects' }
+                     ]};
+        }
+
+        if (this._m(msg, ['approve','approve a project','approve project','give approval',
+                'accept a project','sign off on'])) {
+            return { reply: 'Which project would you like to approve' + nameSuffix + '? Select from your pending reviews below.',
+                     type: 'data', dataHint: 'load_pending_projects', choices: null };
+        }
+
+        if (entities.projectName && this._m(msg, ['reject','decline','deny','turn down',
+                'not approve','reject this'])) {
+            return { reply: 'What is the reason for rejecting "' + entities.projectName + '"? Providing a clear reason helps the creator revise and resubmit.',
+                     type: 'clarify',
+                     choices: [
+                       { label: 'Scope is unclear',              value: 'reject_reason_scope' },
+                       { label: 'Requirements are incomplete',   value: 'reject_reason_requirements' },
+                       { label: 'Resource constraints',         value: 'reject_reason_resources' },
+                       { label: 'Strategic misalignment',       value: 'reject_reason_strategy' }
+                     ]};
+        }
+
+        if (this._m(msg, ['reject','decline','deny','turn down','not approve','reject a project',
+                'reject project'])) {
+            return { reply: 'Which project would you like to reject' + nameSuffix + '? Select from your pending reviews.',
+                     type: 'data', dataHint: 'load_pending_projects', choices: null };
+        }
+
+        if (this._m(msg, ['review','look at','examine','evaluate','assess','check out',
+                'read the plan','see the plan','view the plan','details of'])) {
+            if (this._m(msg, ['project','initiative','plan','proposal'])) {
+                return { reply: null, type: 'data', dataHint: 'load_pending_projects', choices: null };
+            }
+        }
+
+        if (this._m(msg, ['recent decision','latest decision','what did i decide','recent approval',
+                'recent rejection','what was decided'])) {
+            return { reply: null, type: 'data', dataHint: 'load_project_pipeline', choices: null };
+        }
+
+        if (this._m(msg, ['help','what can','assist','what do','guide me','how do i'])) {
+            return { reply: 'I\'m your Leadership Insights Assistant' + nameSuffix + '. I help you review automation initiatives, track portfolio performance, and oversee team activity. What would you like to do?',
+                     type: 'clarify',
+                     choices: [
+                       { label: 'View Pending Reviews',    value: 'load_pending_projects' },
+                       { label: 'Portfolio Overview',      value: 'load_leadership_analytics' },
+                       { label: 'Recent Decisions',        value: 'load_project_pipeline' },
+                       { label: 'Team Activity',           value: 'load_team_activity' }
+                     ]};
+        }
+
+        if (this._m(msg, ['show','list','view','get','what','find'])) {
+            return { reply: null, type: 'data', dataHint: 'load_pending_projects', choices: null };
+        }
+
+        return { reply: 'I can help you review initiatives and track your portfolio' + nameSuffix + '. What would you like to focus on?',
+                 type: 'clarify',
+                 choices: [
+                   { label: 'View Pending Reviews',    value: 'load_pending_projects' },
+                   { label: 'Portfolio Overview',      value: 'load_leadership_analytics' },
+                   { label: 'Recent Decisions',        value: 'load_project_pipeline' },
+                   { label: 'Team Activity',           value: 'load_team_activity' }
                  ]};
     },
 
@@ -513,7 +850,6 @@ ConversationAdvisor.prototype = {
     ═══════════════════════════════════════════════════════════════ */
 
     _microIntent: function(msg) {
-        /* Greetings */
         if (/^(hi|hello|hey|good morning|good afternoon|good evening|greetings|howdy|sup|yo)\b/.test(msg)) {
             return { reply: 'Hello! How can I assist you today?', type: 'text', choices: null };
         }
@@ -521,34 +857,32 @@ ConversationAdvisor.prototype = {
             return { reply: 'I\'m ready and here to help. What can I do for you?', type: 'text', choices: null };
         }
 
-        /* Gratitude */
         if (this._m(msg, ['thank you','thanks','thank u','thx','cheers','appreciate it',
                 'that helped','great help','well done','brilliant','perfect','you are amazing','youre amazing'])) {
             return { reply: 'You\'re welcome! Is there anything else I can help you with?', type: 'text', choices: null };
         }
 
-        /* Farewell */
         if (this._m(msg, ['goodbye','bye','see you','see ya','farewell','talk later','catch you later','good day'])) {
             return { reply: 'Goodbye! Come back any time you need assistance.', type: 'text', choices: null };
         }
 
-        /* Frustration */
         if (this._m(msg, ['frustrated','this is broken','nothing works','so annoying','this is useless',
                 'i am stuck','im stuck','this is frustrating','not working','doesn\'t work'])) {
             return { reply: 'I\'m sorry to hear that — let\'s get this sorted. Tell me what you\'re trying to accomplish and I\'ll do my best to help you get there.',
                      type: 'text', choices: null };
         }
 
-        /* Apology / excuse */
         if (this._m(msg, ['sorry','excuse me','my apologies','my bad','pardon'])) {
             return { reply: 'No problem at all. What can I help you with?', type: 'text', choices: null };
         }
 
-        /* Identity */
         if (this._m(msg, ['who are you','what are you','are you a bot','are you human','your name',
                 'introduce yourself'])) {
-            var typeLabel = this.assistantType === 'developer' ? 'Developer Assistant'
-                          : this.assistantType === 'admin'     ? 'Administrator Assistant'
+            var typeLabel = this.assistantType === 'developer'  ? 'Developer Assistant'
+                          : this.assistantType === 'admin'       ? 'Administrator Assistant'
+                          : this.assistantType === 'automations' ? 'Automations Assistant'
+                          : this.assistantType === 'creator'     ? 'Creator Studio Assistant'
+                          : this.assistantType === 'leadership'  ? 'Leadership Insights Assistant'
                           : 'Operations Assistant';
             return { reply: 'I\'m the ' + typeLabel + ', built into the Operations Intelligence portal. I\'m here to help you get things done. What do you need?',
                      type: 'text', choices: null };
@@ -587,10 +921,46 @@ ConversationAdvisor.prototype = {
             user_mgmt:      ['onboard','enroll','deactivate','reinvite','user management'],
             assistant_cfg:  ['assistant config','configure assistant','assistant setting','response config']
         };
+        var automationsDomains = {
+            automation:   ['automation','automate','workflow','flow','bot','scheduled task'],
+            category:     ['category','catalog','group','type','kind','class'],
+            search:       ['search','find','look for','locate','discover','browse'],
+            usage:        ['usage','history','recently used','last run','my automations','popular'],
+            performance:  ['performance','success rate','how often','run time','duration','result'],
+            help:         ['help','guide','explain','how do i','how to','what can','assist']
+        };
+        var creatorDomains = {
+            project:        ['project','initiative','programme','program','workstream'],
+            session:        ['session','conversation','chat history','previous session'],
+            automation:     ['automation','automate','workflow','deliverable','output'],
+            requirement:    ['requirement','feature','user story','acceptance criteria','must have','should have'],
+            plan:           ['plan','implementation plan','roadmap','approach','design','blueprint'],
+            approval:       ['approval','approve','review','submit','pending','leadership'],
+            implementation: ['implement','build','develop','code','deploy','delivery'],
+            design:         ['design','architect','scope','boundary','constraint','assumption'],
+            scope:          ['scope','in scope','out of scope','boundary','include','exclude'],
+            goal:           ['goal','objective','outcome','benefit','value','purpose','why']
+        };
+        var leadershipDomains = {
+            review:     ['review','pending','awaiting','needs my','action required'],
+            approval:   ['approval','approve','reject','decide','decision','sign off'],
+            project:    ['project','initiative','proposal','submission'],
+            initiative: ['initiative','programme','program','workstream','effort'],
+            status:     ['status','progress','where is','what stage','update'],
+            analytics:  ['analytics','metrics','kpi','stats','statistics','performance','data'],
+            team:       ['team','group','member','who is','staff','people','workforce'],
+            portfolio:  ['portfolio','all project','overview','pipeline','queue','backlog'],
+            risk:       ['risk','concern','issue','blocker','challenge','obstacle'],
+            impact:     ['impact','value','benefit','roi','saving','outcome','result'],
+            value:      ['value','benefit','worth','justification','business case','return']
+        };
 
         var pool = DOMAINS;
-        if (this.assistantType === 'developer') { pool = devDomains; }
-        if (this.assistantType === 'admin') { pool = adminDomains; }
+        if (this.assistantType === 'developer')    { pool = devDomains; }
+        if (this.assistantType === 'admin')        { pool = adminDomains; }
+        if (this.assistantType === 'automations')  { pool = automationsDomains; }
+        if (this.assistantType === 'creator')      { pool = creatorDomains; }
+        if (this.assistantType === 'leadership')   { pool = leadershipDomains; }
 
         var scores = [];
         var dom, kw, t, ki, ti;
@@ -627,7 +997,10 @@ ConversationAdvisor.prototype = {
             check:     ['check','status','progress','track','where is','what happened','monitor','follow up','review','inspect'],
             approve:   ['approve','reject','accept','deny','confirm','authorise','authorize','decline'],
             trigger:   ['run','trigger','execute','start','launch','kick off','fire','activate'],
-            configure: ['configure','setup','set up','enable','disable','toggle','turn on','turn off','manage','administer']
+            configure: ['configure','setup','set up','enable','disable','toggle','turn on','turn off','manage','administer'],
+            find:      ['search','find','look for','locate','browse','filter','discover','explore'],
+            submit:    ['submit','send','request','propose','raise','escalate'],
+            analyse:   ['analyse','analyze','evaluate','assess','measure','compare','report on']
         };
         var scores = [];
         var act, phrases, p, t, ki, ti;
@@ -662,6 +1035,13 @@ ConversationAdvisor.prototype = {
         if (chgMatch) { entities.changeNumber = chgMatch[0].toUpperCase(); }
         var reqMatch = msg.match(/\breq\d{7}\b/i);
         if (reqMatch) { entities.requestNumber = reqMatch[0].toUpperCase(); }
+        var quotedMatch = msg.match(/["']([^"']{3,80})["']/);
+        if (quotedMatch) {
+            entities.quotedPhrase = quotedMatch[1];
+            if (this.assistantType === 'automations') { entities.automationName = quotedMatch[1]; }
+            if (this.assistantType === 'creator')     { entities.projectName    = quotedMatch[1]; }
+            if (this.assistantType === 'leadership')  { entities.projectName    = quotedMatch[1]; }
+        }
         return entities;
     },
 

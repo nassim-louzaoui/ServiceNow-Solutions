@@ -2,13 +2,13 @@
 
     /*
      * Operations Intelligence — Portal Widget Server Script
-     * Scope   : x_infte_ops_int
-     * Engine  : Rhino ES5 — no const/let, no arrow functions, no template literals
-     * Tables  : x_infte_ops_int_person, x_infte_ops_int_group,
-     *           x_infte_ops_int_automation, x_infte_ops_int_execution,
-     *           x_infte_ops_int_pending_action
-     * Roles   : x_infte_ops_int.admin, .leadership, .creator, .user
+     * Scope  : x_infte_ops_int
+     * Engine : Rhino ES5 — no const/let, no arrow functions, no template literals
+     * Data   : OIDataStore (sys_properties-backed), OIJournal for execution log
+     * Roles  : x_infte_ops_int.admin | .developer | .leadership | .creator | .user
      */
+
+    // ── ROLE DETECTION ────────────────────────────────────────────────────────
 
     function getOiRoles(uSysId) {
         var result  = { admin: false, developer: false, leadership: false, creator: false, user: false };
@@ -21,7 +21,9 @@
         };
         var idToKey = {};
         var rGr = new GlideRecord('sys_user_role');
-        rGr.addQuery('name', 'IN', 'x_infte_ops_int.admin,x_infte_ops_int.developer,x_infte_ops_int.leadership,x_infte_ops_int.creator,x_infte_ops_int.user');
+        rGr.addQuery('name', 'IN',
+            'x_infte_ops_int.admin,x_infte_ops_int.developer,x_infte_ops_int.leadership,' +
+            'x_infte_ops_int.creator,x_infte_ops_int.user');
         rGr.query();
         while (rGr.next()) {
             var rn = '' + rGr.getValue('name');
@@ -42,374 +44,242 @@
         return result;
     }
 
-    function getPersonSysId(uSysId) {
-        var pGr = new GlideRecord('x_infte_ops_int_person');
-        pGr.addQuery('user', uSysId);
-        pGr.addQuery('active', true);
-        pGr.setLimit(1);
-        pGr.query();
-        if (pGr.next()) { return '' + pGr.getUniqueValue(); }
+    // ── PERSON / GROUP HELPERS ────────────────────────────────────────────────
+
+    function getPersonByUser(uSysId) {
+        var store = new OIDataStore();
+        var found = store.find('persons', function(p) {
+            return ('' + p.user_sys_id) === uSysId && p.active !== false;
+        });
+        if (found.length > 0) { return '' + found[0].sys_id; }
         return '';
     }
 
-    function getUserGroups(personSysId) {
-        var groups = [];
-        if (!personSysId) { return groups; }
-        var gGr = new GlideRecord('x_infte_ops_int_group');
-        gGr.addQuery('status', 'active');
-        gGr.query();
-        while (gGr.next()) {
-            var members = [];
-            try { members = JSON.parse('' + gGr.getValue('members')); } catch (e) { members = []; }
-            var i;
-            for (i = 0; i < members.length; i++) {
-                if ('' + members[i].person_sys_id === personSysId && members[i].status !== 'inactive') {
-                    groups.push({
-                        sys_id: '' + gGr.getUniqueValue(),
-                        name:   '' + gGr.getValue('name'),
-                        role:   '' + (members[i].group_role || 'user')
+    function getUserGroupMemberships(personSysId) {
+        var memberships = [];
+        if (!personSysId) { return memberships; }
+        var store     = new OIDataStore();
+        var allGroups = store.find('groups', function(g) { return g.status === 'active'; });
+        var i, grp, members, j;
+        for (i = 0; i < allGroups.length; i++) {
+            grp     = allGroups[i];
+            members = grp.members || [];
+            for (j = 0; j < members.length; j++) {
+                if ('' + members[j].person_sys_id === personSysId &&
+                        members[j].status !== 'inactive') {
+                    memberships.push({
+                        sys_id:     '' + grp.sys_id,
+                        name:       '' + grp.name,
+                        group_role: '' + (members[j].group_role || 'user')
                     });
                     break;
                 }
             }
         }
-        return groups;
+        return memberships;
     }
 
-    function loadWorkspace(userGroups) {
-        var groupIds = [];
-        var j;
-        for (j = 0; j < userGroups.length; j++) { groupIds.push(userGroups[j].sys_id); }
-        if (groupIds.length === 0) { return { automations: [] }; }
+    // ── SECTION LOADERS ───────────────────────────────────────────────────────
 
-        var automations = [];
+    function loadWorkspace(personSysId, userGroups) {
+        var store      = new OIDataStore();
+        var groupIds   = [];
+        var i;
+        for (i = 0; i < userGroups.length; i++) { groupIds.push(userGroups[i].sys_id); }
+
+        var availableAutomations = [];
         var seen = {};
-        var grp = new GlideRecord('x_infte_ops_int_group');
-        grp.addQuery('status', 'active');
-        grp.query();
-
-        while (grp.next()) {
-            var ownerGroupSysId = '' + grp.getUniqueValue();
-            if (groupIds.indexOf(ownerGroupSysId) === -1) { continue; }
-            var ownerGroupName = '' + grp.getValue('name');
-            var grpAutomations = [];
-            try { grpAutomations = JSON.parse('' + grp.getValue('automations')); } catch (e) { grpAutomations = []; }
-            var wi;
-            for (wi = 0; wi < grpAutomations.length; wi++) {
-                if (grpAutomations[wi].approval_status !== 'approved') { continue; }
-                var autoSysId = '' + grpAutomations[wi].automation_sys_id;
+        var allGroups = store.find('groups', function(g) { return g.status === 'active'; });
+        var gi, grp, grpAutos, ai, autoSysId, autoRec;
+        for (gi = 0; gi < allGroups.length; gi++) {
+            grp = allGroups[gi];
+            if (groupIds.indexOf('' + grp.sys_id) === -1) { continue; }
+            grpAutos = grp.automations || [];
+            for (ai = 0; ai < grpAutos.length; ai++) {
+                if ('' + grpAutos[ai].approval_status !== 'approved') { continue; }
+                autoSysId = '' + grpAutos[ai].automation_sys_id;
                 if (seen[autoSysId]) { continue; }
                 seen[autoSysId] = true;
-                var autoRec = new GlideRecord('x_infte_ops_int_automation');
-                if (!autoRec.get(autoSysId) || autoRec.getValue('status') !== 'published') { continue; }
-                automations.push({
-                    sys_id:             autoSysId,
-                    number:             '' + autoRec.getValue('number'),
-                    name:               '' + autoRec.getValue('name'),
-                    short_description:  '' + autoRec.getValue('short_description'),
-                    category_color:     '' + (autoRec.getValue('category_color') || '#00BF6F'),
-                    category_icon:      '' + (autoRec.getValue('category_icon')  || 'fa-bolt'),
-                    usage_count:        parseInt('' + autoRec.getValue('usage_count'), 10) || 0,
-                    schedule_active:    autoRec.getValue('schedule_active') === '1' || autoRec.getValue('schedule_active') === 'true',
-                    owner_group:        ownerGroupName,
-                    owner_group_sys_id: ownerGroupSysId
-                });
+                autoRec = store.get('automations', autoSysId);
+                if (autoRec && autoRec.status === 'published') {
+                    availableAutomations.push({
+                        sys_id:            '' + autoRec.sys_id,
+                        name:              '' + autoRec.name,
+                        short_description: '' + (autoRec.short_description || ''),
+                        category_name:     '' + (autoRec.category_name || ''),
+                        usage_count:       parseInt(autoRec.usage_count, 10) || 0
+                    });
+                }
             }
         }
-        return { automations: automations };
-    }
 
-    function loadDeliverables(personSysId) {
-        var deliverables = [];
-        if (!personSysId) { return { deliverables: deliverables }; }
-        try {
-            var dGr = new GlideRecord('x_infte_ops_int_managed_artifact');
-            dGr.addQuery('created_by_person', personSysId);
-            dGr.addQuery('status', '!=', 'archived');
-            dGr.orderByDesc('sys_created_on');
-            dGr.setLimit(100);
-            dGr.query();
-            while (dGr.next()) {
-                var artifactType = '' + dGr.getValue('artifact_type');
-                var targetSysId  = '' + (dGr.getValue('target_sys_id') || '');
-                var targetUrl    = '';
-                deliverables.push({
-                    sys_id:        '' + dGr.getUniqueValue(),
-                    display_name:  '' + (dGr.getValue('display_name') || 'Unnamed'),
-                    artifact_type: artifactType,
-                    status:        '' + (dGr.getValue('status') || 'active'),
-                    target_sys_id: targetSysId,
-                    target_url:    targetUrl,
-                    created_at:    '' + dGr.getDisplayValue('sys_created_on')
-                });
-            }
-        } catch (e) { deliverables = []; }
-        return { deliverables: deliverables };
-    }
-
-    function createManagedArtifact(name, artifactType, personSysId, targetSysId, configObj) {
-        try {
-            var aRec = new GlideRecord('x_infte_ops_int_managed_artifact');
-            aRec.initialize();
-            aRec.setValue('display_name', name);
-            aRec.setValue('artifact_type', artifactType);
-            aRec.setValue('created_by_person', personSysId);
-            aRec.setValue('status', 'active');
-            if (targetSysId) { aRec.setValue('target_sys_id', targetSysId); }
-            if (configObj) { try { aRec.setValue('config', JSON.stringify(configObj)); } catch (ce) {} }
-            var newId = '' + aRec.insert();
-            return newId || null;
-        } catch (e) { return null; }
-    }
-
-    function createReport(collected, personSysId) {
-        var rName = '' + (collected.name || 'Untitled Report');
-        try {
-            var aId = createManagedArtifact(rName, 'report', personSysId, null, collected);
-            if (!aId) { return { ok: false, error: 'Failed to create report record.' }; }
-            return { ok: true, name: rName, type: 'report', sys_id: aId, url: '', artifact_sys_id: aId };
-        } catch (e) { return { ok: false, error: '' + e }; }
-    }
-
-    function createDashboard(collected, personSysId) {
-        var dName = '' + (collected.name || 'Untitled Dashboard');
-        try {
-            var aId = createManagedArtifact(dName, 'dashboard', personSysId, null, collected);
-            if (!aId) { return { ok: false, error: 'Failed to create dashboard record.' }; }
-            return { ok: true, name: dName, type: 'dashboard', sys_id: aId, url: '', artifact_sys_id: aId };
-        } catch (e) { return { ok: false, error: '' + e }; }
-    }
-
-    function createDataAlert(collected, personSysId) {
-        var aName = '' + (collected.name || 'Untitled Alert');
-        try {
-            var aId = createManagedArtifact(aName, 'data_alert', personSysId, null, collected);
-            if (!aId) { return { ok: false, error: 'Failed to create alert record.' }; }
-            return { ok: true, name: aName, type: 'data_alert', sys_id: aId, url: '', artifact_sys_id: aId };
-        } catch (e) { return { ok: false, error: '' + e }; }
-    }
-
-    function createNotificationRule(collected, personSysId) {
-        var rName = '' + (collected.name || 'Untitled Notification Rule');
-        try {
-            var aId = createManagedArtifact(rName, 'notification_rule', personSysId, null, collected);
-            if (!aId) { return { ok: false, error: 'Failed to create notification rule record.' }; }
-            return { ok: true, name: rName, type: 'notification_rule', sys_id: aId, url: '', artifact_sys_id: aId };
-        } catch (e) { return { ok: false, error: '' + e }; }
-    }
-
-    function searchCatalog(query, limitNum) {
-        var items = [];
-        try {
-            var catGr = new GlideRecord('sc_cat_item');
-            catGr.addQuery('active', true);
-            catGr.addQuery('visible_standalone', true);
-            var qStrCat = ('' + query).toLowerCase();
-            var catQc = catGr.addQuery('name', 'CONTAINS', qStrCat);
-            catQc.addOrCondition('short_description', 'CONTAINS', qStrCat);
-            catGr.orderBy('name');
-            catGr.setLimit(limitNum || 6);
-            catGr.query();
-            while (catGr.next()) {
-                items.push({
-                    sys_id:            '' + catGr.getUniqueValue(),
-                    name:              '' + catGr.getValue('name'),
-                    short_description: '' + (catGr.getValue('short_description') || ''),
-                    category:          '' + (catGr.getDisplayValue('category') || ''),
-                    url:               '/sp?id=sc_cat_item&sys_id=' + catGr.getUniqueValue()
-                });
-            }
-        } catch (e) { items = []; }
-        return items;
-    }
-
-    function searchKnowledge(query, limitNum) {
-        var items = [];
-        try {
-            var kbGr = new GlideRecord('kb_knowledge');
-            kbGr.addQuery('active', true);
-            kbGr.addQuery('workflow_state', 'published');
-            var qStrKb = ('' + query).toLowerCase();
-            var kbQc = kbGr.addQuery('short_description', 'CONTAINS', qStrKb);
-            kbQc.addOrCondition('text', 'CONTAINS', qStrKb);
-            kbGr.orderByDesc('sys_updated_on');
-            kbGr.setLimit(limitNum || 6);
-            kbGr.query();
-            while (kbGr.next()) {
-                items.push({
-                    sys_id:              '' + kbGr.getUniqueValue(),
-                    number:              '' + (kbGr.getValue('number') || ''),
-                    title:               '' + (kbGr.getValue('short_description') || ''),
-                    kb_knowledge_base:   '' + (kbGr.getDisplayValue('kb_knowledge_base') || ''),
-                    url:                 '/sp?id=kb_article&sys_id=' + kbGr.getUniqueValue()
-                });
-            }
-        } catch (e) { items = []; }
-        return items;
-    }
-
-    function loadUserRequests(uSysId, limitNum) {
-        var items = [];
-        try {
-            var reqGr = new GlideRecord('sc_request');
-            reqGr.addQuery('requested_for', uSysId);
-            reqGr.orderByDesc('opened_at');
-            reqGr.setLimit(limitNum || 20);
-            reqGr.query();
-            while (reqGr.next()) {
-                items.push({
-                    sys_id:            '' + reqGr.getUniqueValue(),
-                    number:            '' + reqGr.getValue('number'),
-                    short_description: '' + (reqGr.getValue('short_description') || ''),
-                    state:             '' + reqGr.getDisplayValue('state'),
-                    stage:             '' + (reqGr.getDisplayValue('stage') || ''),
-                    opened_at:         '' + reqGr.getDisplayValue('opened_at'),
-                    url:               '/sp?id=ticket&table=sc_request&sys_id=' + reqGr.getUniqueValue()
-                });
-            }
-        } catch (e) { items = []; }
-        return items;
-    }
-
-    function loadUserIncidents(uSysId, limitNum) {
-        var items = [];
-        try {
-            var incGr = new GlideRecord('incident');
-            incGr.addQuery('caller_id', uSysId);
-            incGr.addQuery('active', true);
-            incGr.orderByDesc('opened_at');
-            incGr.setLimit(limitNum || 10);
-            incGr.query();
-            while (incGr.next()) {
-                items.push({
-                    sys_id:            '' + incGr.getUniqueValue(),
-                    number:            '' + incGr.getValue('number'),
-                    short_description: '' + (incGr.getValue('short_description') || ''),
-                    state:             '' + incGr.getDisplayValue('state'),
-                    priority:          '' + incGr.getDisplayValue('priority'),
-                    opened_at:         '' + incGr.getDisplayValue('opened_at'),
-                    url:               '/sp?id=ticket&table=incident&sys_id=' + incGr.getUniqueValue()
-                });
-            }
-        } catch (e) { items = []; }
-        return items;
-    }
-
-    function loadUserApprovals(uSysId, limitNum) {
-        var items = [];
-        try {
-            var apGr = new GlideRecord('sysapproval_approver');
-            apGr.addQuery('approver', uSysId);
-            apGr.addQuery('state', 'requested');
-            apGr.orderByDesc('sys_created_on');
-            apGr.setLimit(limitNum || 10);
-            apGr.query();
-            while (apGr.next()) {
-                var docId    = '' + apGr.getValue('sysapproval');
-                var docTable = '' + apGr.getValue('source_table');
-                items.push({
-                    sys_id:            '' + apGr.getUniqueValue(),
-                    short_description: '' + (apGr.getDisplayValue('sysapproval') || apGr.getValue('comments') || 'Approval Request'),
-                    state:             '' + apGr.getDisplayValue('state'),
-                    opened_at:         '' + apGr.getDisplayValue('sys_created_on'),
-                    document_sys_id:   docId,
-                    document_table:    docTable,
-                    url:               '/sp?id=ticket&table=' + docTable + '&sys_id=' + docId
-                });
-            }
-        } catch (e) { items = []; }
-        return items;
-    }
-
-    function loadStudio(personSysId) {
-        var deliverableTypes = [];
-        var artifacts = [];
-        var studioGroups = [];
-        try {
-            var dtGr = new GlideRecord('x_infte_ops_int_deliverable_type');
-            dtGr.addQuery('active', true);
-            dtGr.orderBy('name');
-            dtGr.query();
-            while (dtGr.next()) {
-                deliverableTypes.push({
-                    sys_id: '' + dtGr.getUniqueValue(),
-                    name:   '' + dtGr.getValue('name'),
-                    icon:   '' + (dtGr.getValue('icon') || 'fa-cube')
-                });
-            }
-            var artGr = new GlideRecord('x_infte_ops_int_managed_artifact');
-            artGr.addQuery('created_by_person', personSysId);
-            artGr.addQuery('status', 'draft');
-            artGr.orderByDesc('updated_at');
-            artGr.setLimit(20);
-            artGr.query();
-            while (artGr.next()) {
-                artifacts.push({
-                    sys_id:        '' + artGr.getUniqueValue(),
-                    number:        '' + artGr.getValue('number'),
-                    display_name:  '' + artGr.getValue('display_name'),
-                    artifact_type: '' + artGr.getValue('artifact_type'),
-                    status:        '' + artGr.getValue('status'),
-                    updated_at:    '' + artGr.getDisplayValue('updated_at')
-                });
-            }
-            var sgGr = new GlideRecord('x_infte_ops_int_group');
-            sgGr.addQuery('status', 'active');
-            sgGr.orderBy('name');
-            sgGr.query();
-            while (sgGr.next()) {
-                studioGroups.push({
-                    sys_id: '' + sgGr.getUniqueValue(),
-                    name:   '' + sgGr.getValue('name')
-                });
-            }
-        } catch (e) {
-            deliverableTypes = [];
-            artifacts = [];
-            studioGroups = [];
+        var catalog = loadCatalogCategories();
+        var pendingCount = 0;
+        if (personSysId) {
+            var pending = store.find('pending_actions', function(pa) {
+                return pa.status === 'pending' &&
+                    (pa.assigned_to === personSysId || !pa.assigned_to);
+            });
+            pendingCount = pending.length;
         }
-        return { deliverable_types: deliverableTypes, artifacts: artifacts, studio_groups: studioGroups };
+
+        return {
+            automations:   availableAutomations,
+            catalog:       catalog,
+            pending_count: pendingCount,
+            group_count:   userGroups.length
+        };
     }
 
-    function loadGovernance(personSysId, isAdmin) {
-        var pendingActions = [];
-        var paGr = new GlideRecord('x_infte_ops_int_pending_action');
-        paGr.addQuery('status', 'pending');
-        if (!isAdmin) { paGr.addQuery('assigned_to', personSysId); }
-        paGr.orderBy('sys_created_on');
-        paGr.setLimit(50);
-        paGr.query();
-        while (paGr.next()) {
-            var subjectSysId = '' + paGr.getValue('subject_user');
-            var subjectName = '';
-            if (subjectSysId) {
-                var sGr = new GlideRecord('sys_user');
-                if (sGr.get(subjectSysId)) { subjectName = '' + sGr.getDisplayValue('name'); }
+    function loadAutomationsWorkspace(personSysId, userGroups) {
+        var store    = new OIDataStore();
+        var groupIds = [];
+        var i;
+        for (i = 0; i < userGroups.length; i++) { groupIds.push(userGroups[i].sys_id); }
+
+        var allAutomations = store.find('automations', function(a) {
+            return a.status === 'published';
+        });
+
+        var accessible = {};
+        var allGroups  = store.find('groups', function(g) { return g.status === 'active'; });
+        var gi, grp, grpAutos, ai;
+        for (gi = 0; gi < allGroups.length; gi++) {
+            grp = allGroups[gi];
+            if (groupIds.indexOf('' + grp.sys_id) === -1) { continue; }
+            grpAutos = grp.automations || [];
+            for (ai = 0; ai < grpAutos.length; ai++) {
+                if ('' + grpAutos[ai].approval_status === 'approved') {
+                    accessible['' + grpAutos[ai].automation_sys_id] = true;
+                }
             }
-            pendingActions.push({
-                sys_id:            '' + paGr.getUniqueValue(),
-                type:              '' + paGr.getValue('action_type'),
-                description:       '' + paGr.getValue('description'),
-                subject_user_name: subjectName,
-                created:           '' + paGr.getDisplayValue('sys_created_on')
+        }
+
+        var autoList = [];
+        var j, a;
+        for (j = 0; j < allAutomations.length; j++) {
+            a = allAutomations[j];
+            autoList.push({
+                sys_id:            '' + a.sys_id,
+                name:              '' + a.name,
+                short_description: '' + (a.short_description || ''),
+                category_sys_id:   '' + (a.category_sys_id || ''),
+                category_name:     '' + (a.category_name || ''),
+                usage_count:       parseInt(a.usage_count, 10) || 0,
+                accessible:        accessible['' + a.sys_id] === true
             });
         }
 
-        var groups = [];
-        var grpGr = new GlideRecord('x_infte_ops_int_group');
-        grpGr.addQuery('status', 'active');
-        grpGr.orderBy('name');
-        grpGr.query();
-        while (grpGr.next()) {
-            var grpId = '' + grpGr.getUniqueValue();
-            var members = [];
-            try { members = JSON.parse('' + grpGr.getValue('members')); } catch (e) { members = []; }
+        return {
+            automations: autoList,
+            catalog:     loadCatalogCategories(),
+            group_count: userGroups.length
+        };
+    }
 
-            if (!isAdmin) {
+    function loadCreatorStudio(personSysId) {
+        if (!personSysId) {
+            return { projects: [], sessions: [] };
+        }
+        var store    = new OIDataStore();
+        var projects = store.find('projects', function(p) {
+            return ('' + p.created_by) === personSysId;
+        });
+
+        projects.sort(function(a, b) {
+            var ta = a.updated_at || a.created_at || '';
+            var tb = b.updated_at || b.created_at || '';
+            if (ta > tb) { return -1; }
+            if (ta < tb) { return 1; }
+            return 0;
+        });
+
+        var allSessions = store.find('sessions', function(s) {
+            return ('' + s.created_by) === personSysId;
+        });
+
+        var sessionMap = {};
+        var si;
+        for (si = 0; si < allSessions.length; si++) {
+            var sess = allSessions[si];
+            var pid  = '' + sess.project_sys_id;
+            if (!sessionMap[pid]) { sessionMap[pid] = []; }
+            sessionMap[pid].push({
+                sys_id:        '' + sess.sys_id,
+                name:          '' + sess.name,
+                locked:        sess.locked === true,
+                message_count: parseInt(sess.message_count, 10) || 0,
+                updated_at:    '' + (sess.updated_at || sess.created_at || '')
+            });
+        }
+
+        var projectList = [];
+        var pi, proj;
+        for (pi = 0; pi < projects.length; pi++) {
+            proj = projects[pi];
+            projectList.push({
+                sys_id:              '' + proj.sys_id,
+                name:                '' + proj.name,
+                description:         '' + (proj.description || ''),
+                stage:               '' + (proj.stage || 'draft'),
+                created_at:          '' + (proj.created_at || ''),
+                updated_at:          '' + (proj.updated_at || ''),
+                locked:              proj.locked === true,
+                session_count:       (sessionMap['' + proj.sys_id] || []).length,
+                sessions:            sessionMap['' + proj.sys_id] || [],
+                implementation_plan: proj.implementation_plan || null,
+                review_note:         '' + (proj.review_note || '')
+            });
+        }
+
+        return { projects: projectList };
+    }
+
+    function loadGovernanceControl(personSysId, isAdmin, isLeadership) {
+        var store   = new OIDataStore();
+        var actions = store.find('pending_actions', function(pa) {
+            if (pa.status !== 'pending') { return false; }
+            if (isAdmin) { return true; }
+            return !pa.assigned_to || ('' + pa.assigned_to) === personSysId;
+        });
+
+        actions.sort(function(a, b) {
+            var ta = a.created_at || '';
+            var tb = b.created_at || '';
+            if (ta < tb) { return -1; }
+            if (ta > tb) { return 1; }
+            return 0;
+        });
+
+        var pendingList = [];
+        var i, pa;
+        for (i = 0; i < actions.length; i++) {
+            pa = actions[i];
+            pendingList.push({
+                sys_id:       '' + pa.sys_id,
+                type:         '' + (pa.type || ''),
+                description:  '' + (pa.description || ''),
+                subject_type: '' + (pa.subject_type || ''),
+                subject_name: '' + (pa.subject_name || ''),
+                subject_sys_id: '' + (pa.subject_sys_id || ''),
+                created_at:   '' + (pa.created_at || ''),
+                created_by:   '' + (pa.created_by || '')
+            });
+        }
+
+        var allGroups = store.find('groups', function(g) { return g.status === 'active'; });
+        var groupList = [];
+        var gi, grp, members, activeMemberCount, mci;
+        for (gi = 0; gi < allGroups.length; gi++) {
+            grp     = allGroups[gi];
+            members = grp.members || [];
+
+            if (!isAdmin && !isLeadership) {
                 var isMember = false;
                 var mi;
                 for (mi = 0; mi < members.length; mi++) {
-                    if ('' + members[mi].person_sys_id === personSysId && members[mi].status !== 'inactive') {
+                    if ('' + members[mi].person_sys_id === personSysId &&
+                            members[mi].status !== 'inactive') {
                         isMember = true;
                         break;
                     }
@@ -417,285 +287,350 @@
                 if (!isMember) { continue; }
             }
 
-            var activeMemberCount = 0;
-            var mci;
+            activeMemberCount = 0;
             for (mci = 0; mci < members.length; mci++) {
                 if (members[mci].status !== 'inactive') { activeMemberCount++; }
             }
 
-            var grpType = '' + grpGr.getValue('type');
-            groups.push({
-                sys_id:       grpId,
-                name:         '' + grpGr.getValue('name'),
-                description:  '' + (grpGr.getValue('description') || ''),
-                type:         grpType,
-                is_system:    grpType !== 'custom_group',
-                member_count: activeMemberCount
+            groupList.push({
+                sys_id:       '' + grp.sys_id,
+                name:         '' + grp.name,
+                description:  '' + (grp.description || ''),
+                type:         '' + (grp.type || 'custom_group'),
+                is_system:    (grp.type || '') !== 'custom_group',
+                member_count: activeMemberCount,
+                status:       '' + (grp.status || 'active')
             });
         }
 
-        return { pending_actions: pendingActions, groups: groups };
+        return { pending_actions: pendingList, groups: groupList };
     }
 
-    function loadAssistant(personSysId, userGroups) {
-        var stats = {};
-        var groupIds = [];
-        var gi;
-        for (gi = 0; gi < userGroups.length; gi++) { groupIds.push(userGroups[gi].sys_id); }
+    function loadLeadershipInsights(personSysId) {
+        var store    = new OIDataStore();
+        var projects = store.find('projects', function(p) {
+            return p.stage === 'review';
+        });
 
-        var availableCount = 0;
-        if (groupIds.length > 0) {
-            var agGr = new GlideRecord('x_infte_ops_int_group');
-            agGr.addQuery('status', 'active');
-            agGr.query();
-            while (agGr.next()) {
-                if (groupIds.indexOf('' + agGr.getUniqueValue()) === -1) { continue; }
-                var agAutos = [];
-                try { agAutos = JSON.parse('' + agGr.getValue('automations')); } catch(e) { agAutos = []; }
-                var ai;
-                for (ai = 0; ai < agAutos.length; ai++) {
-                    if (agAutos[ai].approval_status === 'approved') { availableCount++; }
-                }
-            }
-        }
-        stats.available_automations = availableCount;
-        stats.my_groups             = userGroups.length;
+        projects.sort(function(a, b) {
+            var ta = a.updated_at || a.created_at || '';
+            var tb = b.updated_at || b.created_at || '';
+            if (ta < tb) { return -1; }
+            if (ta > tb) { return 1; }
+            return 0;
+        });
 
-        var myExecAgg = new GlideAggregate('x_infte_ops_int_execution');
-        if (personSysId) { myExecAgg.addQuery('triggered_by', personSysId); }
-        myExecAgg.addAggregate('COUNT');
-        myExecAgg.query();
-        stats.my_executions = myExecAgg.next() ? (parseInt('' + myExecAgg.getAggregate('COUNT'), 10) || 0) : 0;
+        var pipeline = store.find('projects', function(p) {
+            return p.stage === 'approved' || p.stage === 'implementing';
+        });
 
-        var todayDt = new GlideDateTime();
-        var todayStr = todayDt.getDate().toString() + ' 00:00:00';
-        var todayAgg = new GlideAggregate('x_infte_ops_int_execution');
-        if (personSysId) { todayAgg.addQuery('triggered_by', personSysId); }
-        todayAgg.addQuery('triggered_at', '>=', todayStr);
-        todayAgg.addAggregate('COUNT');
-        todayAgg.query();
-        stats.executions_today = todayAgg.next() ? (parseInt('' + todayAgg.getAggregate('COUNT'), 10) || 0) : 0;
-
-        var recentExecs = [];
-        if (personSysId) {
-            var reGr = new GlideRecord('x_infte_ops_int_execution');
-            reGr.addQuery('triggered_by', personSysId);
-            reGr.orderByDesc('triggered_at');
-            reGr.setLimit(5);
-            reGr.query();
-            while (reGr.next()) {
-                recentExecs.push({
-                    sys_id:         '' + reGr.getUniqueValue(),
-                    automation_name: '' + reGr.getDisplayValue('automation'),
-                    status:          '' + reGr.getValue('status'),
-                    triggered_at:    '' + reGr.getDisplayValue('triggered_at')
-                });
-            }
+        var allPersons    = store.getCollection('persons');
+        var personNameMap = {};
+        var pi;
+        for (pi = 0; pi < allPersons.length; pi++) {
+            personNameMap['' + allPersons[pi].sys_id] = '' + (allPersons[pi].name || '');
         }
 
-        return { stats: stats, recent_executions: recentExecs };
+        var pendingList = [];
+        var i, proj;
+        for (i = 0; i < projects.length; i++) {
+            proj = projects[i];
+            pendingList.push({
+                sys_id:       '' + proj.sys_id,
+                name:         '' + proj.name,
+                description:  '' + (proj.description || ''),
+                stage:        '' + (proj.stage || 'review'),
+                created_by:   '' + (proj.created_by || ''),
+                creator_name: '' + (personNameMap['' + proj.created_by] || 'Unknown'),
+                created_at:   '' + (proj.created_at || ''),
+                updated_at:   '' + (proj.updated_at || ''),
+                session_count: (proj.session_ids || []).length
+            });
+        }
+
+        var pipelineList = [];
+        var j, pj;
+        for (j = 0; j < pipeline.length; j++) {
+            pj = pipeline[j];
+            pipelineList.push({
+                sys_id:       '' + pj.sys_id,
+                name:         '' + pj.name,
+                stage:        '' + (pj.stage || ''),
+                creator_name: '' + (personNameMap['' + pj.created_by] || 'Unknown'),
+                updated_at:   '' + (pj.updated_at || '')
+            });
+        }
+
+        var totalPersons    = allPersons.length;
+        var totalAutomations = store.find('automations', function(a) { return a.status === 'published'; }).length;
+        var totalGroups     = store.find('groups', function(g) { return g.status === 'active'; }).length;
+
+        return {
+            pending_review:  pendingList,
+            pipeline:        pipelineList,
+            analytics: {
+                persons:    totalPersons,
+                automations: totalAutomations,
+                groups:     totalGroups,
+                in_review:  pendingList.length,
+                in_pipeline: pipelineList.length
+            }
+        };
     }
 
-    function loadCommand() {
-        var stats = {};
+    function loadDeveloperHub() {
+        var inventory = loadAppInventory();
+        var journalSummary = {};
+        try {
+            var journal = new OIJournal();
+            journalSummary = journal.summary();
+        } catch (je) {
+            journalSummary = { total: 0, error: '' + je };
+        }
+        return {
+            inventory:      inventory,
+            journal_summary: journalSummary
+        };
+    }
 
-        var pAgg = new GlideAggregate('x_infte_ops_int_person');
-        pAgg.addQuery('active', true);
-        pAgg.addAggregate('COUNT');
-        pAgg.query();
-        stats.persons = pAgg.next() ? (parseInt('' + pAgg.getAggregate('COUNT'), 10) || 0) : 0;
+    function loadAdminHub() {
+        var store = new OIDataStore();
 
-        var aAgg = new GlideAggregate('x_infte_ops_int_automation');
-        aAgg.addQuery('status', 'published');
-        aAgg.addAggregate('COUNT');
-        aAgg.query();
-        stats.automations = aAgg.next() ? (parseInt('' + aAgg.getAggregate('COUNT'), 10) || 0) : 0;
+        var totalPersons = store.find('persons', function(p) { return p.active !== false; }).length;
+        var totalAutomations = store.find('automations', function(a) { return a.status === 'published'; }).length;
+        var totalGroups = store.find('groups', function(g) { return g.status === 'active'; }).length;
 
-        var gAgg = new GlideAggregate('x_infte_ops_int_group');
-        gAgg.addQuery('status', 'active');
-        gAgg.addAggregate('COUNT');
-        gAgg.query();
-        stats.groups = gAgg.next() ? (parseInt('' + gAgg.getAggregate('COUNT'), 10) || 0) : 0;
+        var journalToday = 0;
+        try {
+            var journal = new OIJournal();
+            var today = new GlideDateTime();
+            var todayStr = today.getDate().toString();
+            var todayEntries = journal.read({ since: todayStr }, null);
+            journalToday = todayEntries.length;
+        } catch (je) { journalToday = 0; }
 
-        var today = new GlideDateTime();
-        var todayStr = today.getDate().toString() + ' 00:00:00';
-        var eAgg = new GlideAggregate('x_infte_ops_int_execution');
-        eAgg.addQuery('triggered_at', '>=', todayStr);
-        eAgg.addAggregate('COUNT');
-        eAgg.query();
-        stats.executions_today = eAgg.next() ? (parseInt('' + eAgg.getAggregate('COUNT'), 10) || 0) : 0;
-
-        var maintenancePropNames = [
-            'x_infte_ops_int.maintenance.workspace',
-            'x_infte_ops_int.maintenance.gallery',
-            'x_infte_ops_int.maintenance.studio',
-            'x_infte_ops_int.maintenance.governance'
-        ];
+        var maintenanceSections = ['workspace', 'automations', 'creator-studio', 'governance-control',
+            'leadership-insights', 'developer-hub', 'admin-hub'];
         var maintenance = {};
-        var mk;
-        for (mk = 0; mk < maintenancePropNames.length; mk++) {
-            var propName = maintenancePropNames[mk];
-            var propKey  = propName.split('.').pop();
-            var prp = new GlideRecord('sys_properties');
-            prp.addQuery('name', propName);
-            prp.setLimit(1);
-            prp.query();
-            maintenance[propKey] = prp.next() ? (('' + prp.getValue('value')) === 'true') : false;
+        var mk, propRec;
+        for (mk = 0; mk < maintenanceSections.length; mk++) {
+            propRec = new GlideRecord('sys_properties');
+            propRec.addQuery('name', 'x_infte_ops_int.maintenance.' + maintenanceSections[mk]);
+            propRec.setLimit(1);
+            propRec.query();
+            maintenance[maintenanceSections[mk]] = propRec.next() ?
+                (('' + propRec.getValue('value')) === 'true') : false;
         }
 
-        var allGroups = [];
-        var cgGr = new GlideRecord('x_infte_ops_int_group');
-        cgGr.addQuery('status', 'active');
-        cgGr.orderBy('name');
-        cgGr.query();
-        while (cgGr.next()) {
-            allGroups.push({
-                sys_id: '' + cgGr.getUniqueValue(),
-                name:   '' + cgGr.getValue('name'),
-                type:   '' + cgGr.getValue('type')
+        var allGroups = store.find('groups', function(g) { return g.status === 'active'; });
+        var groupList = [];
+        var gi, grp;
+        for (gi = 0; gi < allGroups.length; gi++) {
+            grp = allGroups[gi];
+            groupList.push({
+                sys_id: '' + grp.sys_id,
+                name:   '' + grp.name,
+                type:   '' + (grp.type || 'custom_group')
             });
         }
 
-        var catalogCategories = loadCatalogCategories();
-        return { stats: stats, maintenance: maintenance, groups: allGroups, catalog_categories: catalogCategories };
+        return {
+            stats: {
+                persons:          totalPersons,
+                automations:      totalAutomations,
+                groups:           totalGroups,
+                executions_today: journalToday
+            },
+            maintenance:      maintenance,
+            groups:           groupList,
+            catalog_categories: loadCatalogCategories()
+        };
     }
+
+    // ── UTILITY LOADERS ───────────────────────────────────────────────────────
 
     function loadCatalogCategories() {
-        var categories = [];
-        try {
-            var catGr = new GlideRecord('x_infte_ops_int_catalog_category');
-            catGr.addQuery('active', true);
-            catGr.orderBy('sort_order');
-            catGr.orderBy('name');
-            catGr.query();
-            while (catGr.next()) {
-                var catId = '' + catGr.getUniqueValue();
-                var items = [];
-                var itemGr = new GlideRecord('x_infte_ops_int_catalog_item');
-                itemGr.addQuery('category', catId);
-                itemGr.addQuery('active', true);
-                itemGr.orderBy('sort_order');
-                itemGr.orderBy('name');
-                itemGr.query();
-                while (itemGr.next()) {
-                    items.push({
-                        sys_id:      '' + itemGr.getUniqueValue(),
-                        name:        '' + itemGr.getValue('name'),
-                        description: '' + (itemGr.getValue('description') || ''),
-                        action_type: '' + (itemGr.getValue('action_type') || ''),
-                        action_value: '' + (itemGr.getValue('action_value') || ''),
-                        sort_order:  parseInt('' + itemGr.getValue('sort_order'), 10) || 0
+        var store = new OIDataStore();
+        var cats  = store.find('catalog', function(c) { return c.active !== false; });
+        cats.sort(function(a, b) {
+            var oa = parseInt(a.sort_order, 10) || 0;
+            var ob = parseInt(b.sort_order, 10) || 0;
+            if (oa !== ob) { return oa - ob; }
+            var na = (a.name || '').toLowerCase();
+            var nb = (b.name || '').toLowerCase();
+            if (na < nb) { return -1; }
+            if (na > nb) { return 1; }
+            return 0;
+        });
+        var result = [];
+        var i, cat, items, activeItems, ji, item;
+        for (i = 0; i < cats.length; i++) {
+            cat   = cats[i];
+            items = cat.items || [];
+            activeItems = [];
+            for (ji = 0; ji < items.length; ji++) {
+                item = items[ji];
+                if (item.active !== false) {
+                    activeItems.push({
+                        sys_id:       '' + item.sys_id,
+                        name:         '' + item.name,
+                        description:  '' + (item.description || ''),
+                        sort_order:   parseInt(item.sort_order, 10) || 0,
+                        action_type:  '' + (item.action_type || ''),
+                        action_value: '' + (item.action_value || '')
                     });
                 }
-                categories.push({
-                    sys_id:      catId,
-                    name:        '' + catGr.getValue('name'),
-                    description: '' + (catGr.getValue('description') || ''),
-                    icon:        '' + (catGr.getValue('icon') || 'fa-folder'),
-                    color:       '' + (catGr.getValue('color') || '#00BF6F'),
-                    sort_order:  parseInt('' + catGr.getValue('sort_order'), 10) || 0,
-                    items:       items
-                });
             }
-        } catch (e) { categories = []; }
-        return categories;
+            activeItems.sort(function(a, b) {
+                if (a.sort_order !== b.sort_order) { return a.sort_order - b.sort_order; }
+                if (a.name < b.name) { return -1; }
+                if (a.name > b.name) { return 1; }
+                return 0;
+            });
+            result.push({
+                sys_id:      '' + cat.sys_id,
+                name:        '' + cat.name,
+                description: '' + (cat.description || ''),
+                icon:        '' + (cat.icon || 'fa-folder'),
+                color:       '' + (cat.color || '#00BF6F'),
+                sort_order:  parseInt(cat.sort_order, 10) || 0,
+                items:       activeItems
+            });
+        }
+        return result;
     }
 
     function loadAppInventory() {
-        var inventory = { tables: [], script_includes: [], business_rules: [], va_topics: [], roles: [], notifications: [], scheduled_jobs: [] };
-        try {
-            var scopeGr = new GlideRecord('sys_scope');
-            scopeGr.addQuery('scope', 'x_infte_ops_int');
-            scopeGr.setLimit(1);
-            scopeGr.query();
-            var scopeSysId = scopeGr.next() ? ('' + scopeGr.getUniqueValue()) : '';
+        var scope     = 'x_infte_ops_int';
+        var scopeId   = '';
+        var scopeGr   = new GlideRecord('sys_scope');
+        scopeGr.addQuery('scope', scope);
+        scopeGr.setLimit(1);
+        scopeGr.query();
+        if (scopeGr.next()) { scopeId = '' + scopeGr.getUniqueValue(); }
 
-            var tGr = new GlideRecord('sys_db_object');
-            tGr.addQuery('sys_scope', scopeSysId);
-            tGr.orderBy('name');
-            tGr.query();
-            while (tGr.next()) {
-                inventory.tables.push({
-                    sys_id: '' + tGr.getUniqueValue(),
-                    name:   '' + tGr.getValue('name'),
-                    label:  '' + (tGr.getValue('label') || '')
-                });
+        function queryArtifacts(table, nameField, extra) {
+            var list = [];
+            var gr   = new GlideRecord(table);
+            if (scopeId) { gr.addQuery('sys_scope', scopeId); }
+            else         { gr.addQuery('sys_scope.scope', scope); }
+            gr.orderBy(nameField || 'name');
+            gr.setLimit(200);
+            gr.query();
+            while (gr.next()) {
+                var entry = {
+                    sys_id: '' + gr.getUniqueValue(),
+                    name:   '' + gr.getValue(nameField || 'name')
+                };
+                if (extra) { extra(gr, entry); }
+                list.push(entry);
             }
+            return list;
+        }
 
-            var siGr = new GlideRecord('sys_script_include');
-            siGr.addQuery('sys_scope', scopeSysId);
-            siGr.orderBy('name');
-            siGr.query();
-            while (siGr.next()) {
-                inventory.script_includes.push({
-                    sys_id: '' + siGr.getUniqueValue(),
-                    name:   '' + siGr.getValue('name'),
-                    active: siGr.getValue('active') === 'true' || siGr.getValue('active') === '1'
-                });
-            }
+        var tables = queryArtifacts('sys_db_object', 'name', function(gr, e) {
+            e.label = '' + gr.getValue('label');
+        });
+        var scriptIncludes = queryArtifacts('sys_script_include', 'name', function(gr, e) {
+            e.active = gr.getValue('active') === '1';
+        });
+        var businessRules = queryArtifacts('sys_script', 'name', function(gr, e) {
+            e.table = '' + gr.getValue('collection');
+            e.active = gr.getValue('active') === '1';
+        });
+        var vaTopics = queryArtifacts('sys_cs_topic', 'name');
+        var roles    = queryArtifacts('sys_user_role', 'name');
+        var notifications = queryArtifacts('sysevent_email_action', 'name', function(gr, e) {
+            e.active = gr.getValue('active') === '1';
+        });
+        var scheduledJobs = queryArtifacts('sysauto_script', 'name', function(gr, e) {
+            e.active = gr.getValue('active') === '1';
+        });
 
-            var brGr = new GlideRecord('sys_script');
-            brGr.addQuery('sys_scope', scopeSysId);
-            brGr.orderBy('name');
-            brGr.query();
-            while (brGr.next()) {
-                inventory.business_rules.push({
-                    sys_id: '' + brGr.getUniqueValue(),
-                    name:   '' + brGr.getValue('name'),
-                    table:  '' + (brGr.getValue('collection') || ''),
-                    active: brGr.getValue('active') === 'true' || brGr.getValue('active') === '1'
-                });
-            }
+        return {
+            tables:           tables,
+            script_includes:  scriptIncludes,
+            business_rules:   businessRules,
+            va_topics:        vaTopics,
+            roles:            roles,
+            notifications:    notifications,
+            scheduled_jobs:   scheduledJobs
+        };
+    }
 
-            var vaGr = new GlideRecord('sys_cs_topic');
-            vaGr.addQuery('sys_scope', scopeSysId);
-            vaGr.orderBy('name');
-            vaGr.query();
-            while (vaGr.next()) {
-                inventory.va_topics.push({
-                    sys_id: '' + vaGr.getUniqueValue(),
-                    name:   '' + vaGr.getValue('name'),
-                    active: vaGr.getValue('active') === 'true' || vaGr.getValue('active') === '1'
-                });
-            }
+    function loadUserRequests(uSysId, limitNum) {
+        var items = [];
+        var max   = limitNum || 10;
+        var gr    = new GlideRecord('sc_request');
+        gr.addQuery('requested_for', uSysId);
+        gr.addQuery('active', true);
+        gr.orderByDesc('sys_created_on');
+        gr.setLimit(max);
+        gr.query();
+        while (gr.next()) {
+            items.push({
+                sys_id:      '' + gr.getUniqueValue(),
+                number:      '' + gr.getValue('number'),
+                short_desc:  '' + gr.getDisplayValue('short_description'),
+                state:       '' + gr.getDisplayValue('state'),
+                created:     '' + gr.getDisplayValue('sys_created_on')
+            });
+        }
+        return items;
+    }
 
-            var roleGr = new GlideRecord('sys_user_role');
-            roleGr.addQuery('sys_scope', scopeSysId);
-            roleGr.orderBy('name');
-            roleGr.query();
-            while (roleGr.next()) {
-                inventory.roles.push({
-                    sys_id: '' + roleGr.getUniqueValue(),
-                    name:   '' + roleGr.getValue('name'),
-                    label:  '' + (roleGr.getValue('description') || '')
-                });
-            }
+    function loadUserIncidents(uSysId, limitNum) {
+        var items = [];
+        var max   = limitNum || 10;
+        var gr    = new GlideRecord('incident');
+        gr.addQuery('caller_id', uSysId);
+        gr.addQuery('active', true);
+        gr.orderByDesc('sys_created_on');
+        gr.setLimit(max);
+        gr.query();
+        while (gr.next()) {
+            items.push({
+                sys_id:    '' + gr.getUniqueValue(),
+                number:    '' + gr.getValue('number'),
+                short_desc: '' + gr.getValue('short_description'),
+                state:     '' + gr.getDisplayValue('state'),
+                priority:  '' + gr.getDisplayValue('priority'),
+                created:   '' + gr.getDisplayValue('sys_created_on')
+            });
+        }
+        return items;
+    }
 
-            var notifGr = new GlideRecord('sysevent_email_action');
-            notifGr.addQuery('sys_scope', scopeSysId);
-            notifGr.orderBy('name');
-            notifGr.query();
-            while (notifGr.next()) {
-                inventory.notifications.push({
-                    sys_id: '' + notifGr.getUniqueValue(),
-                    name:   '' + notifGr.getValue('name'),
-                    active: notifGr.getValue('active') === 'true' || notifGr.getValue('active') === '1'
-                });
-            }
-
-            var jobGr = new GlideRecord('sysauto_script');
-            jobGr.addQuery('sys_scope', scopeSysId);
-            jobGr.orderBy('name');
-            jobGr.query();
-            while (jobGr.next()) {
-                inventory.scheduled_jobs.push({
-                    sys_id: '' + jobGr.getUniqueValue(),
-                    name:   '' + jobGr.getValue('name'),
-                    active: jobGr.getValue('active') === 'true' || jobGr.getValue('active') === '1'
-                });
-            }
-        } catch (e) {}
-        return inventory;
+    function loadUserApprovals(personSysId, limitNum) {
+        if (!personSysId) { return []; }
+        var store  = new OIDataStore();
+        var max    = limitNum || 10;
+        var found  = store.find('pending_actions', function(pa) {
+            return pa.status === 'pending' &&
+                ('' + pa.assigned_to) === personSysId &&
+                (pa.type === 'automation_approval' || pa.type === 'artifact_approval');
+        });
+        found.sort(function(a, b) {
+            var ta = a.created_at || '';
+            var tb = b.created_at || '';
+            if (ta < tb) { return -1; }
+            if (ta > tb) { return 1; }
+            return 0;
+        });
+        if (found.length > max) { found = found.slice(0, max); }
+        var items = [];
+        var i, pa;
+        for (i = 0; i < found.length; i++) {
+            pa = found[i];
+            items.push({
+                sys_id:       '' + pa.sys_id,
+                type:         '' + (pa.type || ''),
+                description:  '' + (pa.description || ''),
+                subject_name: '' + (pa.subject_name || ''),
+                created_at:   '' + (pa.created_at || '')
+            });
+        }
+        return items;
     }
 
     // ── INITIALIZE ────────────────────────────────────────────────────────────
@@ -710,13 +645,13 @@
     data.personSysId  = '';
     data.userGroups   = [];
 
-    var userSysId      = gs.getUserID();
-    var oiRoles        = getOiRoles(userSysId);
-    var hasAdmin       = oiRoles.admin;
-    var hasDeveloper   = oiRoles.developer;
-    var hasLeadership  = oiRoles.leadership;
-    var hasCreator     = oiRoles.creator;
-    var hasUser        = oiRoles.user;
+    var userSysId     = gs.getUserID();
+    var oiRoles       = getOiRoles(userSysId);
+    var hasAdmin      = oiRoles.admin;
+    var hasDeveloper  = oiRoles.developer;
+    var hasLeadership = oiRoles.leadership;
+    var hasCreator    = oiRoles.creator;
+    var hasUser       = oiRoles.user;
 
     if (!hasAdmin && !hasDeveloper && !hasLeadership && !hasCreator && !hasUser) {
         data.denied = true;
@@ -731,7 +666,8 @@
         var nameParts = fullName.split(' ');
         var initials  = '';
         if (nameParts.length >= 2) {
-            initials = nameParts[0].charAt(0).toUpperCase() + nameParts[nameParts.length - 1].charAt(0).toUpperCase();
+            initials = nameParts[0].charAt(0).toUpperCase() +
+                nameParts[nameParts.length - 1].charAt(0).toUpperCase();
         } else if (nameParts.length === 1 && nameParts[0].length > 0) {
             initials = nameParts[0].charAt(0).toUpperCase();
         }
@@ -740,8 +676,8 @@
         data.userInitials = initials;
     }
 
-    data.personSysId = getPersonSysId(userSysId);
-    data.userGroups  = getUserGroups(data.personSysId);
+    data.personSysId = getPersonByUser(userSysId);
+    data.userGroups  = getUserGroupMemberships(data.personSysId);
 
     if (hasAdmin) {
         data.userRole = 'admin';
@@ -756,12 +692,20 @@
     }
 
     var allSections = [
-        { id: 'workspace',  label: 'Workspace',             icon: 'fa-th-large', roles: ['admin','developer','leadership','creator','user'] },
-        { id: 'gallery',    label: 'Operations Gallery',    icon: 'fa-cube',     roles: ['admin','developer','leadership','creator','user'] },
-        { id: 'studio',     label: 'Operations Studio',     icon: 'fa-code',     roles: ['admin','creator'] },
-        { id: 'governance', label: 'Operations Governance', icon: 'fa-shield',   roles: ['admin','developer','leadership'] },
-        { id: 'developer',  label: 'Developer Workspace',   icon: 'fa-code',     roles: ['admin','developer'] },
-        { id: 'command',    label: 'Operations Command',    icon: 'fa-terminal', roles: ['admin'] }
+        { id: 'workspace',          label: 'Operations Workspace',   icon: 'fa-th-large',
+          roles: ['admin','developer','leadership','creator','user'] },
+        { id: 'automations',        label: 'Automations Workspace',  icon: 'fa-cube',
+          roles: ['admin','developer','leadership','creator','user'] },
+        { id: 'creator-studio',     label: 'Creator Studio',         icon: 'fa-code',
+          roles: ['admin','developer','creator'] },
+        { id: 'governance-control', label: 'Governance Control',     icon: 'fa-shield',
+          roles: ['admin','developer','leadership'] },
+        { id: 'leadership-insights', label: 'Leadership Insights',   icon: 'fa-line-chart',
+          roles: ['admin','leadership'] },
+        { id: 'developer-hub',      label: 'Developer Hub',          icon: 'fa-terminal',
+          roles: ['admin','developer'] },
+        { id: 'admin-hub',          label: 'Administrator Hub',      icon: 'fa-cog',
+          roles: ['admin'] }
     ];
 
     var si;
@@ -777,32 +721,39 @@
     // ── ACTIONS ───────────────────────────────────────────────────────────────
 
     if (input.action === 'load_section') {
-        var section = '' + input.section;
-        if (section === 'workspace') {
-            var wsData = loadWorkspace(data.userGroups);
-            wsData.catalog_categories = loadCatalogCategories();
-            data.sectionData = wsData;
-        } else if (section === 'gallery') {
-            data.sectionData = loadDeliverables(data.personSysId);
-        } else if (section === 'studio') {
-            if (hasCreator || hasAdmin) {
-                data.sectionData = loadStudio(data.personSysId);
-            }
-        } else if (section === 'governance') {
-            if (hasLeadership || hasAdmin || hasDeveloper) {
-                data.sectionData = loadGovernance(data.personSysId, hasAdmin || hasDeveloper);
-            }
-        } else if (section === 'developer') {
-            if (hasAdmin || hasDeveloper) {
-                data.sectionData = { inventory: loadAppInventory() };
-            }
-        } else if (section === 'command') {
-            if (hasAdmin) {
-                data.sectionData = loadCommand();
-            }
+        var sectionId = '' + (input.section || '');
+
+        if (sectionId === 'workspace') {
+            data.workspace = loadWorkspace(data.personSysId, data.userGroups);
+
+        } else if (sectionId === 'automations') {
+            data.automations_workspace = loadAutomationsWorkspace(data.personSysId, data.userGroups);
+
+        } else if (sectionId === 'creator-studio') {
+            if (!hasAdmin && !hasDeveloper && !hasCreator) { return; }
+            data.creator_studio = loadCreatorStudio(data.personSysId);
+
+        } else if (sectionId === 'governance-control') {
+            if (!hasAdmin && !hasDeveloper && !hasLeadership) { return; }
+            data.governance = loadGovernanceControl(
+                data.personSysId, hasAdmin, hasLeadership);
+
+        } else if (sectionId === 'leadership-insights') {
+            if (!hasAdmin && !hasLeadership) { return; }
+            data.leadership = loadLeadershipInsights(data.personSysId);
+
+        } else if (sectionId === 'developer-hub') {
+            if (!hasAdmin && !hasDeveloper) { return; }
+            data.developer_hub = loadDeveloperHub();
+
+        } else if (sectionId === 'admin-hub') {
+            if (!hasAdmin) { return; }
+            data.admin_hub = loadAdminHub();
         }
         return;
     }
+
+    // ── ASSISTANT QUERY ───────────────────────────────────────────────────────
 
     if (input.action === 'assistant_query') {
         var rawQ = '' + (input.query || '');
@@ -829,22 +780,22 @@
             person_sys_id: data.personSysId,
             groups:        data.userGroups
         };
-        var result = advisor.analyze(rawQ, userCtx, hist);
-        data.reply   = result.reply || '';
-        data.type    = result.type  || 'text';
-        data.choices = result.choices || null;
+        var result    = advisor.analyze(rawQ, userCtx, hist);
+        data.reply    = result.reply   || '';
+        data.type     = result.type    || 'text';
+        data.choices  = result.choices || null;
 
         var hint = result.dataHint || '';
         if (!hint) { return; }
 
         if (hint === 'load_approvals') {
-            var apItems = loadUserApprovals(userSysId, 10);
+            var apItems = loadUserApprovals(data.personSysId, 10);
             if (apItems.length === 0) {
                 data.reply = 'You have no pending approvals at this time.';
                 data.type  = 'text';
             } else {
-                data.reply = 'You have ' + apItems.length + ' pending approval(s):';
-                data.type  = 'data';
+                data.reply      = 'You have ' + apItems.length + ' pending approval(s):';
+                data.type       = 'data';
                 data.data_items = apItems;
                 data.data_type  = 'approvals';
             }
@@ -857,8 +808,8 @@
                 data.reply = 'You have no open incidents at this time.';
                 data.type  = 'text';
             } else {
-                data.reply = 'Here are your open incidents:';
-                data.type  = 'data';
+                data.reply      = 'Here are your open incidents:';
+                data.type       = 'data';
                 data.data_items = incItems;
                 data.data_type  = 'incidents';
             }
@@ -871,8 +822,8 @@
                 data.reply = 'You have no recent service requests.';
                 data.type  = 'text';
             } else {
-                data.reply = 'Here are your recent service requests:';
-                data.type  = 'data';
+                data.reply      = 'Here are your recent service requests:';
+                data.type       = 'data';
                 data.data_items = reqItems;
                 data.data_type  = 'requests';
             }
@@ -882,11 +833,12 @@
         if (hint === 'show_catalog') {
             var catCats = loadCatalogCategories();
             if (catCats.length === 0) {
-                data.reply = 'The Automation Catalog has no published categories yet. Please check back later or contact your Administrator.';
+                data.reply = 'The Automation Catalog has no published categories yet. ' +
+                    'Please contact your Administrator.';
                 data.type  = 'text';
             } else {
-                data.reply = 'Here is what is available in the Automation Catalog:';
-                data.type  = 'data';
+                data.reply      = 'Here is what is available in the Automation Catalog:';
+                data.type       = 'data';
                 data.data_items = catCats;
                 data.data_type  = 'catalog';
             }
@@ -905,21 +857,207 @@
             incLu.setLimit(1);
             incLu.query();
             if (incLu.next()) {
-                data.reply = 'Incident ' + incNum.toUpperCase() + ': ' + incLu.getDisplayValue('short_description') +
+                data.reply = 'Incident ' + incNum.toUpperCase() + ': ' +
+                    incLu.getDisplayValue('short_description') +
                     ' — State: ' + incLu.getDisplayValue('state') +
                     ', Priority: ' + incLu.getDisplayValue('priority') +
                     ', Assigned to: ' + incLu.getDisplayValue('assigned_to') + '.';
                 data.type  = 'text';
             } else {
-                data.reply = 'Incident ' + incNum.toUpperCase() + ' was not found. Please verify the number and try again.';
+                data.reply = 'Incident ' + incNum.toUpperCase() +
+                    ' was not found. Please verify the number and try again.';
                 data.type  = 'text';
             }
             return;
         }
 
-        if (hint === 'dev_app_overview' || hint === 'dev_list_tables' || hint === 'dev_list_script_includes' ||
-            hint === 'dev_list_business_rules' || hint === 'dev_list_va_topics' || hint === 'dev_list_roles' ||
-            hint === 'dev_list_notifications' || hint === 'dev_list_jobs') {
+        if (hint === 'load_automations') {
+            var autoStore = new OIDataStore();
+            var autoList  = autoStore.find('automations', function(a) {
+                return a.status === 'published';
+            });
+            if (autoList.length === 0) {
+                data.reply = 'No published automations are available at this time.';
+                data.type  = 'text';
+            } else {
+                data.reply      = 'Here are the available automations:';
+                data.type       = 'data';
+                data.data_items = autoList;
+                data.data_type  = 'automations';
+            }
+            return;
+        }
+
+        if (hint === 'my_automations') {
+            var store2    = new OIDataStore();
+            var groupIds2 = [];
+            var i2;
+            for (i2 = 0; i2 < data.userGroups.length; i2++) {
+                groupIds2.push(data.userGroups[i2].sys_id);
+            }
+            var myAutos = [];
+            var seen2   = {};
+            var grps2   = store2.find('groups', function(g) {
+                return g.status === 'active' && groupIds2.indexOf(g.sys_id) !== -1;
+            });
+            var gi2, grp2, gAutos2, ai2, autoSysId2, autoRec2;
+            for (gi2 = 0; gi2 < grps2.length; gi2++) {
+                grp2   = grps2[gi2];
+                gAutos2 = grp2.automations || [];
+                for (ai2 = 0; ai2 < gAutos2.length; ai2++) {
+                    if ('' + gAutos2[ai2].approval_status !== 'approved') { continue; }
+                    autoSysId2 = '' + gAutos2[ai2].automation_sys_id;
+                    if (seen2[autoSysId2]) { continue; }
+                    seen2[autoSysId2] = true;
+                    autoRec2 = store2.get('automations', autoSysId2);
+                    if (autoRec2 && autoRec2.status === 'published') {
+                        myAutos.push({
+                            sys_id: '' + autoRec2.sys_id,
+                            name:   '' + autoRec2.name,
+                            short_description: '' + (autoRec2.short_description || '')
+                        });
+                    }
+                }
+            }
+            data.reply      = myAutos.length > 0 ?
+                'You have access to ' + myAutos.length + ' automation(s):' :
+                'You do not currently have access to any automations. Contact your group leader.';
+            data.type       = myAutos.length > 0 ? 'data' : 'text';
+            data.data_items = myAutos;
+            data.data_type  = 'automations';
+            return;
+        }
+
+        if (hint === 'submit_project_for_review') {
+            var projId = result.entityRef || '';
+            if (!projId) {
+                data.reply = 'Please specify which project you would like to submit for review.';
+                data.type  = 'clarify';
+                return;
+            }
+            var pStore  = new OIDataStore();
+            var projRec = pStore.get('projects', projId);
+            if (!projRec || '' + projRec.created_by !== data.personSysId) {
+                data.reply = 'Project not found or you do not have permission to submit it.';
+                data.type  = 'text';
+                return;
+            }
+            if (projRec.stage !== 'draft') {
+                data.reply = 'This project has already been submitted (stage: ' + projRec.stage + ').';
+                data.type  = 'text';
+                return;
+            }
+            projRec.stage      = 'review';
+            projRec.updated_at = new GlideDateTime().getValue();
+            pStore.upsert('projects', projRec);
+            var pa = {
+                type:          'project_review',
+                description:   'Creator submitted project for leadership review: ' + projRec.name,
+                subject_type:  'project',
+                subject_sys_id: projId,
+                subject_name:  '' + projRec.name,
+                assigned_to:   null,
+                status:        'pending',
+                created_at:    new GlideDateTime().getValue(),
+                created_by:    data.personSysId
+            };
+            pStore.upsert('pending_actions', pa);
+            try {
+                new OIJournal().write('project_submitted',
+                    { sys_id: userSysId, name: data.userName, role: data.userRole },
+                    { type: 'project', sys_id: projId, name: projRec.name },
+                    { status: 'success' },
+                    { section: 'creator-studio', assistant_type: 'creator', query: rawQ });
+            } catch (je) {}
+            data.reply = 'Project "' + projRec.name +
+                '" has been submitted for leadership review. ' +
+                'You will be notified once a decision is made.';
+            data.type  = 'text';
+            return;
+        }
+
+        if (hint === 'get_implementation_plan') {
+            var planProjId = result.entityRef || '';
+            var planStore  = new OIDataStore();
+            var planProj   = planProjId ? planStore.get('projects', planProjId) : null;
+            if (!planProj) {
+                data.reply = 'Please specify which project to retrieve the implementation plan for.';
+                data.type  = 'clarify';
+                return;
+            }
+            if (!planProj.implementation_plan) {
+                data.reply = 'No implementation plan has been generated for "' + planProj.name +
+                    '" yet. Continue working with the Creator Assistant to develop your automation initiative.';
+                data.type  = 'text';
+                return;
+            }
+            data.reply      = 'Implementation plan for "' + planProj.name + '":';
+            data.type       = 'data';
+            data.data_items = [planProj.implementation_plan];
+            data.data_type  = 'implementation_plan';
+            return;
+        }
+
+        if (hint === 'load_pending_projects') {
+            var lStore    = new OIDataStore();
+            var pendProjs = lStore.find('projects', function(p) { return p.stage === 'review'; });
+            if (pendProjs.length === 0) {
+                data.reply = 'There are no projects currently awaiting your review.';
+                data.type  = 'text';
+            } else {
+                data.reply      = 'There are ' + pendProjs.length + ' project(s) pending review:';
+                data.type       = 'data';
+                data.data_items = pendProjs;
+                data.data_type  = 'pending_projects';
+            }
+            return;
+        }
+
+        if (hint === 'load_project_pipeline') {
+            var pipStore  = new OIDataStore();
+            var pipProjs  = pipStore.find('projects', function(p) {
+                return p.stage === 'approved' || p.stage === 'implementing';
+            });
+            data.reply      = pipProjs.length > 0 ?
+                pipProjs.length + ' project(s) are in the implementation pipeline:' :
+                'No projects are currently in the implementation pipeline.';
+            data.type       = pipProjs.length > 0 ? 'data' : 'text';
+            data.data_items = pipProjs;
+            data.data_type  = 'project_pipeline';
+            return;
+        }
+
+        if (hint === 'load_leadership_analytics') {
+            var lAnStore     = new OIDataStore();
+            var lAnPersons   = lAnStore.find('persons', function(p) { return p.active !== false; });
+            var lAnAutos     = lAnStore.find('automations', function(a) { return a.status === 'published'; });
+            var lAnGroups    = lAnStore.find('groups', function(g) { return g.status === 'active'; });
+            var lAnInReview  = lAnStore.find('projects', function(p) { return p.stage === 'review'; });
+            data.reply = 'Platform analytics — Enrolled persons: ' + lAnPersons.length +
+                ', Published automations: ' + lAnAutos.length +
+                ', Active groups: ' + lAnGroups.length +
+                ', Projects in review: ' + lAnInReview.length + '.';
+            data.type  = 'text';
+            return;
+        }
+
+        if (hint === 'load_team_activity') {
+            var taJournal = {};
+            try {
+                var taJ = new OIJournal();
+                taJournal = taJ.summary();
+            } catch (taje) {}
+            data.reply = 'Team activity overview — Total events recorded: ' +
+                (taJournal.total || 0) +
+                ', Success rate: ' + (Math.round((taJournal.success_rate || 1) * 100)) + '%.';
+            data.type  = 'text';
+            return;
+        }
+
+        if (hint === 'dev_app_overview' || hint === 'dev_list_tables' ||
+                hint === 'dev_list_script_includes' || hint === 'dev_list_business_rules' ||
+                hint === 'dev_list_va_topics' || hint === 'dev_list_roles' ||
+                hint === 'dev_list_notifications' || hint === 'dev_list_jobs') {
             var invData = loadAppInventory();
             var typeMap = {
                 'dev_list_tables':          { key: 'tables',          label: 'tables' },
@@ -941,14 +1079,16 @@
                     ', Scheduled Jobs: ' + invData.scheduled_jobs.length + '.';
                 data.type  = 'text';
             } else {
-                var mapEntry = typeMap[hint];
-                var listItems = mapEntry ? invData[mapEntry.key] : [];
+                var mapEntry   = typeMap[hint];
+                var listItems  = mapEntry ? invData[mapEntry.key] : [];
                 if (listItems.length === 0) {
-                    data.reply = 'No ' + (mapEntry ? mapEntry.label : 'items') + ' found in scope x_infte_ops_int.';
+                    data.reply = 'No ' + (mapEntry ? mapEntry.label : 'items') +
+                        ' found in scope x_infte_ops_int.';
                     data.type  = 'text';
                 } else {
-                    data.reply = 'Found ' + listItems.length + ' ' + (mapEntry ? mapEntry.label : 'items') + ':';
-                    data.type  = 'data';
+                    data.reply      = 'Found ' + listItems.length + ' ' +
+                        (mapEntry ? mapEntry.label : 'items') + ':';
+                    data.type       = 'data';
                     data.data_items = listItems;
                     data.data_type  = hint;
                 }
@@ -972,11 +1112,12 @@
         if (hint === 'admin_list_categories') {
             var admCats = loadCatalogCategories();
             if (admCats.length === 0) {
-                data.reply = 'No Automation Catalog categories exist yet. Use Catalog Management to create the first category.';
+                data.reply = 'No Automation Catalog categories exist yet. ' +
+                    'Use the Administrator Hub to create the first category.';
                 data.type  = 'text';
             } else {
-                data.reply = 'There are ' + admCats.length + ' catalog categories configured:';
-                data.type  = 'data';
+                data.reply      = 'There are ' + admCats.length + ' catalog categories configured:';
+                data.type       = 'data';
                 data.data_items = admCats;
                 data.data_type  = 'catalog_categories';
             }
@@ -984,26 +1125,28 @@
         }
 
         if (hint === 'admin_pending_actions') {
-            var admPa = loadGovernance(data.personSysId, true);
-            var admPaItems = admPa.pending_actions || [];
-            if (admPaItems.length === 0) {
+            var admStore = new OIDataStore();
+            var admPas   = admStore.find('pending_actions', function(pa) {
+                return pa.status === 'pending';
+            });
+            if (admPas.length === 0) {
                 data.reply = 'There are no pending governance actions at this time.';
                 data.type  = 'text';
             } else {
-                data.reply = 'There are ' + admPaItems.length + ' pending governance action(s):';
-                data.type  = 'data';
-                data.data_items = admPaItems;
+                data.reply      = 'There are ' + admPas.length + ' pending governance action(s):';
+                data.type       = 'data';
+                data.data_items = admPas;
                 data.data_type  = 'pending_actions';
             }
             return;
         }
 
         if (hint === 'admin_system_status') {
-            var admCmd = loadCommand();
-            data.reply = 'Platform status — Persons: ' + admCmd.stats.persons +
-                ', Published Automations: ' + admCmd.stats.automations +
-                ', Active Groups: ' + admCmd.stats.groups +
-                ', Executions today: ' + admCmd.stats.executions_today + '.';
+            var admHubData = loadAdminHub();
+            data.reply = 'Platform status — Persons: ' + admHubData.stats.persons +
+                ', Published Automations: ' + admHubData.stats.automations +
+                ', Active Groups: ' + admHubData.stats.groups +
+                ', Executions today: ' + admHubData.stats.executions_today + '.';
             data.type  = 'text';
             return;
         }
@@ -1011,704 +1154,971 @@
         return;
     }
 
+    // ── LOAD USER REQUESTS ────────────────────────────────────────────────────
 
     if (input.action === 'load_user_requests') {
-        var lrLimit = input.limit ? parseInt('' + input.limit, 10) : 20;
-        data.user_requests = loadUserRequests(userSysId, lrLimit);
+        data.requests = loadUserRequests(userSysId, 10);
         return;
     }
 
-    if (input.action === 'trigger_automation') {
-        var autoSysId  = '' + input.automation_sys_id;
-        var grpSysId   = input.group_sys_id ? '' + input.group_sys_id : null;
+    // ── TRIGGER AUTOMATION ────────────────────────────────────────────────────
 
-        var permitted = false;
+    if (input.action === 'trigger_automation') {
+        var taAutoId   = '' + (input.automation_sys_id || '');
+        var taStore    = new OIDataStore();
+        var taAutoRec  = taStore.get('automations', taAutoId);
+        if (!taAutoRec || taAutoRec.status !== 'published') {
+            data.triggered = { ok: false, error: 'Automation not found or not published.' };
+            return;
+        }
+        var taGroupIds = [];
+        var tai;
+        for (tai = 0; tai < data.userGroups.length; tai++) {
+            taGroupIds.push(data.userGroups[tai].sys_id);
+        }
+        var taAccessible = false;
         if (hasAdmin) {
-            permitted = true;
-        } else if (grpSysId && data.personSysId) {
-            var grpChk = new GlideRecord('x_infte_ops_int_group');
-            if (grpChk.get(grpSysId)) {
-                var chkAutos = [];
-                try { chkAutos = JSON.parse('' + grpChk.getValue('automations')); } catch (e) { chkAutos = []; }
-                var ci;
-                for (ci = 0; ci < chkAutos.length; ci++) {
-                    if ('' + chkAutos[ci].automation_sys_id === autoSysId && chkAutos[ci].approval_status === 'approved') {
-                        permitted = true;
+            taAccessible = true;
+        } else {
+            var taGroups = taStore.find('groups', function(g) {
+                return g.status === 'active' && taGroupIds.indexOf('' + g.sys_id) !== -1;
+            });
+            var tgi, tgrp, tgAutos, tai2;
+            for (tgi = 0; tgi < taGroups.length; tgi++) {
+                tgrp   = taGroups[tgi];
+                tgAutos = tgrp.automations || [];
+                for (tai2 = 0; tai2 < tgAutos.length; tai2++) {
+                    if ('' + tgAutos[tai2].automation_sys_id === taAutoId &&
+                            '' + tgAutos[tai2].approval_status === 'approved') {
+                        taAccessible = true;
                         break;
                     }
                 }
+                if (taAccessible) { break; }
             }
         }
-
-        if (!permitted) {
-            data.triggered = { ok: false, error: 'Not authorised to trigger this automation.' };
+        if (!taAccessible) {
+            data.triggered = { ok: false, error: 'Access denied for this automation.' };
             return;
         }
-
+        taAutoRec.usage_count = (parseInt(taAutoRec.usage_count, 10) || 0) + 1;
+        taStore.upsert('automations', taAutoRec);
         try {
-            var engine    = new ExecutionEngine();
-            var execSysId = engine.createExecution(autoSysId, {}, grpSysId);
-            if (execSysId) {
-                var execRec = new GlideRecord('x_infte_ops_int_execution');
-                if (execRec.get(execSysId)) {
-                    data.triggered = {
-                        ok:     true,
-                        sys_id: execSysId,
-                        number: '' + execRec.getValue('number'),
-                        status: '' + execRec.getValue('status')
-                    };
-                } else {
-                    data.triggered = { ok: true, sys_id: execSysId };
-                }
-            } else {
-                data.triggered = { ok: false, error: 'Execution could not be created.' };
-            }
-        } catch (trigErr) {
-            data.triggered = { ok: false, error: '' + trigErr };
-        }
+            new OIJournal().write('automation_triggered',
+                { sys_id: userSysId, name: data.userName, role: data.userRole },
+                { type: 'automation', sys_id: taAutoId, name: taAutoRec.name },
+                { status: 'success' },
+                { section: 'workspace', assistant_type: 'operations', query: '' });
+        } catch (je) {}
+        data.triggered = { ok: true, name: '' + taAutoRec.name };
         return;
     }
+
+    // ── RESOLVE ACTION ────────────────────────────────────────────────────────
 
     if (input.action === 'resolve_action') {
-        if (!hasLeadership && !hasAdmin) { data.resolved = false; return; }
-        var paId    = '' + input.action_sys_id;
-        var verdict = '' + input.resolution;
-        if (verdict !== 'approved' && verdict !== 'rejected') { data.resolved = false; return; }
-        var paRec = new GlideRecord('x_infte_ops_int_pending_action');
-        if (!paRec.get(paId)) { data.resolved = false; return; }
-        paRec.setValue('status', verdict);
-        paRec.update();
-        if (verdict === 'approved') {
-            var subjectUserSysId = '' + paRec.getValue('subject_user');
-            if (subjectUserSysId) {
-                var subjectPersonSysId = getPersonSysId(subjectUserSysId);
-                if (subjectPersonSysId) {
-                    try {
-                        new RoleSyncService().syncPersonRoles(subjectPersonSysId);
-                    } catch (rsErr) {
-                        gs.warn('Operations Intelligence Portal: RoleSyncService.syncPersonRoles error: ' + rsErr);
-                    }
-                }
-            }
+        if (!hasAdmin && !hasLeadership) {
+            data.resolved = { ok: false, error: 'Access denied.' };
+            return;
         }
-        data.resolved = true;
+        var raId    = '' + (input.action_sys_id || '');
+        var raStore = new OIDataStore();
+        var raRec   = raStore.get('pending_actions', raId);
+        if (!raRec) { data.resolved = { ok: false, error: 'Action not found.' }; return; }
+        raRec.status     = 'resolved';
+        raRec.updated_at = new GlideDateTime().getValue();
+        raStore.upsert('pending_actions', raRec);
+        data.resolved = { ok: true };
         return;
     }
 
-    if (input.action === 'step_log') {
-        var excSysId = '' + input.execution_sys_id;
-        var excRec = new GlideRecord('x_infte_ops_int_execution');
-        if (excRec.get(excSysId)) {
-            var steps = [];
-            try { steps = JSON.parse('' + excRec.getValue('step_log')); } catch (e) { steps = []; }
-            data.stepLog = steps;
-        } else {
-            data.stepLog = [];
-        }
-        return;
-    }
+    // ── MAINTENANCE TOGGLE ────────────────────────────────────────────────────
 
     if (input.action === 'toggle_maintenance') {
-        if (!hasAdmin) { return; }
-        var tPropName = '' + input.prop_name;
-        var tPropVal  = (input.value === true || ('' + input.value) === 'true') ? 'true' : 'false';
-        try {
-            var tmKey  = gs.getProperty('x_infte_ops_int.engine_key', '');
-            var tmPass = gs.getProperty('x_infte_ops_int.svc_password', '');
-            var tmBase = ('' + gs.getProperty('glide.servlet.uri', '')).replace(/\/+$/, '');
-            var tmRm   = new sn_ws.RESTMessageV2();
-            tmRm.setEndpoint(tmBase + '/api/x_infte_ops_int/ops_int_engine/v1');
-            tmRm.setHttpMethod('POST');
-            tmRm.setRequestHeader('x-engine-key', tmKey);
-            tmRm.setRequestHeader('Content-Type', 'application/json');
-            tmRm.setBasicAuth('svc_operations_intelligence_api', tmPass);
-            tmRm.setRequestBody('{"op":"property.set","data":{"key":"' + tPropName + '","value":"' + tPropVal + '","type":"string","description":"Operations Intelligence maintenance flag"}}');
-            var tmResp = tmRm.execute();
-            data.toggled = (tmResp.getStatusCode() === 200);
-        } catch (tmErr) {
-            data.toggled = false;
+        if (!hasAdmin) { data.maintenance_toggled = false; return; }
+        var tmSection  = '' + (input.section || '');
+        var tmEnabled  = input.enabled === true || input.enabled === 'true';
+        var tmPropName = 'x_infte_ops_int.maintenance.' + tmSection;
+        var tmGr = new GlideRecord('sys_properties');
+        tmGr.addQuery('name', tmPropName);
+        tmGr.setLimit(1);
+        tmGr.query();
+        if (tmGr.next()) {
+            tmGr.setValue('value', tmEnabled ? 'true' : 'false');
+            tmGr.update();
+        } else {
+            tmGr.initialize();
+            tmGr.setValue('name',        tmPropName);
+            tmGr.setValue('value',       tmEnabled ? 'true' : 'false');
+            tmGr.setValue('description', 'Operations Intelligence maintenance mode: ' + tmSection);
+            tmGr.insert();
         }
+        data.maintenance_toggled = true;
         return;
     }
 
+    // ── CATALOG CATEGORY MANAGEMENT ───────────────────────────────────────────
+
     if (input.action === 'save_catalog_category') {
-        if (!hasAdmin) { data.saved_category = { ok: false, error: 'Access denied.' }; return; }
-        var scName = '' + (input.name || '');
+        if (!hasAdmin) { data.saved_category = { ok: false, error: 'Administrator access required.' }; return; }
+        var scStore    = new OIDataStore();
+        var scSysId    = '' + (input.sys_id || '');
+        var scName     = '' + (input.name || '');
+        var scDesc     = '' + (input.description || '');
+        var scIcon     = '' + (input.icon     || 'fa-folder');
+        var scColor    = '' + (input.color    || '#00BF6F');
+        var scOrder    = parseInt(input.sort_order, 10) || 0;
         if (!scName) { data.saved_category = { ok: false, error: 'Name is required.' }; return; }
-        try {
-            var scGr = new GlideRecord('x_infte_ops_int_catalog_category');
-            var scSysId = '' + (input.sys_id || '');
-            if (scSysId && scGr.get(scSysId)) {
-                scGr.setValue('name', scName);
-                scGr.setValue('description', '' + (input.description || ''));
-                scGr.setValue('icon', '' + (input.icon || 'fa-folder'));
-                scGr.setValue('color', '' + (input.color || '#00BF6F'));
-                scGr.setValue('sort_order', parseInt('' + (input.sort_order || 0), 10));
-                scGr.setValue('active', true);
-                scGr.update();
-                data.saved_category = { ok: true, sys_id: scSysId, action: 'updated' };
-            } else {
-                var ncGr = new GlideRecord('x_infte_ops_int_catalog_category');
-                ncGr.initialize();
-                ncGr.setValue('name', scName);
-                ncGr.setValue('description', '' + (input.description || ''));
-                ncGr.setValue('icon', '' + (input.icon || 'fa-folder'));
-                ncGr.setValue('color', '' + (input.color || '#00BF6F'));
-                ncGr.setValue('sort_order', parseInt('' + (input.sort_order || 0), 10));
-                ncGr.setValue('active', true);
-                ncGr.setValue('created_by', userSysId);
-                var newCatId = '' + ncGr.insert();
-                data.saved_category = { ok: true, sys_id: newCatId, action: 'created' };
-            }
-        } catch (e) { data.saved_category = { ok: false, error: '' + e }; }
+
+        var scRec;
+        if (scSysId) {
+            scRec = scStore.get('catalog', scSysId);
+            if (!scRec) { data.saved_category = { ok: false, error: 'Category not found.' }; return; }
+            scRec.name        = scName;
+            scRec.description = scDesc;
+            scRec.icon        = scIcon;
+            scRec.color       = scColor;
+            scRec.sort_order  = scOrder;
+            scRec.updated_at  = new GlideDateTime().getValue();
+        } else {
+            scRec = {
+                name:        scName,
+                description: scDesc,
+                icon:        scIcon,
+                color:       scColor,
+                sort_order:  scOrder,
+                active:      true,
+                items:       [],
+                created_at:  new GlideDateTime().getValue()
+            };
+        }
+        var scId = scStore.upsert('catalog', scRec);
+        data.saved_category = { ok: true, sys_id: scId, name: scName };
         return;
     }
 
     if (input.action === 'delete_catalog_category') {
-        if (!hasAdmin) { data.deleted_category = { ok: false, error: 'Access denied.' }; return; }
-        var dcId = '' + (input.sys_id || '');
-        if (!dcId) { data.deleted_category = { ok: false, error: 'sys_id is required.' }; return; }
-        try {
-            var dcGr = new GlideRecord('x_infte_ops_int_catalog_category');
-            if (dcGr.get(dcId)) {
-                var diGr = new GlideRecord('x_infte_ops_int_catalog_item');
-                diGr.addQuery('category', dcId);
-                diGr.query();
-                while (diGr.next()) { diGr.deleteRecord(); }
-                dcGr.deleteRecord();
-                data.deleted_category = { ok: true };
-            } else {
-                data.deleted_category = { ok: false, error: 'Category not found.' };
-            }
-        } catch (e) { data.deleted_category = { ok: false, error: '' + e }; }
+        if (!hasAdmin) { data.deleted_category = { ok: false, error: 'Administrator access required.' }; return; }
+        var dcStore = new OIDataStore();
+        var dcId    = '' + (input.sys_id || '');
+        if (!dcStore.get('catalog', dcId)) {
+            data.deleted_category = { ok: false, error: 'Category not found.' };
+            return;
+        }
+        dcStore.remove('catalog', dcId);
+        data.deleted_category = { ok: true };
         return;
     }
 
+    // ── CATALOG ITEM MANAGEMENT ───────────────────────────────────────────────
+
     if (input.action === 'save_catalog_item') {
-        if (!hasAdmin) { data.saved_item = { ok: false, error: 'Access denied.' }; return; }
-        var siName = '' + (input.name || '');
-        var siCat  = '' + (input.category_sys_id || '');
-        if (!siName || !siCat) { data.saved_item = { ok: false, error: 'Name and category are required.' }; return; }
-        try {
-            var siSysId = '' + (input.sys_id || '');
-            var siGr = new GlideRecord('x_infte_ops_int_catalog_item');
-            if (siSysId && siGr.get(siSysId)) {
-                siGr.setValue('name', siName);
-                siGr.setValue('description', '' + (input.description || ''));
-                siGr.setValue('category', siCat);
-                siGr.setValue('sort_order', parseInt('' + (input.sort_order || 0), 10));
-                siGr.setValue('active', true);
-                siGr.setValue('action_type', '' + (input.action_type || ''));
-                siGr.setValue('action_value', '' + (input.action_value || ''));
-                siGr.update();
-                data.saved_item = { ok: true, sys_id: siSysId, action: 'updated' };
-            } else {
-                var niGr = new GlideRecord('x_infte_ops_int_catalog_item');
-                niGr.initialize();
-                niGr.setValue('name', siName);
-                niGr.setValue('description', '' + (input.description || ''));
-                niGr.setValue('category', siCat);
-                niGr.setValue('sort_order', parseInt('' + (input.sort_order || 0), 10));
-                niGr.setValue('active', true);
-                niGr.setValue('action_type', '' + (input.action_type || ''));
-                niGr.setValue('action_value', '' + (input.action_value || ''));
-                niGr.setValue('created_by', userSysId);
-                var newItemId = '' + niGr.insert();
-                data.saved_item = { ok: true, sys_id: newItemId, action: 'created' };
+        if (!hasAdmin) { data.saved_item = { ok: false, error: 'Administrator access required.' }; return; }
+        var siStore   = new OIDataStore();
+        var siCatId   = '' + (input.category_sys_id || '');
+        var siItemId  = '' + (input.sys_id || '');
+        var siName    = '' + (input.name || '');
+        var siDesc    = '' + (input.description || '');
+        var siOrder   = parseInt(input.sort_order, 10) || 0;
+        var siActType = '' + (input.action_type  || '');
+        var siActVal  = '' + (input.action_value || '');
+        if (!siCatId || !siName) {
+            data.saved_item = { ok: false, error: 'Category and Name are required.' };
+            return;
+        }
+        var siCatRec = siStore.get('catalog', siCatId);
+        if (!siCatRec) { data.saved_item = { ok: false, error: 'Category not found.' }; return; }
+
+        var siItems = siCatRec.items || [];
+        var siFound = false;
+        var sii;
+        for (sii = 0; sii < siItems.length; sii++) {
+            if ('' + siItems[sii].sys_id === siItemId) {
+                siItems[sii].name         = siName;
+                siItems[sii].description  = siDesc;
+                siItems[sii].sort_order   = siOrder;
+                siItems[sii].action_type  = siActType;
+                siItems[sii].action_value = siActVal;
+                siItems[sii].updated_at   = new GlideDateTime().getValue();
+                siFound = true;
+                siItemId = '' + siItems[sii].sys_id;
+                break;
             }
-        } catch (e) { data.saved_item = { ok: false, error: '' + e }; }
+        }
+        if (!siFound) {
+            var newItem = {
+                sys_id:       siStore.generateId(),
+                name:         siName,
+                description:  siDesc,
+                sort_order:   siOrder,
+                active:       true,
+                action_type:  siActType,
+                action_value: siActVal,
+                created_at:   new GlideDateTime().getValue()
+            };
+            siItems.push(newItem);
+            siItemId = newItem.sys_id;
+        }
+        siCatRec.items      = siItems;
+        siCatRec.updated_at = new GlideDateTime().getValue();
+        siStore.upsert('catalog', siCatRec);
+        data.saved_item = { ok: true, sys_id: siItemId, name: siName };
         return;
     }
 
     if (input.action === 'delete_catalog_item') {
-        if (!hasAdmin) { data.deleted_item = { ok: false, error: 'Access denied.' }; return; }
-        var dciId = '' + (input.sys_id || '');
-        if (!dciId) { data.deleted_item = { ok: false, error: 'sys_id is required.' }; return; }
-        try {
-            var dciGr = new GlideRecord('x_infte_ops_int_catalog_item');
-            if (dciGr.get(dciId)) {
-                dciGr.deleteRecord();
-                data.deleted_item = { ok: true };
-            } else {
-                data.deleted_item = { ok: false, error: 'Item not found.' };
-            }
-        } catch (e) { data.deleted_item = { ok: false, error: '' + e }; }
+        if (!hasAdmin) { data.deleted_item = { ok: false, error: 'Administrator access required.' }; return; }
+        var diStore  = new OIDataStore();
+        var diCatId  = '' + (input.category_sys_id || '');
+        var diItemId = '' + (input.item_sys_id || '');
+        var diCat    = diStore.get('catalog', diCatId);
+        if (!diCat) { data.deleted_item = { ok: false, error: 'Category not found.' }; return; }
+        var diItems  = diCat.items || [];
+        var diFilt   = [];
+        var dii;
+        for (dii = 0; dii < diItems.length; dii++) {
+            if ('' + diItems[dii].sys_id !== diItemId) { diFilt.push(diItems[dii]); }
+        }
+        diCat.items      = diFilt;
+        diCat.updated_at = new GlideDateTime().getValue();
+        diStore.upsert('catalog', diCat);
+        data.deleted_item = { ok: true };
         return;
     }
+
+    // ── USER SEARCH ───────────────────────────────────────────────────────────
 
     if (input.action === 'search_users') {
         if (!hasAdmin && !hasLeadership) { data.users = []; return; }
-        var srchQ = '' + (input.query || '');
-        if (srchQ.length < 2) { data.users = []; return; }
-        var uGr = new GlideRecord('sys_user');
-        uGr.addQuery('active', true);
-        uGr.addQuery('name', 'CONTAINS', srchQ);
-        uGr.orderBy('name');
-        uGr.setLimit(20);
-        uGr.query();
-        var users = [];
-        while (uGr.next()) {
-            var uSid = '' + uGr.getUniqueValue();
-            var pChk = new GlideRecord('x_infte_ops_int_person');
-            pChk.addQuery('user', uSid);
-            pChk.setLimit(1);
-            pChk.query();
-            var isEnrolled = pChk.next();
-            users.push({
-                sys_id:           uSid,
-                name:             '' + uGr.getDisplayValue('name'),
-                user_name:        '' + uGr.getValue('user_name'),
-                email:            '' + uGr.getValue('email'),
-                already_enrolled: isEnrolled,
-                person_sys_id:    isEnrolled ? '' + pChk.getUniqueValue() : ''
+        var suQuery = '' + (input.query || '');
+        if (suQuery.length < 2) { data.users = []; return; }
+        var suGr = new GlideRecord('sys_user');
+        suGr.addQuery('active', true);
+        var suOr = suGr.addQuery('name', 'CONTAINS', suQuery);
+        suOr.addOrCondition('user_name', 'CONTAINS', suQuery);
+        suOr.addOrCondition('email', 'CONTAINS', suQuery);
+        suGr.setLimit(20);
+        suGr.query();
+        var suResults = [];
+        while (suGr.next()) {
+            suResults.push({
+                sys_id:    '' + suGr.getUniqueValue(),
+                name:      '' + suGr.getDisplayValue('name'),
+                user_name: '' + suGr.getValue('user_name'),
+                email:     '' + suGr.getValue('email')
             });
         }
-        data.users = users;
+        data.users = suResults;
         return;
     }
 
+    // ── PERSON MANAGEMENT ─────────────────────────────────────────────────────
+
     if (input.action === 'list_persons') {
         if (!hasAdmin && !hasLeadership) { data.persons = []; return; }
-        var pListGr = new GlideRecord('x_infte_ops_int_person');
-        pListGr.orderBy('user.name');
-        pListGr.query();
-        var persons = [];
-        while (pListGr.next()) {
-            var pSysId   = '' + pListGr.getUniqueValue();
-            var pUserSId = '' + pListGr.getValue('user');
-            var pActive  = ('' + pListGr.getValue('active')) === 'true' || ('' + pListGr.getValue('active')) === '1';
-
-            var uRec = new GlideRecord('sys_user');
-            var pName = '';
-            var uName = '';
-            var uEmail = '';
-            if (uRec.get(pUserSId)) {
-                pName  = '' + uRec.getValue('name');
-                uName  = '' + uRec.getValue('user_name');
-                uEmail = '' + uRec.getValue('email');
-            }
-
-            var pGroups = [];
-            var pgGr = new GlideRecord('x_infte_ops_int_group');
-            pgGr.addQuery('status', 'active');
-            pgGr.query();
-            while (pgGr.next()) {
-                var pgMems = [];
-                try { pgMems = JSON.parse('' + pgGr.getValue('members')); } catch (e) { pgMems = []; }
-                var pmi;
-                for (pmi = 0; pmi < pgMems.length; pmi++) {
-                    if ('' + pgMems[pmi].person_sys_id === pSysId && pgMems[pmi].status !== 'inactive') {
-                        pGroups.push({
-                            group_sys_id: '' + pgGr.getUniqueValue(),
-                            group_name:   '' + pgGr.getValue('name'),
-                            group_role:   '' + (pgMems[pmi].group_role || 'user')
-                        });
-                        break;
-                    }
-                }
-            }
-
-            persons.push({
-                sys_id:    pSysId,
-                name:      pName,
-                user_name: uName,
-                email:     uEmail,
-                active:    pActive,
-                groups:    pGroups
+        var lpStore   = new OIDataStore();
+        var lpPersons = lpStore.find('persons', function(p) { return p.active !== false; });
+        var lpList    = [];
+        var lpi;
+        for (lpi = 0; lpi < lpPersons.length; lpi++) {
+            var lpp = lpPersons[lpi];
+            lpList.push({
+                sys_id:    '' + lpp.sys_id,
+                name:      '' + (lpp.name || ''),
+                email:     '' + (lpp.email || ''),
+                active:    lpp.active !== false,
+                copilot_enabled: lpp.copilot_enabled === true,
+                enrolled_at: '' + (lpp.enrolled_at || '')
             });
         }
-        data.persons = persons;
+        data.persons = lpList;
         return;
     }
 
     if (input.action === 'enroll_person') {
-        if (!hasAdmin) { data.enrolled = { ok: false, error: 'Admin access required.' }; return; }
-        var enrollUserSysId  = '' + input.user_sys_id;
-        var enrollGroupSysId = input.group_sys_id ? '' + input.group_sys_id : null;
-        var enrollRole       = input.group_role   ? '' + input.group_role   : 'user';
-
-        var existPerson = new GlideRecord('x_infte_ops_int_person');
-        existPerson.addQuery('user', enrollUserSysId);
-        existPerson.setLimit(1);
-        existPerson.query();
-
-        var newPersonSysId;
-        if (existPerson.next()) {
-            newPersonSysId = '' + existPerson.getUniqueValue();
-        } else {
-            var newPerson = new GlideRecord('x_infte_ops_int_person');
-            newPerson.initialize();
-            newPerson.setValue('user', enrollUserSysId);
-            newPerson.setValue('active', true);
-            newPersonSysId = '' + newPerson.insert();
-            if (!newPersonSysId) {
-                data.enrolled = { ok: false, error: 'Failed to create person record.' };
-                return;
-            }
+        if (!hasAdmin && !hasLeadership) {
+            data.enrolled = { ok: false, error: 'Access denied.' };
+            return;
         }
-
-        if (enrollGroupSysId) {
-            try {
-                new GroupManager().addMember(enrollGroupSysId, newPersonSysId, enrollRole, data.personSysId || null);
-            } catch (gmErr) {
-                gs.warn('Operations Intelligence Portal enroll_person GroupManager.addMember: ' + gmErr);
-            }
+        var epUserSysId = '' + (input.user_sys_id || '');
+        if (!epUserSysId) { data.enrolled = { ok: false, error: 'User sys_id required.' }; return; }
+        var epStore   = new OIDataStore();
+        var epExisting = epStore.find('persons', function(p) {
+            return '' + p.user_sys_id === epUserSysId;
+        });
+        if (epExisting.length > 0) {
+            data.enrolled = { ok: true, sys_id: epExisting[0].sys_id, existing: true };
+            return;
         }
-
-        var enrolledUserRec = new GlideRecord('sys_user');
-        var enrolledName = '';
-        if (enrolledUserRec.get(enrollUserSysId)) { enrolledName = '' + enrolledUserRec.getDisplayValue('name'); }
-
-        data.enrolled = {
-            ok:            true,
-            person_sys_id: newPersonSysId,
-            name:          enrolledName
+        var epUserGr = new GlideRecord('sys_user');
+        if (!epUserGr.get(epUserSysId)) {
+            data.enrolled = { ok: false, error: 'User not found.' };
+            return;
+        }
+        var epPerson = {
+            user_sys_id:     epUserSysId,
+            name:            '' + epUserGr.getDisplayValue('name'),
+            email:           '' + epUserGr.getValue('email'),
+            active:          true,
+            copilot_enabled: false,
+            enrolled_at:     new GlideDateTime().getValue()
         };
+        var epId = epStore.upsert('persons', epPerson);
+        data.enrolled = { ok: true, sys_id: epId };
         return;
     }
 
     if (input.action === 'unenroll_person') {
-        if (!hasAdmin) { data.unenrolled = { ok: false }; return; }
-        var uePerson = '' + input.person_sys_id;
-
-        var ueGroups = new GlideRecord('x_infte_ops_int_group');
-        ueGroups.addQuery('status', 'active');
-        ueGroups.query();
-        while (ueGroups.next()) {
-            var ueMembers = [];
-            try { ueMembers = JSON.parse('' + ueGroups.getValue('members')); } catch (e) { ueMembers = []; }
-            var uei;
-            for (uei = 0; uei < ueMembers.length; uei++) {
-                if ('' + ueMembers[uei].person_sys_id === uePerson && ueMembers[uei].status !== 'inactive') {
-                    try { new GroupManager().removeMember('' + ueGroups.getUniqueValue(), uePerson); } catch (e) {}
-                    break;
-                }
-            }
-        }
-
-        var uePersonRec = new GlideRecord('x_infte_ops_int_person');
-        if (uePersonRec.get(uePerson)) {
-            uePersonRec.setValue('active', false);
-            uePersonRec.update();
-        }
+        if (!hasAdmin) { data.unenrolled = { ok: false, error: 'Administrator access required.' }; return; }
+        var upStore    = new OIDataStore();
+        var upPersonId = '' + (input.person_sys_id || '');
+        var upRec      = upStore.get('persons', upPersonId);
+        if (!upRec) { data.unenrolled = { ok: false, error: 'Person not found.' }; return; }
+        upRec.active     = false;
+        upRec.updated_at = new GlideDateTime().getValue();
+        upStore.upsert('persons', upRec);
         data.unenrolled = { ok: true };
         return;
     }
 
+    // ── GROUP MANAGEMENT ──────────────────────────────────────────────────────
+
     if (input.action === 'create_group') {
-        if (!hasAdmin && !hasLeadership) { data.created_group = { ok: false, error: 'Admin or Leadership access required.' }; return; }
-        var cgName         = '' + (input.name || '');
-        var cgDesc         = '' + (input.description || '');
-        var cgType         = '' + (input.type || 'custom_group');
-        var cgLeadId       = input.lead_person_sys_id   ? '' + input.lead_person_sys_id   : null;
-        var cgCreatorId    = input.creator_person_sys_id ? '' + input.creator_person_sys_id : null;
-        if (!cgName) { data.created_group = { ok: false, error: 'Name is required.' }; return; }
-        try {
-            var gm = new GroupManager();
-            var newGrpId = gm.createGroup(cgName, cgDesc, cgType, data.personSysId || null, null, data.personSysId || null);
-            if (newGrpId) {
-                if (cgLeadId)    { try { gm.addMember(newGrpId, cgLeadId,    'lead',    data.personSysId || null); } catch(e) {} }
-                if (cgCreatorId) { try { gm.addMember(newGrpId, cgCreatorId, 'creator', data.personSysId || null); } catch(e) {} }
-                data.created_group = { ok: true, sys_id: newGrpId, name: cgName };
-            } else {
-                data.created_group = { ok: false, error: 'Group already exists or could not be created.' };
-            }
-        } catch (cgErr) {
-            data.created_group = { ok: false, error: '' + cgErr };
+        if (!hasAdmin && !hasLeadership) {
+            data.created_group = { ok: false, error: 'Administrator or Leadership access required.' };
+            return;
         }
+        var cgStore = new OIDataStore();
+        var cgName  = '' + (input.name || '');
+        var cgDesc  = '' + (input.description || '');
+        var cgType  = '' + (input.type || 'custom_group');
+        if (!cgName) { data.created_group = { ok: false, error: 'Name is required.' }; return; }
+
+        var cgExisting = cgStore.find('groups', function(g) {
+            return '' + g.name === cgName && g.status !== 'archived';
+        });
+        if (cgExisting.length > 0) {
+            data.created_group = { ok: true, sys_id: cgExisting[0].sys_id, existing: true };
+            return;
+        }
+        var cgGroup = {
+            name:              cgName,
+            description:       cgDesc,
+            type:              cgType,
+            owner:             data.personSysId || null,
+            status:            'active',
+            members:           [],
+            automations:       [],
+            created_at:        new GlideDateTime().getValue(),
+            created_by_person: data.personSysId || null
+        };
+        var cgId = cgStore.upsert('groups', cgGroup);
+        data.created_group = { ok: true, sys_id: cgId, name: cgName };
         return;
     }
 
     if (input.action === 'delete_group') {
-        if (!hasAdmin) { data.deleted_group = { ok: false, error: 'Admin access required.' }; return; }
-        var dgSysId = '' + input.group_sys_id;
-        var dgRec = new GlideRecord('x_infte_ops_int_group');
-        if (!dgRec.get(dgSysId)) { data.deleted_group = { ok: false, error: 'Group not found.' }; return; }
-        var dgType = '' + dgRec.getValue('type');
-        if (dgType !== 'custom_group') {
-            data.deleted_group = { ok: false, error: 'This is a system-managed group and cannot be deleted.' };
+        if (!hasAdmin) { data.deleted_group = { ok: false, error: 'Administrator access required.' }; return; }
+        var dgStore = new OIDataStore();
+        var dgId    = '' + (input.group_sys_id || '');
+        var dgRec   = dgStore.get('groups', dgId);
+        if (!dgRec) { data.deleted_group = { ok: false, error: 'Group not found.' }; return; }
+        if ((dgRec.type || '') !== 'custom_group') {
+            data.deleted_group = { ok: false,
+                error: 'System-managed groups cannot be deleted.' };
             return;
         }
-        var dgName = '' + dgRec.getValue('name');
-        dgRec.setValue('status', 'archived');
-        dgRec.update();
-        data.deleted_group = { ok: true, name: dgName };
+        dgRec.status     = 'archived';
+        dgRec.updated_at = new GlideDateTime().getValue();
+        dgStore.upsert('groups', dgRec);
+        data.deleted_group = { ok: true, name: '' + dgRec.name };
         return;
     }
 
     if (input.action === 'list_group_members') {
         if (!hasAdmin && !hasLeadership) { data.group_members = []; return; }
-        try {
-            data.group_members = new GroupManager().getMembers('' + input.group_sys_id);
-        } catch (lgmErr) {
-            data.group_members = [];
+        var lgmStore = new OIDataStore();
+        var lgmGrp   = lgmStore.get('groups', '' + (input.group_sys_id || ''));
+        if (!lgmGrp) { data.group_members = []; return; }
+        var lgmMembers  = lgmGrp.members || [];
+        var lgmAllPersons = lgmStore.getCollection('persons');
+        var lgmPersonMap  = {};
+        var lgmpi;
+        for (lgmpi = 0; lgmpi < lgmAllPersons.length; lgmpi++) {
+            lgmPersonMap['' + lgmAllPersons[lgmpi].sys_id] = lgmAllPersons[lgmpi];
         }
+        var lgmList = [];
+        var lgmi, lgmM, lgmP;
+        for (lgmi = 0; lgmi < lgmMembers.length; lgmi++) {
+            lgmM = lgmMembers[lgmi];
+            if (lgmM.status === 'inactive') { continue; }
+            lgmP = lgmPersonMap['' + lgmM.person_sys_id] || {};
+            lgmList.push({
+                person_sys_id: '' + lgmM.person_sys_id,
+                name:          '' + (lgmP.name  || ''),
+                email:         '' + (lgmP.email || ''),
+                group_role:    '' + (lgmM.group_role || 'user'),
+                added_at:      '' + (lgmM.added_at || '')
+            });
+        }
+        data.group_members = lgmList;
         return;
     }
 
     if (input.action === 'add_member') {
         if (!hasAdmin && !hasLeadership) { data.member_added = false; return; }
-        try {
-            data.member_added = new GroupManager().addMember(
-                '' + input.group_sys_id,
-                '' + input.person_sys_id,
-                '' + (input.group_role || 'user'),
-                data.personSysId || null
-            );
-        } catch (amErr) {
-            data.member_added = false;
+        var amStore   = new OIDataStore();
+        var amGroupId = '' + (input.group_sys_id  || '');
+        var amPersonId = '' + (input.person_sys_id || '');
+        var amRole    = '' + (input.group_role || 'user');
+        var amGrp     = amStore.get('groups', amGroupId);
+        if (!amGrp || !amPersonId) { data.member_added = false; return; }
+        var amMembers = amGrp.members || [];
+        var amFound   = false;
+        var ami;
+        for (ami = 0; ami < amMembers.length; ami++) {
+            if ('' + amMembers[ami].person_sys_id === amPersonId) {
+                amMembers[ami].group_role = amRole;
+                amMembers[ami].status     = 'active';
+                amFound = true;
+                break;
+            }
         }
+        if (!amFound) {
+            amMembers.push({
+                person_sys_id: amPersonId,
+                group_role:    amRole,
+                status:        'active',
+                added_by:      data.personSysId || '',
+                added_at:      new GlideDateTime().getValue()
+            });
+        }
+        amGrp.members    = amMembers;
+        amGrp.updated_at = new GlideDateTime().getValue();
+        amStore.upsert('groups', amGrp);
+        data.member_added = true;
         return;
     }
 
     if (input.action === 'remove_member') {
         if (!hasAdmin && !hasLeadership) { data.member_removed = false; return; }
-        try {
-            data.member_removed = new GroupManager().removeMember(
-                '' + input.group_sys_id,
-                '' + input.person_sys_id
-            );
-        } catch (rmErr) {
-            data.member_removed = false;
-        }
-        return;
-    }
-
-    if (input.action === 'create_deliverable') {
-        var cdFlowId   = '' + (input.flow_id || '');
-        var cdCollected = {};
-        try { cdCollected = JSON.parse('' + (input.collected || '{}')); } catch (e) { cdCollected = {}; }
-        var cdPersonId = data.personSysId;
-        if (!cdPersonId) {
-            var cdPersonRec = new GlideRecord('x_infte_ops_int_person');
-            cdPersonRec.addQuery('user', userSysId);
-            cdPersonRec.setLimit(1);
-            cdPersonRec.query();
-            if (cdPersonRec.next()) {
-                cdPersonId = '' + cdPersonRec.getUniqueValue();
-            } else {
-                var cdNewPerson = new GlideRecord('x_infte_ops_int_person');
-                cdNewPerson.initialize();
-                cdNewPerson.setValue('user', userSysId);
-                cdNewPerson.setValue('active', true);
-                cdPersonId = '' + cdNewPerson.insert();
+        var rmStore    = new OIDataStore();
+        var rmGroupId  = '' + (input.group_sys_id  || '');
+        var rmPersonId = '' + (input.person_sys_id || '');
+        var rmGrp      = rmStore.get('groups', rmGroupId);
+        if (!rmGrp) { data.member_removed = false; return; }
+        var rmMembers = rmGrp.members || [];
+        var rmi;
+        for (rmi = 0; rmi < rmMembers.length; rmi++) {
+            if ('' + rmMembers[rmi].person_sys_id === rmPersonId) {
+                rmMembers[rmi].status = 'inactive';
             }
         }
-        var cdResult;
-        if (cdFlowId === 'report_builder') {
-            cdResult = createReport(cdCollected, cdPersonId);
-        } else if (cdFlowId === 'dashboard_builder') {
-            cdResult = createDashboard(cdCollected, cdPersonId);
-        } else if (cdFlowId === 'data_alert') {
-            cdResult = createDataAlert(cdCollected, cdPersonId);
-        } else if (cdFlowId === 'notification_rule') {
-            cdResult = createNotificationRule(cdCollected, cdPersonId);
-        } else {
-            cdResult = { ok: false, error: 'Unknown flow type.' };
-        }
-        data.deliverable_result = cdResult;
+        rmGrp.members    = rmMembers;
+        rmGrp.updated_at = new GlideDateTime().getValue();
+        rmStore.upsert('groups', rmGrp);
+        data.member_removed = true;
         return;
     }
 
-    if (input.action === 'delete_deliverable') {
-        var ddSysId = '' + input.artifact_sys_id;
-        var ddRec = new GlideRecord('x_infte_ops_int_managed_artifact');
-        if (!ddRec.get(ddSysId)) { data.deleted_deliverable = { ok: false, error: 'Deliverable not found.' }; return; }
-        var ddOwner = '' + ddRec.getValue('created_by_person');
-        if (!hasAdmin && ddOwner !== data.personSysId) { data.deleted_deliverable = { ok: false, error: 'Access denied.' }; return; }
-        ddRec.setValue('status', 'archived');
-        ddRec.update();
-        data.deleted_deliverable = { ok: true };
-        return;
-    }
+    // ── PROJECT MANAGEMENT ────────────────────────────────────────────────────
 
-    if (input.action === 'list_access_members') {
-        if (!hasAdmin && !hasLeadership) { data.access_members = {}; return; }
-        var lamRoleMap = {};
-        var lamRGr = new GlideRecord('sys_user_role');
-        lamRGr.addQuery('name', 'IN', 'x_infte_ops_int.admin,x_infte_ops_int.leadership,x_infte_ops_int.creator,x_infte_ops_int.user');
-        lamRGr.query();
-        while (lamRGr.next()) {
-            lamRoleMap['' + lamRGr.getUniqueValue()] = '' + lamRGr.getValue('name');
-        }
-        var lamAccess = { admin: [], leadership: [], creator: [], user: [] };
-        var lamIds = [];
-        var lamK;
-        for (lamK in lamRoleMap) { if (lamRoleMap.hasOwnProperty(lamK)) { lamIds.push(lamK); } }
-        if (lamIds.length > 0) {
-            var lamHrGr = new GlideRecord('sys_user_has_role');
-            lamHrGr.addQuery('role', 'IN', lamIds.join(','));
-            lamHrGr.query();
-            while (lamHrGr.next()) {
-                var lamRoleSysId = '' + lamHrGr.getValue('role');
-                var lamRoleName  = lamRoleMap[lamRoleSysId];
-                if (!lamRoleName) { continue; }
-                var lamParts     = lamRoleName.split('.');
-                var lamRoleKey   = lamParts.length > 1 ? lamParts[lamParts.length - 1] : lamRoleName;
-                if (!lamAccess[lamRoleKey]) { continue; }
-                var lamUserSysId = '' + lamHrGr.getValue('user');
-                var lamUserRec   = new GlideRecord('sys_user');
-                if (!lamUserRec.get(lamUserSysId)) { continue; }
-                lamAccess[lamRoleKey].push({
-                    user_sys_id:            lamUserSysId,
-                    name:                   '' + lamUserRec.getDisplayValue('name'),
-                    user_name:              '' + lamUserRec.getValue('user_name'),
-                    email:                  '' + (lamUserRec.getValue('email') || ''),
-                    role_assignment_sys_id: '' + lamHrGr.getUniqueValue()
-                });
-            }
-        }
-        data.access_members = lamAccess;
-        return;
-    }
-
-    if (input.action === 'grant_role') {
-        if (!hasAdmin) { data.role_granted = { ok: false, error: 'Admin access required.' }; return; }
-        var grUserSysId    = '' + input.user_sys_id;
-        var grRoleName     = '' + input.role_name;
-        var VALID_GR_ROLES = { admin: true, leadership: true, creator: true, user: true };
-        if (!VALID_GR_ROLES[grRoleName]) { data.role_granted = { ok: false, error: 'Invalid role name.' }; return; }
-        var grFullName     = 'x_infte_ops_int.' + grRoleName;
-        var grRoleRec      = new GlideRecord('sys_user_role');
-        grRoleRec.addQuery('name', grFullName);
-        grRoleRec.setLimit(1);
-        grRoleRec.query();
-        if (!grRoleRec.next()) { data.role_granted = { ok: false, error: 'Role record not found.' }; return; }
-        var grRoleSysId    = '' + grRoleRec.getUniqueValue();
-        var grChkGr        = new GlideRecord('sys_user_has_role');
-        grChkGr.addQuery('user', grUserSysId);
-        grChkGr.addQuery('role', grRoleSysId);
-        grChkGr.setLimit(1);
-        grChkGr.query();
-        if (grChkGr.next()) {
-            var grExistUserRec = new GlideRecord('sys_user');
-            var grExistName = '';
-            var grExistEmail = '';
-            if (grExistUserRec.get(grUserSysId)) { grExistName = '' + grExistUserRec.getDisplayValue('name'); grExistEmail = '' + (grExistUserRec.getValue('email') || ''); }
-            data.role_granted = { ok: true, already_had_role: true, role_assignment_sys_id: '' + grChkGr.getUniqueValue(), user_sys_id: grUserSysId, name: grExistName, email: grExistEmail };
+    if (input.action === 'create_project') {
+        if (!hasAdmin && !hasDeveloper && !hasCreator) {
+            data.created_project = { ok: false, error: 'Creator access required.' };
             return;
         }
-        var grNewHr        = new GlideRecord('sys_user_has_role');
-        grNewHr.initialize();
-        grNewHr.setValue('user', grUserSysId);
-        grNewHr.setValue('role', grRoleSysId);
-        grNewHr.setValue('state', 'active');
-        var grNewId        = '' + (grNewHr.insert() || '');
-        var grUserRec      = new GlideRecord('sys_user');
-        var grName         = '';
-        var grEmail        = '';
-        if (grUserRec.get(grUserSysId)) { grName = '' + grUserRec.getDisplayValue('name'); grEmail = '' + (grUserRec.getValue('email') || ''); }
-        data.role_granted = { ok: !!grNewId, role_assignment_sys_id: grNewId, user_sys_id: grUserSysId, name: grName, email: grEmail };
+        var cpStore = new OIDataStore();
+        var cpName  = '' + (input.name || '');
+        var cpDesc  = '' + (input.description || '');
+        if (!cpName) { data.created_project = { ok: false, error: 'Project name is required.' }; return; }
+        var cpProj = {
+            name:                cpName,
+            description:         cpDesc,
+            stage:               'draft',
+            created_by:          data.personSysId || '',
+            created_at:          new GlideDateTime().getValue(),
+            updated_at:          new GlideDateTime().getValue(),
+            session_ids:         [],
+            implementation_plan: null,
+            review_note:         '',
+            locked:              false
+        };
+        var cpId = cpStore.upsert('projects', cpProj);
+        try {
+            new OIJournal().write('project_created',
+                { sys_id: userSysId, name: data.userName, role: data.userRole },
+                { type: 'project', sys_id: cpId, name: cpName },
+                { status: 'success' },
+                { section: 'creator-studio', assistant_type: 'creator', query: '' });
+        } catch (je) {}
+        data.created_project = { ok: true, sys_id: cpId, name: cpName };
         return;
     }
 
-    if (input.action === 'revoke_role') {
-        if (!hasAdmin) { data.role_revoked = { ok: false, error: 'Admin access required.' }; return; }
-        var rrSysId = '' + input.role_assignment_sys_id;
-        var rrRec   = new GlideRecord('sys_user_has_role');
-        if (!rrRec.get(rrSysId)) { data.role_revoked = { ok: false, error: 'Assignment not found.' }; return; }
-        rrRec.deleteRecord();
-        data.role_revoked = { ok: true };
-        return;
-    }
-
-    if (input.action === 'list_all_automations') {
-        if (!hasAdmin && !hasCreator) { data.all_automations = []; return; }
-        var laaGr   = new GlideRecord('x_infte_ops_int_automation');
-        laaGr.orderBy('name');
-        laaGr.query();
-        var laaList = [];
-        while (laaGr.next()) {
-            laaList.push({
-                sys_id:      '' + laaGr.getUniqueValue(),
-                name:        '' + laaGr.getValue('name'),
-                description: '' + (laaGr.getValue('description') || ''),
-                status:      '' + (laaGr.getValue('status') || 'draft'),
-                created_on:  '' + laaGr.getDisplayValue('sys_created_on')
-            });
+    if (input.action === 'delete_project') {
+        if (!hasAdmin && !hasDeveloper && !hasCreator) {
+            data.deleted_project = { ok: false, error: 'Creator access required.' };
+            return;
         }
-        data.all_automations = laaList;
+        var dpStore  = new OIDataStore();
+        var dpId     = '' + (input.project_sys_id || '');
+        var dpProj   = dpStore.get('projects', dpId);
+        if (!dpProj) { data.deleted_project = { ok: false, error: 'Project not found.' }; return; }
+        if (!hasAdmin && '' + dpProj.created_by !== data.personSysId) {
+            data.deleted_project = { ok: false, error: 'You can only delete your own projects.' };
+            return;
+        }
+        var dpSessionIds = dpProj.session_ids || [];
+        var dpssi;
+        for (dpssi = 0; dpssi < dpSessionIds.length; dpssi++) {
+            dpStore.remove('sessions', dpSessionIds[dpssi]);
+        }
+        dpStore.remove('projects', dpId);
+        data.deleted_project = { ok: true };
         return;
     }
+
+    if (input.action === 'update_project_stage') {
+        if (!hasAdmin && !hasDeveloper && !hasCreator) {
+            data.updated_stage = { ok: false, error: 'Creator access required.' };
+            return;
+        }
+        var upsStore = new OIDataStore();
+        var upsProjId = '' + (input.project_sys_id || '');
+        var upsStage  = '' + (input.stage || '');
+        var validStages = ['draft', 'review', 'approved', 'implementing', 'published'];
+        if (validStages.indexOf(upsStage) === -1) {
+            data.updated_stage = { ok: false, error: 'Invalid stage.' };
+            return;
+        }
+        var upsProj = upsStore.get('projects', upsProjId);
+        if (!upsProj) { data.updated_stage = { ok: false, error: 'Project not found.' }; return; }
+        if (!hasAdmin && '' + upsProj.created_by !== data.personSysId) {
+            data.updated_stage = { ok: false, error: 'Access denied.' };
+            return;
+        }
+        upsProj.stage      = upsStage;
+        upsProj.updated_at = new GlideDateTime().getValue();
+        if (upsStage === 'review') {
+            var upsNote = '' + (input.review_note || '');
+            var upsPa = {
+                type:          'project_review',
+                description:   'Project submitted for review: ' + upsProj.name,
+                subject_type:  'project',
+                subject_sys_id: upsProjId,
+                subject_name:  '' + upsProj.name,
+                assigned_to:   null,
+                status:        'pending',
+                created_at:    new GlideDateTime().getValue(),
+                created_by:    data.personSysId || ''
+            };
+            upsStore.upsert('pending_actions', upsPa);
+        }
+        upsStore.upsert('projects', upsProj);
+        data.updated_stage = { ok: true, stage: upsStage };
+        return;
+    }
+
+    // ── SESSION MANAGEMENT ────────────────────────────────────────────────────
+
+    if (input.action === 'create_session') {
+        if (!hasAdmin && !hasDeveloper && !hasCreator) {
+            data.created_session = { ok: false, error: 'Creator access required.' };
+            return;
+        }
+        var csStore    = new OIDataStore();
+        var csProjId   = '' + (input.project_sys_id || '');
+        var csName     = '' + (input.name || 'New Session');
+        var csProj     = csStore.get('projects', csProjId);
+        if (!csProj) { data.created_session = { ok: false, error: 'Project not found.' }; return; }
+        if (csProj.locked) { data.created_session = { ok: false, error: 'Project is locked.' }; return; }
+        if (!hasAdmin && '' + csProj.created_by !== data.personSysId) {
+            data.created_session = { ok: false, error: 'Access denied.' };
+            return;
+        }
+        var csSess = {
+            project_sys_id: csProjId,
+            name:           csName,
+            created_by:     data.personSysId || '',
+            created_at:     new GlideDateTime().getValue(),
+            updated_at:     new GlideDateTime().getValue(),
+            locked:         false,
+            message_count:  0
+        };
+        var csId     = csStore.upsert('sessions', csSess);
+        var csIds    = csProj.session_ids || [];
+        csIds.push(csId);
+        csProj.session_ids = csIds;
+        csProj.updated_at  = new GlideDateTime().getValue();
+        csStore.upsert('projects', csProj);
+        try {
+            new OIJournal().write('session_created',
+                { sys_id: userSysId, name: data.userName, role: data.userRole },
+                { type: 'session', sys_id: csId, name: csName },
+                { status: 'success' },
+                { section: 'creator-studio', assistant_type: 'creator', query: '' });
+        } catch (je) {}
+        data.created_session = { ok: true, sys_id: csId, name: csName };
+        return;
+    }
+
+    if (input.action === 'delete_session') {
+        if (!hasAdmin && !hasDeveloper && !hasCreator) {
+            data.deleted_session = { ok: false, error: 'Creator access required.' };
+            return;
+        }
+        var dsStore   = new OIDataStore();
+        var dsId      = '' + (input.session_sys_id || '');
+        var dsSess    = dsStore.get('sessions', dsId);
+        if (!dsSess) { data.deleted_session = { ok: false, error: 'Session not found.' }; return; }
+        if (dsSess.locked) { data.deleted_session = { ok: false, error: 'Session is locked.' }; return; }
+        var dsProj = dsStore.get('projects', '' + dsSess.project_sys_id);
+        if (dsProj) {
+            var dsIds   = dsProj.session_ids || [];
+            var dsFilt  = [];
+            var dsii;
+            for (dsii = 0; dsii < dsIds.length; dsii++) {
+                if (dsIds[dsii] !== dsId) { dsFilt.push(dsIds[dsii]); }
+            }
+            dsProj.session_ids = dsFilt;
+            dsProj.updated_at  = new GlideDateTime().getValue();
+            dsStore.upsert('projects', dsProj);
+        }
+        dsStore.remove('sessions', dsId);
+        data.deleted_session = { ok: true };
+        return;
+    }
+
+    if (input.action === 'move_session') {
+        if (!hasAdmin && !hasDeveloper && !hasCreator) {
+            data.moved_session = { ok: false, error: 'Creator access required.' };
+            return;
+        }
+        var mvStore    = new OIDataStore();
+        var mvSessId   = '' + (input.session_sys_id    || '');
+        var mvTargetId = '' + (input.target_project_sys_id || '');
+        var mvSess     = mvStore.get('sessions', mvSessId);
+        var mvTarget   = mvStore.get('projects', mvTargetId);
+        if (!mvSess || !mvTarget) {
+            data.moved_session = { ok: false, error: 'Session or target project not found.' };
+            return;
+        }
+        var mvOldProj = mvStore.get('projects', '' + mvSess.project_sys_id);
+        if (mvOldProj) {
+            var mvOldIds = mvOldProj.session_ids || [];
+            var mvFilt   = [];
+            var mvii;
+            for (mvii = 0; mvii < mvOldIds.length; mvii++) {
+                if (mvOldIds[mvii] !== mvSessId) { mvFilt.push(mvOldIds[mvii]); }
+            }
+            mvOldProj.session_ids = mvFilt;
+            mvOldProj.updated_at  = new GlideDateTime().getValue();
+            mvStore.upsert('projects', mvOldProj);
+        }
+        var mvNewIds = mvTarget.session_ids || [];
+        mvNewIds.push(mvSessId);
+        mvTarget.session_ids = mvNewIds;
+        mvTarget.updated_at  = new GlideDateTime().getValue();
+        mvStore.upsert('projects', mvTarget);
+        mvSess.project_sys_id = mvTargetId;
+        mvSess.updated_at     = new GlideDateTime().getValue();
+        mvStore.upsert('sessions', mvSess);
+        data.moved_session = { ok: true };
+        return;
+    }
+
+    if (input.action === 'save_session_messages') {
+        if (!hasAdmin && !hasDeveloper && !hasCreator) {
+            data.saved_messages = { ok: false, error: 'Creator access required.' };
+            return;
+        }
+        var ssmStore  = new OIDataStore();
+        var ssmSessId = '' + (input.session_sys_id || '');
+        var ssmMsgs   = input.messages || [];
+        var ssmSess   = ssmStore.get('sessions', ssmSessId);
+        if (!ssmSess) { data.saved_messages = { ok: false, error: 'Session not found.' }; return; }
+        ssmStore.saveSessionMessages(ssmSessId, ssmMsgs);
+        ssmSess.message_count = ssmMsgs.length;
+        ssmSess.updated_at    = new GlideDateTime().getValue();
+        ssmStore.upsert('sessions', ssmSess);
+        data.saved_messages = { ok: true, count: ssmMsgs.length };
+        return;
+    }
+
+    if (input.action === 'get_session') {
+        if (!hasAdmin && !hasDeveloper && !hasCreator) {
+            data.session = null;
+            return;
+        }
+        var gsStore  = new OIDataStore();
+        var gsSessId = '' + (input.session_sys_id || '');
+        var gsSess   = gsStore.get('sessions', gsSessId);
+        if (!gsSess) { data.session = null; return; }
+        data.session = {
+            sys_id:        '' + gsSess.sys_id,
+            name:          '' + gsSess.name,
+            project_sys_id: '' + gsSess.project_sys_id,
+            locked:        gsSess.locked === true,
+            message_count: parseInt(gsSess.message_count, 10) || 0,
+            messages:      gsStore.getSessionMessages(gsSessId)
+        };
+        return;
+    }
+
+    // ── PROJECT APPROVAL (LEADERSHIP) ─────────────────────────────────────────
+
+    if (input.action === 'approve_project') {
+        if (!hasAdmin && !hasLeadership) {
+            data.approved = { ok: false, error: 'Leadership access required.' };
+            return;
+        }
+        var apStore   = new OIDataStore();
+        var apProjId  = '' + (input.project_sys_id || '');
+        var apProj    = apStore.get('projects', apProjId);
+        if (!apProj) { data.approved = { ok: false, error: 'Project not found.' }; return; }
+        apProj.stage      = 'approved';
+        apProj.review_note = '' + (input.review_note || '');
+        apProj.updated_at = new GlideDateTime().getValue();
+        apStore.upsert('projects', apProj);
+        var apPas = apStore.find('pending_actions', function(pa) {
+            return pa.subject_sys_id === apProjId && pa.status === 'pending';
+        });
+        var apPai;
+        for (apPai = 0; apPai < apPas.length; apPai++) {
+            apPas[apPai].status     = 'resolved';
+            apPas[apPai].updated_at = new GlideDateTime().getValue();
+            apStore.upsert('pending_actions', apPas[apPai]);
+        }
+        try {
+            new OIJournal().write('project_approved',
+                { sys_id: userSysId, name: data.userName, role: data.userRole },
+                { type: 'project', sys_id: apProjId, name: apProj.name },
+                { status: 'success' },
+                { section: 'leadership-insights', assistant_type: 'leadership', query: '' });
+        } catch (je) {}
+        data.approved = { ok: true, project_name: '' + apProj.name };
+        return;
+    }
+
+    if (input.action === 'reject_project') {
+        if (!hasAdmin && !hasLeadership) {
+            data.rejected = { ok: false, error: 'Leadership access required.' };
+            return;
+        }
+        var rjStore  = new OIDataStore();
+        var rjProjId = '' + (input.project_sys_id || '');
+        var rjProj   = rjStore.get('projects', rjProjId);
+        if (!rjProj) { data.rejected = { ok: false, error: 'Project not found.' }; return; }
+        rjProj.stage       = 'draft';
+        rjProj.review_note = '' + (input.review_note || '');
+        rjProj.updated_at  = new GlideDateTime().getValue();
+        rjStore.upsert('projects', rjProj);
+        var rjPas = rjStore.find('pending_actions', function(pa) {
+            return pa.subject_sys_id === rjProjId && pa.status === 'pending';
+        });
+        var rjPai;
+        for (rjPai = 0; rjPai < rjPas.length; rjPai++) {
+            rjPas[rjPai].status     = 'resolved';
+            rjPas[rjPai].updated_at = new GlideDateTime().getValue();
+            rjStore.upsert('pending_actions', rjPas[rjPai]);
+        }
+        try {
+            new OIJournal().write('project_rejected',
+                { sys_id: userSysId, name: data.userName, role: data.userRole },
+                { type: 'project', sys_id: rjProjId, name: rjProj.name },
+                { status: 'success', detail: '' + (input.review_note || '') },
+                { section: 'leadership-insights', assistant_type: 'leadership', query: '' });
+        } catch (je) {}
+        data.rejected = { ok: true, project_name: '' + rjProj.name };
+        return;
+    }
+
+    if (input.action === 'implement_project') {
+        if (!hasAdmin && !hasCreator) {
+            data.implemented = { ok: false, error: 'Creator access required.' };
+            return;
+        }
+        var implStore  = new OIDataStore();
+        var implProjId = '' + (input.project_sys_id || '');
+        var implProj   = implStore.get('projects', implProjId);
+        if (!implProj) { data.implemented = { ok: false, error: 'Project not found.' }; return; }
+        if (implProj.stage !== 'approved') {
+            data.implemented = { ok: false, error: 'Project must be approved before implementation.' };
+            return;
+        }
+        if (!hasAdmin && '' + implProj.created_by !== data.personSysId) {
+            data.implemented = { ok: false, error: 'Access denied.' };
+            return;
+        }
+        var implSessIds = implProj.session_ids || [];
+        var implSi;
+        for (implSi = 0; implSi < implSessIds.length; implSi++) {
+            var implSess = implStore.get('sessions', implSessIds[implSi]);
+            if (implSess && !implSess.locked) {
+                implSess.locked     = true;
+                implSess.updated_at = new GlideDateTime().getValue();
+                implStore.upsert('sessions', implSess);
+            }
+        }
+        var implFinalSess = {
+            project_sys_id: implProjId,
+            name:           'Implementation Session',
+            created_by:     data.personSysId || '',
+            created_at:     new GlideDateTime().getValue(),
+            updated_at:     new GlideDateTime().getValue(),
+            locked:         false,
+            message_count:  0,
+            is_implementation: true
+        };
+        var implFinalId = implStore.upsert('sessions', implFinalSess);
+        implSessIds.push(implFinalId);
+        implProj.session_ids = implSessIds;
+        implProj.stage       = 'implementing';
+        implProj.updated_at  = new GlideDateTime().getValue();
+        implStore.upsert('projects', implProj);
+        try {
+            new OIJournal().write('implementation_started',
+                { sys_id: userSysId, name: data.userName, role: data.userRole },
+                { type: 'project', sys_id: implProjId, name: implProj.name },
+                { status: 'success' },
+                { section: 'creator-studio', assistant_type: 'creator', query: '' });
+        } catch (je) {}
+        data.implemented = {
+            ok:              true,
+            implementation_session_sys_id: implFinalId,
+            catalog:         loadCatalogCategories()
+        };
+        return;
+    }
+
+    // ── AUTOMATION MANAGEMENT ─────────────────────────────────────────────────
 
     if (input.action === 'create_automation') {
-        if (!hasAdmin && !hasCreator) { data.created_automation = { ok: false, error: 'Creator or Admin access required.' }; return; }
-        var caName      = '' + (input.name || '');
-        var caDesc      = '' + (input.description || '');
-        var caScript    = '' + (input.script || '');
-        var caTarget    = input.target_groups;
+        if (!hasAdmin && !hasCreator) {
+            data.created_automation = { ok: false, error: 'Creator access required.' };
+            return;
+        }
+        var caStore   = new OIDataStore();
+        var caName    = '' + (input.name || '');
+        var caDesc    = '' + (input.description || '');
+        var caShort   = '' + (input.short_description || '');
+        var caCatId   = '' + (input.category_sys_id || '');
         if (!caName) { data.created_automation = { ok: false, error: 'Name is required.' }; return; }
-        var caRec       = new GlideRecord('x_infte_ops_int_automation');
-        caRec.initialize();
-        caRec.setValue('name', caName);
-        caRec.setValue('description', caDesc);
-        if (caScript) { caRec.setValue('script', caScript); }
-        caRec.setValue('status', 'draft');
-        caRec.setValue('created_by', userSysId);
-        var caId        = '' + (caRec.insert() || '');
-        if (!caId) { data.created_automation = { ok: false, error: 'Failed to create automation.' }; return; }
-        var caAllGroups = (caTarget === 'all');
-        var caGroupIds  = [];
-        if (caAllGroups) {
-            var caAllGrGr = new GlideRecord('x_infte_ops_int_group');
-            caAllGrGr.addQuery('status', 'active');
-            caAllGrGr.query();
-            while (caAllGrGr.next()) { caGroupIds.push('' + caAllGrGr.getUniqueValue()); }
-        } else if (caTarget && caTarget.length) {
-            var caTi;
-            for (caTi = 0; caTi < caTarget.length; caTi++) { caGroupIds.push('' + caTarget[caTi]); }
-        }
-        var caGi;
-        for (caGi = 0; caGi < caGroupIds.length; caGi++) {
-            var caGrRec = new GlideRecord('x_infte_ops_int_group');
-            if (!caGrRec.get(caGroupIds[caGi])) { continue; }
-            var caExist = [];
-            try { caExist = JSON.parse('' + caGrRec.getValue('automations')); } catch(e) { caExist = []; }
-            var caAlready = false;
-            var caAi;
-            for (caAi = 0; caAi < caExist.length; caAi++) {
-                if ('' + caExist[caAi].automation_sys_id === caId) { caAlready = true; break; }
+
+        var caCat     = caCatId ? caStore.get('catalog', caCatId) : null;
+        var caCatName = caCat ? '' + caCat.name : '';
+
+        var caAuto = {
+            name:              caName,
+            short_description: caShort,
+            description:       caDesc,
+            status:            'draft',
+            category_sys_id:   caCatId,
+            category_name:     caCatName,
+            usage_count:       0,
+            created_by:        data.personSysId || '',
+            created_at:        new GlideDateTime().getValue(),
+            updated_at:        new GlideDateTime().getValue()
+        };
+
+        if (input.project_sys_id) {
+            var caProj = caStore.get('projects', '' + input.project_sys_id);
+            if (caProj && caProj.stage === 'implementing') {
+                caAuto.status     = 'published';
+                caAuto.project_sys_id = '' + input.project_sys_id;
+                caProj.stage      = 'published';
+                caProj.updated_at = new GlideDateTime().getValue();
+                caStore.upsert('projects', caProj);
+                if (caCatId && caCat) {
+                    var caItems = caCat.items || [];
+                    caItems.push({
+                        sys_id:       caStore.generateId(),
+                        name:         caName,
+                        description:  caShort,
+                        sort_order:   caItems.length,
+                        active:       true,
+                        action_type:  'automation',
+                        action_value: ''
+                    });
+                    caCat.items      = caItems;
+                    caCat.updated_at = new GlideDateTime().getValue();
+                    caStore.upsert('catalog', caCat);
+                }
             }
-            if (!caAlready) {
-                caExist.push({ automation_sys_id: caId, approval_status: 'approved' });
-                caGrRec.setValue('automations', JSON.stringify(caExist));
-                caGrRec.update();
-            }
         }
+
+        var caId = caStore.upsert('automations', caAuto);
+        try {
+            new OIJournal().write('automation_published',
+                { sys_id: userSysId, name: data.userName, role: data.userRole },
+                { type: 'automation', sys_id: caId, name: caName },
+                { status: 'success' },
+                { section: 'creator-studio', assistant_type: 'creator', query: '' });
+        } catch (je) {}
         data.created_automation = { ok: true, sys_id: caId, name: caName };
         return;
     }
 
     if (input.action === 'publish_automation') {
-        if (!hasAdmin && !hasCreator) { data.published_automation = { ok: false, error: 'Creator or Admin access required.' }; return; }
-        var paAutoId    = '' + input.automation_sys_id;
-        var paAllGroups = (input.target_type === 'all');
-        var paGroupIds  = input.group_sys_ids || [];
-        var paAutoRec   = new GlideRecord('x_infte_ops_int_automation');
-        if (!paAutoRec.get(paAutoId)) { data.published_automation = { ok: false, error: 'Automation not found.' }; return; }
-        var paGrGr      = new GlideRecord('x_infte_ops_int_group');
-        paGrGr.addQuery('status', 'active');
-        if (!paAllGroups && paGroupIds.length > 0) {
-            paGrGr.addQuery('sys_id', 'IN', paGroupIds.join(','));
+        if (!hasAdmin && !hasCreator) {
+            data.published_automation = { ok: false, error: 'Creator or Administrator access required.' };
+            return;
         }
-        paGrGr.query();
-        var paCount = 0;
-        while (paGrGr.next()) {
-            var paExist = [];
-            try { paExist = JSON.parse('' + paGrGr.getValue('automations')); } catch(e) { paExist = []; }
-            var paAlready = false;
-            var paBi;
-            for (paBi = 0; paBi < paExist.length; paBi++) {
-                if ('' + paExist[paBi].automation_sys_id === paAutoId) { paAlready = true; break; }
+        var paStore  = new OIDataStore();
+        var paAutoId = '' + (input.automation_sys_id || '');
+        var paAuto   = paStore.get('automations', paAutoId);
+        if (!paAuto) { data.published_automation = { ok: false, error: 'Automation not found.' }; return; }
+        paAuto.status     = 'published';
+        paAuto.updated_at = new GlideDateTime().getValue();
+        paStore.upsert('automations', paAuto);
+        var paTargetType = '' + (input.target_type || 'specific');
+        var paGroupIds   = input.group_sys_ids || [];
+        var paAllGroups  = paTargetType === 'all';
+        var paGroups     = paAllGroups ?
+            paStore.find('groups', function(g) { return g.status === 'active'; }) :
+            paGroupIds.map(function(gid) { return paStore.get('groups', gid); }).filter(function(g) { return g !== null; });
+        var pagi, paGrp, paGrpAutos, paAlready, paAi;
+        for (pagi = 0; pagi < paGroups.length; pagi++) {
+            paGrp      = paGroups[pagi];
+            if (!paGrp) { continue; }
+            paGrpAutos = paGrp.automations || [];
+            paAlready  = false;
+            for (paAi = 0; paAi < paGrpAutos.length; paAi++) {
+                if ('' + paGrpAutos[paAi].automation_sys_id === paAutoId) {
+                    paAlready = true;
+                    break;
+                }
             }
             if (!paAlready) {
-                paExist.push({ automation_sys_id: paAutoId, approval_status: 'approved' });
-                paGrGr.setValue('automations', JSON.stringify(paExist));
-                paGrGr.update();
-                paCount++;
+                paGrpAutos.push({ automation_sys_id: paAutoId, approval_status: 'approved' });
+                paGrp.automations = paGrpAutos;
+                paGrp.updated_at  = new GlideDateTime().getValue();
+                paStore.upsert('groups', paGrp);
             }
         }
-        data.published_automation = { ok: true, groups_updated: paCount };
+        data.published_automation = { ok: true, name: '' + paAuto.name };
+        return;
+    }
+
+    // ── EXECUTION JOURNAL (DEVELOPER ACCESS) ──────────────────────────────────
+
+    if (input.action === 'get_journal') {
+        if (!hasAdmin && !hasDeveloper) { data.journal = null; return; }
+        try {
+            var gjJournal = new OIJournal();
+            var gjFilter  = {};
+            if (input.event_type)   { gjFilter.event_type   = '' + input.event_type; }
+            if (input.since)        { gjFilter.since         = '' + input.since; }
+            if (input.section)      { gjFilter.section       = '' + input.section; }
+            var gjLimit = parseInt(input.limit, 10) || 50;
+            data.journal = {
+                entries: gjJournal.read(gjFilter, gjLimit),
+                summary: gjJournal.summary()
+            };
+        } catch (je) {
+            data.journal = { entries: [], summary: {}, error: '' + je };
+        }
         return;
     }
 
