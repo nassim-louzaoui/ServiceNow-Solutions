@@ -23,12 +23,12 @@ SRC_DIR = os.path.join(os.path.dirname(__file__), "..", "script_includes")
 ORDER = [
     "OIDataStore", "OIJournal",
     "PermissionResolver", "ConversationAdvisor", "VirtualAgentHelper",
-    "VAHelper", "NotificationService", "RoleSyncService", "GroupManager",
+    "NotificationService", "RoleSyncService", "GroupManager",
     "CatalogService", "ScheduleManager", "ExecutionEngine", "ApprovalRouter",
-    "OnboardingService", "DeactivationHandler", "FlowBridge", "RESTBridge",
+    "OnboardingService", "DeactivationHandler", "FlowBridge", "RestBridge",
     "CopilotBridge", "AuditService", "MaintenanceManager", "ArtifactManager",
     "ReportBuilder", "NotificationBuilder", "FlowBuilder", "TableBuilder",
-    "UIPageBuilder",
+    "UserInterfacePageBuilder",
 ]
 
 # Script Includes that must be client-callable (extend AbstractAjaxProcessor).

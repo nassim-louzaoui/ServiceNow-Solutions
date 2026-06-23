@@ -1,8 +1,6 @@
 var RoleSyncService = Class.create();
 RoleSyncService.prototype = {
     initialize: function() {
-        this.PERSON_TABLE = 'x_infte_ops_int_person';
-        this.GROUP_TABLE  = 'x_infte_ops_int_group';
         this.ROLE_MAP = {
             'admin':      'x_infte_ops_int.admin',
             'leadership': 'x_infte_ops_int.leadership',
@@ -10,6 +8,7 @@ RoleSyncService.prototype = {
             'user':       'x_infte_ops_int.user'
         };
         this._roleCache = {};
+        this._store     = new OIDataStore();
     },
 
     syncPersonRoles: function(personSysId) {
@@ -17,7 +16,7 @@ RoleSyncService.prototype = {
         var userSysId = this._getUserForPerson(personSysId);
         if (!userSysId) { return false; }
         var needed = this._getNeededRoles(personSysId);
-        var keys = ['admin', 'leadership', 'creator', 'user'];
+        var keys   = ['admin', 'leadership', 'creator', 'user'];
         var i;
         for (i = 0; i < keys.length; i++) {
             var k = keys[i];
@@ -32,10 +31,9 @@ RoleSyncService.prototype = {
 
     syncGroupMembers: function(groupSysId) {
         if (!groupSysId) { return; }
-        var grp = new GlideRecord(this.GROUP_TABLE);
-        if (!grp.get(groupSysId)) { return; }
-        var members = [];
-        try { members = JSON.parse('' + grp.getValue('members')); } catch(e) {}
+        var grp = this._store.get('groups', groupSysId);
+        if (!grp) { return; }
+        var members   = grp.members || [];
         var processed = {};
         var i;
         for (i = 0; i < members.length; i++) {
@@ -48,12 +46,13 @@ RoleSyncService.prototype = {
     },
 
     syncAllRoles: function() {
-        var persons = new GlideRecord(this.PERSON_TABLE);
-        persons.addQuery('active', 'true');
-        persons.query();
+        var persons = this._store.find('persons', function(p) {
+            return p.active !== false && p.active !== 'false';
+        });
         var count = 0;
-        while (persons.next()) {
-            this.syncPersonRoles('' + persons.getUniqueValue());
+        var i;
+        for (i = 0; i < persons.length; i++) {
+            this.syncPersonRoles('' + persons[i].sys_id);
             count++;
         }
         return count;
@@ -70,17 +69,16 @@ RoleSyncService.prototype = {
 
     _getNeededRoles: function(personSysId) {
         var needed = { admin: false, leadership: false, creator: false, user: false };
-        var grp = new GlideRecord(this.GROUP_TABLE);
-        grp.addQuery('status', 'active');
-        grp.query();
-        while (grp.next()) {
-            var members = [];
-            try { members = JSON.parse('' + grp.getValue('members')); } catch(e) {}
-            var i;
-            for (i = 0; i < members.length; i++) {
-                if ('' + members[i].person_sys_id === '' + personSysId &&
-                        members[i].status !== 'inactive') {
-                    var role = '' + (members[i].group_role || 'user');
+        var pid    = '' + personSysId;
+        var groups = this._store.find('groups', function(g) {
+            return g.status === 'active';
+        });
+        var i, j, members, role;
+        for (i = 0; i < groups.length; i++) {
+            members = groups[i].members || [];
+            for (j = 0; j < members.length; j++) {
+                if ('' + members[j].person_sys_id === pid && members[j].status !== 'inactive') {
+                    role = '' + (members[j].group_role || 'user');
                     if (needed.hasOwnProperty(role)) { needed[role] = true; }
                 }
             }
@@ -89,9 +87,9 @@ RoleSyncService.prototype = {
     },
 
     _getUserForPerson: function(personSysId) {
-        var p = new GlideRecord(this.PERSON_TABLE);
-        if (!p.get(personSysId)) { return null; }
-        var uid = '' + p.getValue('user');
+        var person = this._store.get('persons', personSysId);
+        if (!person) { return null; }
+        var uid = '' + (person.user_sys_id || '');
         return uid || null;
     },
 
@@ -137,7 +135,7 @@ RoleSyncService.prototype = {
         }
         if (sysIds.length === 0) { return false; }
         var baseUri = '' + gs.getProperty('glide.servlet.uri');
-        var svcPwd = '' + gs.getProperty('x_infte_ops_int.svc_password');
+        var svcPwd  = '' + gs.getProperty('x_infte_ops_int.svc_password');
         var svcUser = 'svc_operations_intelligence_api';
         var i;
         for (i = 0; i < sysIds.length; i++) {

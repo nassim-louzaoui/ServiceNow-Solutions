@@ -125,10 +125,10 @@ FlowBuilder.prototype = {
     },
 
     _userForPerson: function(personSysId) {
-        var person = new GlideRecord('x_infte_ops_int_person');
-        if (person.get(personSysId)) {
-            var u = '' + person.getValue('user');
-            return u ? u : null;
+        var store  = new OIDataStore();
+        var person = store.get('persons', personSysId);
+        if (person && person.user_sys_id) {
+            return '' + person.user_sys_id;
         }
         return null;
     },
