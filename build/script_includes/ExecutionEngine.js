@@ -89,17 +89,22 @@ ExecutionEngine.prototype = {
             return false;
         }
         var automationSysId = '' + (exec.automation || '');
+        var auto = store.get('automations', automationSysId);
         var inputValues = this._parseJson('' + (exec.input_values || ''), {});
-        var context = this.buildContext(exec, inputValues);
-        var dryRun = this.isDryRun(exec);
+        var context = this.buildContext(exec, inputValues, auto);
+        var dryRun = (exec.is_test === true || exec.is_test === 'true' ||
+                      exec.is_test === 1 || exec.is_test === '1') ||
+                     (auto && '' + (auto.status || '') === 'testing');
 
         exec.status = 'running';
         store.upsert('executions', exec);
 
-        var steps = this._loadSteps(automationSysId);
+        var steps = this._parseStepsFromAuto(auto);
+        var logs = this._parseJson('' + (exec.step_log || ''), []);
+
         if (steps.length === 0) {
-            exec = store.get('executions', '' + executionSysId);
             exec.status = 'success';
+            exec.step_log = JSON.stringify(logs);
             exec.completed_at = new GlideDateTime().getValue();
             store.upsert('executions', exec);
             return true;
@@ -124,7 +129,7 @@ ExecutionEngine.prototype = {
             var actionType = '' + stepObj.action_type;
             var onFailure  = '' + stepObj.on_failure;
 
-            var logIndex = this._beginStepLog(executionSysId, stepObj, stepOrder, actionType);
+            var logIndex = this._appendStepLog(logs, stepObj, stepOrder, actionType);
             var result;
             try {
                 if (dryRun && this._isWriteAction(actionType)) {
@@ -136,7 +141,7 @@ ExecutionEngine.prototype = {
                 result = { status: 'failed', output: {}, error_message: '' + stepError };
             }
 
-            this._completeStepLog(executionSysId, logIndex, result);
+            this._updateStepLog(logs, logIndex, result);
 
             if (result.status === 'success' || result.status === 'skipped') {
                 context.steps['' + stepOrder] = { output: result.output || {} };
@@ -179,8 +184,8 @@ ExecutionEngine.prototype = {
             });
         }
 
-        exec = store.get('executions', '' + executionSysId);
         exec.status = finalStatus;
+        exec.step_log = JSON.stringify(logs);
         if (finalStatus !== 'awaiting_approval') {
             exec.completed_at = new GlideDateTime().getValue();
         }
@@ -188,12 +193,8 @@ ExecutionEngine.prototype = {
         return finalStatus === 'success';
     },
 
-    _loadSteps: function(automationSysId) {
-        var store = new OIDataStore();
-        var auto = store.get('automations', '' + automationSysId);
-        if (!auto) {
-            return [];
-        }
+    _parseStepsFromAuto: function(auto) {
+        if (!auto) { return []; }
         var raw = '' + (auto.step_definitions || '');
         var allSteps = this._parseJson(raw, []);
         var active = [];
@@ -461,11 +462,7 @@ ExecutionEngine.prototype = {
                actionType === 'send_notification';
     },
 
-    _beginStepLog: function(executionSysId, stepObj, stepOrder, actionType) {
-        var store = new OIDataStore();
-        var exec = store.get('executions', '' + executionSysId);
-        if (!exec) { return -1; }
-        var logs = this._parseJson('' + (exec.step_log || ''), []);
+    _appendStepLog: function(logs, stepObj, stepOrder, actionType) {
         var entry = {
             step_order:    stepOrder,
             step_name:     '' + (stepObj.name || ''),
@@ -477,26 +474,16 @@ ExecutionEngine.prototype = {
             error_message: null
         };
         logs.push(entry);
-        var idx = logs.length - 1;
-        exec.step_log = JSON.stringify(logs);
-        store.upsert('executions', exec);
-        return idx;
+        return logs.length - 1;
     },
 
-    _completeStepLog: function(executionSysId, logIndex, result) {
-        if (logIndex < 0) { return; }
-        var store = new OIDataStore();
-        var exec = store.get('executions', '' + executionSysId);
-        if (!exec) { return; }
-        var logs = this._parseJson('' + (exec.step_log || ''), []);
-        if (logIndex < logs.length) {
+    _updateStepLog: function(logs, logIndex, result) {
+        if (logIndex >= 0 && logIndex < logs.length) {
             logs[logIndex].status        = result.status;
             logs[logIndex].completed_at  = new GlideDateTime().getValue();
             logs[logIndex].output        = result.output || {};
             logs[logIndex].error_message = result.error_message || null;
         }
-        exec.step_log = JSON.stringify(logs);
-        store.upsert('executions', exec);
     },
 
     resolveTemplates: function(value, context) {
@@ -567,7 +554,7 @@ ExecutionEngine.prototype = {
         return current;
     },
 
-    buildContext: function(execRecord, inputValues) {
+    buildContext: function(execRecord, inputValues, preloadedAuto) {
         var automationSysId        = '' + (execRecord.automation   || '');
         var groupSysId             = '' + (execRecord.group        || '');
         var triggeredByPersonSysId = '' + (execRecord.triggered_by || '');
@@ -585,7 +572,7 @@ ExecutionEngine.prototype = {
             }
         }
         var automationName = '';
-        var auto = store.get('automations', automationSysId);
+        var auto = preloadedAuto || store.get('automations', automationSysId);
         if (auto) { automationName = '' + (auto.name || ''); }
         var primaryLeaderSysId = ''; var leaderOfLeaderSysId = '';
         if (triggeredByPersonSysId) {

@@ -8,7 +8,7 @@ ArtifactManager.prototype = {
         this.audit = new AuditService();
     },
 
-    createArtifact: function(artifactType, displayName, description, ownerGroupSysId, createdByPersonSysId, creationSpec, copilotAssisted) {
+    createArtifact: function(artifactType, displayName, description, ownerGroupSysId, createdByPersonSysId, creationSpec, specAssistUsed) {
         var type = '' + artifactType;
         var approvalRequired = this.APPROVAL_REQUIRED_TYPES[type] ? true : false;
         var store = new OIDataStore();
@@ -21,7 +21,7 @@ ArtifactManager.prototype = {
             owner_group: ownerGroupSysId ? ('' + ownerGroupSysId) : '',
             created_by_person: createdByPersonSysId ? ('' + createdByPersonSysId) : '',
             approval_required: approvalRequired,
-            copilot_assisted: copilotAssisted ? true : false,
+            spec_assist_used: specAssistUsed ? true : false,
             creation_spec: this._specToString(creationSpec),
             artifact_sys_ids: '[]',
             status: approvalRequired ? 'pending_approval' : 'draft',
@@ -232,7 +232,6 @@ ArtifactManager.prototype = {
 
     _builderReactivate: function(type, sysIds) {
         if (type === 'report' || type === 'pa_dashboard') {
-            new ReportBuilder().deactivate(sysIds);
             this._setUnderlyingActive('sys_report', sysIds, true);
             this._setUnderlyingActive('pa_dashboards', sysIds, true);
         } else if (type === 'notification_rule') {

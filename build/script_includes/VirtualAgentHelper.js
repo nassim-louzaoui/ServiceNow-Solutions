@@ -23,7 +23,7 @@ VirtualAgentHelper.prototype = {
             system_role:     this._permissions.getSystemRole(uid),
             groups:          this._permissions.getUserGroups(uid),
             person_sys_id:   this._permissions.getPersonByUser(uid),
-            copilot_enabled: false
+            spec_assist_enabled: false
         };
         var su = new GlideRecord('sys_user');
         if (su.get(uid)) {
@@ -34,7 +34,7 @@ VirtualAgentHelper.prototype = {
         if (context.person_sys_id) {
             var person = this._store.get('persons', context.person_sys_id);
             if (person) {
-                context.copilot_enabled = person.copilot_enabled === true || person.copilot_enabled === 'true';
+                context.spec_assist_enabled = person.spec_assist_enabled === true || person.spec_assist_enabled === 'true';
             }
         }
         return context;

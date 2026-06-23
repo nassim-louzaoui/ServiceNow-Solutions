@@ -26,7 +26,7 @@ ORDER = [
     "NotificationService", "RoleSyncService", "GroupManager",
     "CatalogService", "ScheduleManager", "ExecutionEngine", "ApprovalRouter",
     "OnboardingService", "DeactivationHandler", "FlowBridge", "RestBridge",
-    "CopilotBridge", "AuditService", "MaintenanceManager", "ArtifactManager",
+    "CreatorAssistBridge", "AuditService", "MaintenanceManager", "ArtifactManager",
     "ReportBuilder", "NotificationBuilder", "FlowBuilder", "TableBuilder",
     "UserInterfacePageBuilder",
 ]

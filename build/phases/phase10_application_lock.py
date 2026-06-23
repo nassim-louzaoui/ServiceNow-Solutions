@@ -44,7 +44,7 @@ SCRIPT_INCLUDE_ORDER = [
     "PermissionResolver", "VAHelper", "NotificationService", "RoleSyncService",
     "GroupManager", "CatalogService", "ScheduleManager", "ExecutionEngine",
     "ApprovalRouter", "OnboardingService", "DeactivationHandler", "FlowBridge",
-    "RESTBridge", "CopilotBridge", "AuditService", "MaintenanceManager",
+    "RESTBridge", "CreatorAssistBridge", "AuditService", "MaintenanceManager",
     "ArtifactManager", "ReportBuilder", "NotificationBuilder", "FlowBuilder",
     "TableBuilder", "UIPageBuilder",
 ]

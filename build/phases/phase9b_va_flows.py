@@ -20,11 +20,6 @@ import engine_client as ec
 
 VENDOR_ID     = "c2f0b8f187033200246ddd4c97cb0bb9"
 APP_SCOPE_ID  = "75be0bf9fbe9cb5052eef5c9beefdce8"
-PERSON_TABLE  = "x_infte_ops_int_person"
-EXEC_TABLE    = "x_infte_ops_int_execution"
-ARTIFACT_TABLE = "x_infte_ops_int_managed_artifact"
-PENDING_TABLE  = "x_infte_ops_int_pending_action"
-OB_TABLE       = "x_infte_ops_int_onboarding_request"
 
 
 def _h(seed):
@@ -72,7 +67,6 @@ def build_definition(sys_id, full_name, key_phrases, action_script, default_msg)
     def js_sq(s):
         return s.replace("\\", "\\\\").replace("'", "\\'")
 
-    # ScriptedAction prompt_msg: runs business logic then self-advances
     sa_prompt = (
         "vaVars.previous_graph_node='" + sa_lbl + "';"
         "(function execute() { " + action_script + " })();"
@@ -83,7 +77,6 @@ def build_definition(sys_id, full_name, key_phrases, action_script, default_msg)
         "var ackMsg=null;ackMsg=null;ackMsg;"
     )
 
-    # TextOutputPrompt acknowledge_msg: returns vaVars.oi_msg to user
     tp_ack = (
         "vaVars.previous_graph_node='" + tp_lbl + "';"
         "var ackMsg=null;"
@@ -127,7 +120,6 @@ def build_definition(sys_id, full_name, key_phrases, action_script, default_msg)
     )
 
     task_fields = [
-        # 1. Root Decision — always true, sets branch flag
         {
             "name": "__silent_Decision_RootDecision_" + root,
             "direction": "Input", "required": True,
@@ -143,7 +135,6 @@ def build_definition(sys_id, full_name, key_phrases, action_script, default_msg)
                 "vaInputs.RootDecisionBranch_" + root + "=true;ackMsg;"
             )
         },
-        # 2. Root Decision Branch
         {
             "name": "__silent_Branch_RootDecisionBranch_" + root,
             "applicable": (
@@ -160,7 +151,6 @@ def build_definition(sys_id, full_name, key_phrases, action_script, default_msg)
                 "var ackMsg=null;ackMsg=null;ackMsg;"
             )
         },
-        # 3. Start Goal
         {
             "name": "__silent_StartGoal_" + sg,
             "applicable": "(vaVars.previous_graph_node=='" + br_lbl + "')",
@@ -174,7 +164,6 @@ def build_definition(sys_id, full_name, key_phrases, action_script, default_msg)
                 "var ackMsg=null;ackMsg=null;ackMsg;"
             )
         },
-        # 4. Scripted Action — business logic
         {
             "name": "__silent_ScriptedAction_" + sa,
             "applicable": "(vaVars.previous_graph_node=='" + sg_lbl + "')",
@@ -182,7 +171,6 @@ def build_definition(sys_id, full_name, key_phrases, action_script, default_msg)
             "prompt_msg": sa_prompt,
             "acknowledge_msg": sa_ack
         },
-        # 5. Text Output Prompt — user-visible message
         {
             "name": "__silent_TextOutputPrompt_" + tp,
             "applicable": "(vaVars.previous_graph_node=='" + sa_lbl + "')",
@@ -194,7 +182,6 @@ def build_definition(sys_id, full_name, key_phrases, action_script, default_msg)
             ),
             "acknowledge_msg": tp_ack
         },
-        # 6. Terminate Goal
         {
             "name": "__silent_TerminateGoal_" + tg,
             "applicable": "(vaVars.previous_graph_node=='" + tp_lbl + "')",
@@ -252,22 +239,8 @@ def build_definition(sys_id, full_name, key_phrases, action_script, default_msg)
 # =============================================================================
 # Topic definitions: (short_name, key_phrases, action_script, default_msg)
 # action_script runs inside (function execute() { ... })() in VA context.
-# Sets vaVars.oi_msg with the message to display. GlideRecord is available.
-# Script Includes in x_infte_ops_int scope are callable as new VAHelper() etc.
+# Sets vaVars.oi_msg with the message to display. OIDataStore is available.
 # =============================================================================
-
-_PERSON_QUERY = (
-    "var _uid=gs.getUserID();"
-    "var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-    "_pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-    "var _pid=_pr.next()?''+_pr.getUniqueValue():'';"
-    "var _role=_pr.next()?'':'unknown';"
-    "if(_pid){"
-    " var _pr2=new GlideRecord('" + PERSON_TABLE + "');"
-    " _pr2.get(_pid);"
-    " _role=''+_pr2.getValue('system_role');"
-    "}"
-)
 
 TOPICS = [
 
@@ -277,17 +250,19 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " if(_pr.next()){"
-            "  var _role=''+_pr.getValue('system_role');"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " if(_pr){"
+            "  var _role=''+(_pr.system_role||'');"
             "  var _fname=''+gs.getUser().getFullName();"
             "  if(_role==='admin') vaVars.oi_msg='Welcome to Operations Command, '+_fname+'. How can I assist with platform administration?';"
             "  else if(_role==='leadership'){"
-            "   var _pac=new GlideRecord('" + PENDING_TABLE + "');"
-            "   _pac.addQuery('assigned_to',_pr.getUniqueValue());"
-            "   _pac.addQuery('status','IN','pending,escalated');_pac.query();"
-            "   var _cnt=_pac.getRowCount();"
+            "   var _pid=''+(_pr.sys_id||'');"
+            "   var _pac=_store.find('pending_actions',function(pa){"
+            "    return ''+pa.assigned_to===_pid&&(pa.status==='pending'||pa.status==='escalated');"
+            "   });"
+            "   var _cnt=_pac.length;"
             "   vaVars.oi_msg=_cnt>0?"
             "    'Welcome back, '+_fname+'. You have '+_cnt+' pending approval'+(+_cnt===1?'':'s')+' awaiting review.':"
             "    'Welcome to Operations Governance, '+_fname+'. How can I assist today?';"
@@ -311,15 +286,16 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " if(_pr.next()){"
-            "  var _role=''+_pr.getValue('system_role');"
-            "  var _obr=new GlideRecord('" + OB_TABLE + "');"
-            "  _obr.addQuery('person',_pr.getUniqueValue());"
-            "  _obr.orderByDesc('sys_created_on');_obr.setLimit(1);_obr.query();"
-            "  if(_obr.next()){"
-            "   var _st=''+_obr.getValue('status');"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " if(_pr){"
+            "  var _role=''+(_pr.system_role||'');"
+            "  var _pid=''+(_pr.sys_id||'');"
+            "  var _obrs=_store.find('onboarding_requests',function(o){return ''+o.person===_pid;});"
+            "  _obrs.sort(function(a,b){return (a.submitted_at||'')<(b.submitted_at||'')?1:-1;});"
+            "  if(_obrs.length>0){"
+            "   var _st=''+(_obrs[0].status||'');"
             "   vaVars.oi_msg='Your onboarding request is currently '+_st+'. Your role is '+_role+'. If you need assistance, please contact your administrator.';"
             "  }else{"
             "   vaVars.oi_msg='You are registered in Operations Intelligence with the role of '+_role+'. Your initial setup is complete. Navigate to Operations Workspace to explore available automations.';"
@@ -333,30 +309,31 @@ TOPICS = [
     ),
 
     (
-        "Copilot Setup",
-        ["copilot", "copilot setup", "enable copilot", "configure copilot",
-         "ai assistant", "creator credentials", "github credentials"],
+        "Creator Assist Setup",
+        ["creator assist", "creator assist setup", "enable creator assist",
+         "configure creator assist", "creator credentials", "github credentials"],
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " if(_pr.next()){"
-            "  var _cop=_pr.getValue('copilot_enabled');"
-            "  var _role=''+_pr.getValue('system_role');"
-            "  if(_cop==='1'||_cop==='true'){"
-            "   vaVars.oi_msg='Copilot is enabled for your account. Manage your creator credentials in Operations Studio under Creator Credentials.';"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " if(_pr){"
+            "  var _en=_pr.spec_assist_enabled;"
+            "  var _role=''+(_pr.system_role||'');"
+            "  if(_en===true||_en==='true'||_en==='1'){"
+            "   vaVars.oi_msg='Creator Assist is enabled for your account. Manage your creator credentials in Operations Studio under Creator Credentials.';"
             "  }else if(_role==='creator'||_role==='admin'){"
-            "   vaVars.oi_msg='Copilot is not yet enabled for your account. An administrator can activate it from the person record in Operations Command. Once enabled, add your GitHub credentials under Creator Credentials in Operations Studio.';"
+            "   vaVars.oi_msg='Creator Assist is not yet enabled for your account. An administrator can activate it from your person record in Operations Command. Once enabled, add your credentials under Creator Credentials in Operations Studio.';"
             "  }else{"
-            "   vaVars.oi_msg='Copilot assistance is available to creators and administrators. Contact your administrator to request creator access if you need to build automations.';"
+            "   vaVars.oi_msg='Creator Assist is available to creators and administrators. Contact your administrator to request creator access if you need to build automations.';"
             "  }"
             " }else{"
-            "  vaVars.oi_msg='Complete your onboarding before configuring Copilot. Contact your administrator to get started.';"
+            "  vaVars.oi_msg='Complete your onboarding before configuring Creator Assist. Contact your administrator to get started.';"
             " }"
-            "}catch(e){vaVars.oi_msg='I was unable to retrieve your Copilot status. Please contact your administrator.';}"
+            "}catch(e){vaVars.oi_msg='I was unable to retrieve your Creator Assist status. Please contact your administrator.';}"
         ),
-        "Contact your administrator to configure Copilot for your account."
+        "Contact your administrator to configure Creator Assist for your account."
     ),
 
     (
@@ -366,9 +343,10 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " var _role=_pr.next()?''+_pr.getValue('system_role'):'user';"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " var _role=_pr?''+(_pr.system_role||'user'):'user';"
             " if(_role==='admin'){"
             "  vaVars.oi_msg='To onboard a new leadership member, navigate to Operations Command and select Onboarding Requests. Click New and set the Designation field to Leadership. Complete the form with the user details and submit.';"
             " }else{"
@@ -386,9 +364,10 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " var _role=_pr.next()?''+_pr.getValue('system_role'):'user';"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " var _role=_pr?''+(_pr.system_role||'user'):'user';"
             " if(_role==='admin'||_role==='leadership'){"
             "  vaVars.oi_msg='To onboard a new sub-leadership member, navigate to Operations Governance and select Onboarding Requests. Click New and set the Designation to Sub-Leadership. Complete the form and submit for processing.';"
             " }else{"
@@ -406,9 +385,10 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " var _role=_pr.next()?''+_pr.getValue('system_role'):'user';"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " var _role=_pr?''+(_pr.system_role||'user'):'user';"
             " if(_role==='admin'||_role==='leadership'){"
             "  vaVars.oi_msg='To onboard a new user, navigate to Operations Governance and select Onboarding Requests. Click New, set the Designation to User, and assign the appropriate group. Submit the form to create the user account.';"
             " }else{"
@@ -426,9 +406,10 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " var _role=_pr.next()?''+_pr.getValue('system_role'):'user';"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " var _role=_pr?''+(_pr.system_role||'user'):'user';"
             " if(_role==='admin'||_role==='leadership'){"
             "  vaVars.oi_msg='To appoint a creator, the user must first be onboarded as a regular user. Navigate to Operations Command or Governance, open the person record, and update the System Role field to Creator. The user will receive the creator role immediately.';"
             " }else{"
@@ -446,9 +427,10 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " var _role=_pr.next()?''+_pr.getValue('system_role'):'user';"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " var _role=_pr?''+(_pr.system_role||'user'):'user';"
             " if(_role==='admin'||_role==='leadership'){"
             "  vaVars.oi_msg='To create an automation group, navigate to Operations Governance and select Groups. Click New to define the group name, description, and members. Members can be assigned automations once the group is created.';"
             " }else{"
@@ -466,9 +448,10 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " var _role=_pr.next()?''+_pr.getValue('system_role'):'user';"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " var _role=_pr?''+(_pr.system_role||'user'):'user';"
             " if(_role==='admin'||_role==='creator'){"
             "  vaVars.oi_msg='To create a new automation, navigate to Operations Studio and select Automations. Click New to define the automation name, description, category, and workflow steps. Once complete, submit it for approval before it can be assigned to groups.';"
             " }else{"
@@ -486,14 +469,15 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " if(_pr.next()){"
-            "  var _pid=''+_pr.getUniqueValue();"
-            "  var _pa=new GlideRecord('" + PENDING_TABLE + "');"
-            "  _pa.addQuery('assigned_to',_pid);"
-            "  _pa.addQuery('status','IN','pending,escalated');_pa.query();"
-            "  var _cnt=_pa.getRowCount();"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " if(_pr){"
+            "  var _pid=''+(_pr.sys_id||'');"
+            "  var _pa=_store.find('pending_actions',function(pa){"
+            "   return ''+pa.assigned_to===_pid&&(pa.status==='pending'||pa.status==='escalated');"
+            "  });"
+            "  var _cnt=_pa.length;"
             "  if(_cnt===0)vaVars.oi_msg='You have no pending approvals at this time.';"
             "  else vaVars.oi_msg='You have '+_cnt+' pending approval'+(+_cnt===1?'':'s')+' awaiting your review. Navigate to Operations Governance and select Pending Actions to review and act on them.';"
             " }else{"
@@ -511,9 +495,10 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " var _role=_pr.next()?''+_pr.getValue('system_role'):'user';"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " var _role=_pr?''+(_pr.system_role||'user'):'user';"
             " if(_role==='admin'||_role==='leadership'){"
             "  vaVars.oi_msg='To deactivate a user, navigate to Operations Command, locate the person record, and select Deactivate. This will remove their group memberships, cancel scheduled automations, and revoke their platform access. The action can be reversed by re-inviting the user.';"
             " }else{"
@@ -531,9 +516,10 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " var _role=_pr.next()?''+_pr.getValue('system_role'):'user';"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " var _role=_pr?''+(_pr.system_role||'user'):'user';"
             " if(_role==='admin'||_role==='leadership'){"
             "  vaVars.oi_msg='To re-invite a deactivated user, navigate to Operations Command, locate the person record with status Deactivated, and select Re-invite. This will restore their platform access and return them to their previous group assignments.';"
             " }else{"
@@ -551,18 +537,19 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " if(_pr.next()){"
-            "  var _pid=''+_pr.getUniqueValue();"
-            "  var _ex=new GlideRecord('" + EXEC_TABLE + "');"
-            "  _ex.addQuery('requested_by',_pid);"
-            "  _ex.orderByDesc('sys_created_on');_ex.setLimit(1);_ex.query();"
-            "  if(_ex.next()){"
-            "   var _exst=''+_ex.getValue('status');"
-            "   var _exnm=''+_ex.getDisplayValue('automation');"
-            "   var _exdt=''+_ex.getDisplayValue('sys_created_on');"
-            "   vaVars.oi_msg='Your most recent execution: \"'+_exnm+'\" — Status: '+_exst+' (started '+_exdt+'). Navigate to Operations Workspace and select Executions to view full details.';"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " if(_pr){"
+            "  var _pid=''+(_pr.sys_id||'');"
+            "  var _exs=_store.find('executions',function(e){return ''+e.triggered_by===_pid;});"
+            "  _exs.sort(function(a,b){return (a.triggered_at||'')<(b.triggered_at||'')?1:-1;});"
+            "  if(_exs.length>0){"
+            "   var _ex=_exs[0];"
+            "   var _exst=''+(_ex.status||'');"
+            "   var _exnm=''+(_ex.automation||'');"
+            "   var _exdt=''+(_ex.triggered_at||'');"
+            "   vaVars.oi_msg='Your most recent execution: automation '+_exnm+' — Status: '+_exst+' (started '+_exdt+'). Navigate to Operations Workspace and select Executions to view full details.';"
             "  }else{"
             "   vaVars.oi_msg='No recent execution records found for your account. Navigate to Operations Workspace and select Executions to view the full history.';"
             "  }"
@@ -581,9 +568,10 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " var _role=_pr.next()?''+_pr.getValue('system_role'):'unregistered';"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " var _role=_pr?''+(_pr.system_role||'unregistered'):'unregistered';"
             " if(_role==='admin'){"
             "  vaVars.oi_msg='As an administrator I can help you: onboard users and leaders, manage groups, review approvals, monitor executions, and manage platform configuration. What would you like to do?';"
             " }else if(_role==='leadership'){"
@@ -607,16 +595,18 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " if(_pr.next()){"
-            "  var _pid=''+_pr.getUniqueValue();"
-            "  var _pa=new GlideRecord('" + PENDING_TABLE + "');"
-            "  _pa.addQuery('assigned_to',_pid);"
-            "  _pa.addQuery('status','IN','pending,escalated');"
-            "  _pa.orderBy('sys_created_on');_pa.setLimit(5);_pa.query();"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " if(_pr){"
+            "  var _pid=''+(_pr.sys_id||'');"
+            "  var _all=_store.find('pending_actions',function(pa){"
+            "   return ''+pa.assigned_to===_pid&&(pa.status==='pending'||pa.status==='escalated');"
+            "  });"
+            "  _all.sort(function(a,b){return (a.created_at||'')>(b.created_at||'')?1:-1;});"
             "  var _items=[];"
-            "  while(_pa.next()){_items.push('• '+''+_pa.getDisplayValue('action_type')+': '+''+_pa.getDisplayValue('related_record'));}"
+            "  var _i;"
+            "  for(_i=0;_i<_all.length&&_i<5;_i++){_items.push('\\u2022 '+''+(+_all[_i].action_type||'')+'('+(+_all[_i].related_automation||_all[_i].related_artifact||'')+')');}"
             "  if(_items.length===0)vaVars.oi_msg='You have no pending approvals at this time.';"
             "  else vaVars.oi_msg='Pending approvals requiring your attention:\\n'+_items.join('\\n')+'\\n\\nNavigate to Operations Governance and select Pending Actions to approve or reject each item.';"
             " }else{"
@@ -634,9 +624,10 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " var _role=_pr.next()?''+_pr.getValue('system_role'):'user';"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " var _role=_pr?''+(_pr.system_role||'user'):'user';"
             " if(_role==='admin'||_role==='creator'){"
             "  vaVars.oi_msg='To request a new report or dashboard, navigate to Operations Studio and select Use Case Requests. Click New, set the Type to Report or Dashboard, and describe the data, metrics, and layout you need in the Specification field. Your request will be reviewed and built by the platform team.';"
             " }else{"
@@ -654,9 +645,10 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " var _role=_pr.next()?''+_pr.getValue('system_role'):'user';"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " var _role=_pr?''+(_pr.system_role||'user'):'user';"
             " if(_role==='admin'||_role==='creator'){"
             "  vaVars.oi_msg='To create a notification rule, navigate to Operations Studio and select Automations. Click New and set the category to Notification. Define the trigger condition, recipient list, message template, and delivery channel. Submit for approval to activate.';"
             " }else{"
@@ -674,9 +666,10 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " var _role=_pr.next()?''+_pr.getValue('system_role'):'user';"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " var _role=_pr?''+(_pr.system_role||'user'):'user';"
             " if(_role==='admin'||_role==='creator'){"
             "  vaVars.oi_msg='To create a scheduled data report, navigate to Operations Studio and select Automation Schedules. Define the schedule interval, data source automation, output format, and delivery method. Reports can be delivered via email or stored on the platform.';"
             " }else{"
@@ -694,9 +687,10 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " var _role=_pr.next()?''+_pr.getValue('system_role'):'user';"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " var _role=_pr?''+(_pr.system_role||'user'):'user';"
             " if(_role==='admin'||_role==='creator'){"
             "  vaVars.oi_msg='To create an automation flow, navigate to Operations Studio and select Approved Flows or Automations. Use the flow designer to define triggers, conditions, and sequential action steps. Once your flow is ready, submit it for approval and then assign it to the relevant groups.';"
             " }else{"
@@ -714,9 +708,10 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " var _role=_pr.next()?''+_pr.getValue('system_role'):'user';"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " var _role=_pr?''+(_pr.system_role||'user'):'user';"
             " if(_role==='admin'||_role==='creator'){"
             "  vaVars.oi_msg='To request a custom table, navigate to Operations Studio and select Use Case Requests. Click New, set the Type to Custom Table, and provide the schema requirements in the Specification field. Include field names, types, relationships, and intended use. The platform team will review and build it.';"
             " }else{"
@@ -734,9 +729,10 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " var _role=_pr.next()?''+_pr.getValue('system_role'):'user';"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " var _role=_pr?''+(_pr.system_role||'user'):'user';"
             " if(_role==='admin'||_role==='creator'){"
             "  vaVars.oi_msg='To request a custom UI page, navigate to Operations Studio and select Use Case Requests. Click New, set the Type to UI Page, and describe the layout, widgets, data requirements, and user interactions in the Specification field. The platform team will design and deploy it.';"
             " }else{"
@@ -754,14 +750,15 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " if(_pr.next()){"
-            "  var _pid=''+_pr.getUniqueValue();"
-            "  var _ar=new GlideRecord('" + ARTIFACT_TABLE + "');"
-            "  _ar.addQuery('created_by_person',_pid);"
-            "  _ar.addQuery('status','active');_ar.query();"
-            "  var _cnt=_ar.getRowCount();"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " if(_pr){"
+            "  var _pid=''+(_pr.sys_id||'');"
+            "  var _ar=_store.find('managed_artifacts',function(a){"
+            "   return ''+a.created_by_person===_pid&&a.status==='active';"
+            "  });"
+            "  var _cnt=_ar.length;"
             "  if(_cnt===0)vaVars.oi_msg='You have no active managed artifacts. Navigate to Operations Studio to create your first automation or request an artifact build.';"
             "  else vaVars.oi_msg='You have '+_cnt+' active managed artifact'+(+_cnt===1?'':'s')+'. Navigate to Operations Studio and select Managed Artifacts to view, update, or manage them.';"
             " }else{"
@@ -779,17 +776,18 @@ TOPICS = [
         (
             "try{"
             " var _uid=gs.getUserID();"
-            " var _pr=new GlideRecord('" + PERSON_TABLE + "');"
-            " _pr.addQuery('user',_uid);_pr.setLimit(1);_pr.query();"
-            " if(_pr.next()){"
-            "  var _pid=''+_pr.getUniqueValue();"
-            "  var _ar=new GlideRecord('" + ARTIFACT_TABLE + "');"
-            "  _ar.addQuery('created_by_person',_pid);"
-            "  _ar.orderByDesc('sys_updated_on');_ar.setLimit(1);_ar.query();"
-            "  if(_ar.next()){"
-            "   var _arst=''+_ar.getValue('status');"
-            "   var _arnm=''+_ar.getValue('artifact_name');"
-            "   var _ardt=''+_ar.getDisplayValue('sys_updated_on');"
+            " var _store=new OIDataStore();"
+            " var _persons=_store.find('persons',function(p){return ''+p.user_sys_id===''+_uid;});"
+            " var _pr=_persons.length>0?_persons[0]:null;"
+            " if(_pr){"
+            "  var _pid=''+(_pr.sys_id||'');"
+            "  var _ars=_store.find('managed_artifacts',function(a){return ''+a.created_by_person===_pid;});"
+            "  _ars.sort(function(a,b){return (a.updated_at||'')<(b.updated_at||'')?1:-1;});"
+            "  if(_ars.length>0){"
+            "   var _ar=_ars[0];"
+            "   var _arst=''+(_ar.status||'');"
+            "   var _arnm=''+(_ar.display_name||'');"
+            "   var _ardt=''+(_ar.updated_at||'');"
             "   vaVars.oi_msg='Your most recent artifact: \"'+_arnm+'\" — Status: '+_arst+' (last updated '+_ardt+'). Navigate to Managed Artifacts in Operations Studio to view full build history and deployment details.';"
             "  }else{"
             "   vaVars.oi_msg='No artifacts found for your account. Navigate to Operations Studio to request your first artifact build.';"
@@ -809,7 +807,6 @@ def build():
     log = []
     updated = failed = skipped = 0
 
-    # Pull all topic sys_ids from the instance in one call
     r = ec.op(
         "record.query",
         table="sys_cs_topic",

@@ -1446,7 +1446,7 @@
                 name:      '' + (lpp.name || ''),
                 email:     '' + (lpp.email || ''),
                 active:    lpp.active !== false,
-                copilot_enabled: lpp.copilot_enabled === true,
+                spec_assist_enabled: lpp.spec_assist_enabled === true,
                 enrolled_at: '' + (lpp.enrolled_at || '')
             });
         }
@@ -1479,7 +1479,7 @@
             name:            '' + epUserGr.getDisplayValue('name'),
             email:           '' + epUserGr.getValue('email'),
             active:          true,
-            copilot_enabled: false,
+            spec_assist_enabled: false,
             enrolled_at:     new GlideDateTime().getValue()
         };
         var epId = epStore.upsert('persons', epPerson);

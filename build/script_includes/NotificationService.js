@@ -129,23 +129,19 @@ NotificationService.prototype = {
             name: '' + (auto.name || ''),
             owner_group: '' + (auto.owner_group || '')
         };
-        var creatorUserSysId = this._userSysIdForPerson('' + (auto.created_by || ''));
-        if (creatorUserSysId) {
-            this.send(this.TEMPLATE_AUTOMATION_APPROVED, creatorUserSysId, context);
-        }
-        var sent = {};
-        if (creatorUserSysId) {
-            sent[creatorUserSysId] = true;
-        }
+
+        var recipientPersonIds = {};
+        var creatorPersonSysId = '' + (auto.created_by || '');
+        if (creatorPersonSysId) { recipientPersonIds[creatorPersonSysId] = true; }
+
         var allGroups = store.find('groups', function(g) {
             return g.status === 'active';
         });
-        var gi;
+        var gi, ai, mi;
         for (gi = 0; gi < allGroups.length; gi++) {
             var grp = allGroups[gi];
             var automationsArr = grp.automations || [];
             var hasApprovedAuto = false;
-            var ai;
             for (ai = 0; ai < automationsArr.length; ai++) {
                 if ('' + automationsArr[ai].automation_sys_id === autoSysId &&
                     '' + automationsArr[ai].approval_status === 'approved') {
@@ -153,20 +149,39 @@ NotificationService.prototype = {
                     break;
                 }
             }
-            if (!hasApprovedAuto) {
-                continue;
-            }
+            if (!hasApprovedAuto) { continue; }
             var membersArr = grp.members || [];
-            var mi;
             for (mi = 0; mi < membersArr.length; mi++) {
-                if ('' + membersArr[mi].status !== 'active') {
-                    continue;
+                if ('' + membersArr[mi].status === 'active') {
+                    var pId = '' + membersArr[mi].person_sys_id;
+                    if (pId) { recipientPersonIds[pId] = true; }
                 }
-                var memberUserSysId = this._userSysIdForPerson('' + membersArr[mi].person_sys_id);
-                if (memberUserSysId && !sent[memberUserSysId]) {
-                    sent[memberUserSysId] = true;
-                    this.send(this.TEMPLATE_AUTOMATION_APPROVED, memberUserSysId, context);
-                }
+            }
+        }
+
+        var personIds = [];
+        var key;
+        for (key in recipientPersonIds) {
+            if (recipientPersonIds.hasOwnProperty(key)) { personIds.push(key); }
+        }
+        if (personIds.length === 0) { return true; }
+
+        var allPersons = store.find('persons', function(p) {
+            var pid = '' + (p.sys_id || '');
+            var k;
+            for (k = 0; k < personIds.length; k++) {
+                if (personIds[k] === pid) { return true; }
+            }
+            return false;
+        });
+
+        var sent = {};
+        var pi;
+        for (pi = 0; pi < allPersons.length; pi++) {
+            var userSysId = '' + (allPersons[pi].user_sys_id || '');
+            if (userSysId && !sent[userSysId]) {
+                sent[userSysId] = true;
+                this.send(this.TEMPLATE_AUTOMATION_APPROVED, userSysId, context);
             }
         }
         return true;

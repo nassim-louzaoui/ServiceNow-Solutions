@@ -2,10 +2,10 @@
 """
 Phase 8 — Platform Configuration Properties
 
-Sets the system properties the Script Includes read at runtime: Copilot endpoint
-and timeout, flow action cap, NLU model placeholder, maintenance-mode state, and
-debug flag. sys_properties is platform-global by ServiceNow architecture (the one
-intentional exception to scope isolation).
+Sets the system properties the Script Includes read at runtime: Creator Assist
+endpoint and timeout, flow action cap, NLU model placeholder, maintenance-mode
+state, and debug flag. sys_properties is platform-global by ServiceNow
+architecture (the one intentional exception to scope isolation).
 """
 import os
 import sys
@@ -14,10 +14,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 import engine_client as ec
 
 PROPS = [
-    ("x_infte_ops_int.copilot_api_endpoint", "https://api.githubcopilot.com/chat/completions",
-     "string", "GitHub Copilot chat completions endpoint used by CopilotBridge."),
-    ("x_infte_ops_int.copilot_timeout_ms", "15000",
-     "integer", "Copilot API timeout in milliseconds."),
+    ("x_infte_ops_int.assist_api_endpoint", "https://api.githubcopilot.com",
+     "string", "Creator Assist chat completions base endpoint."),
+    ("x_infte_ops_int.assist_model", "gpt-4o",
+     "string", "Creator Assist language model identifier."),
+    ("x_infte_ops_int.assist_timeout_ms", "15000",
+     "integer", "Creator Assist API timeout in milliseconds."),
     ("x_infte_ops_int.max_flow_actions", "20",
      "integer", "Maximum number of actions a creator flow may contain."),
     ("x_infte_ops_int.nlu_model_sys_id", "",

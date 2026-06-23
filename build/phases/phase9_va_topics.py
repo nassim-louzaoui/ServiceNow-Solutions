@@ -18,7 +18,7 @@ import engine_client as ec
 NLU = "75d8e16a3bed8f506d91a21864e45a7f"
 
 TOPICS = [
-    "Welcome", "Complete Onboarding", "Copilot Setup", "Onboard Leadership",
+    "Welcome", "Complete Onboarding", "Creator Assist Setup", "Onboard Leadership",
     "Onboard Sub-Leadership", "Onboard User", "Appoint Creator", "Create Group",
     "Create Automation", "Review Approvals", "Deactivation Action", "Re-invite User",
     "Check Status", "Help and Fallback", "Approval Review",

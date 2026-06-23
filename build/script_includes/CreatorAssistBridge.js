@@ -1,9 +1,7 @@
-var CopilotBridge = Class.create();
-CopilotBridge.prototype = {
+var CreatorAssistBridge = Class.create();
+CreatorAssistBridge.prototype = {
     initialize: function() {
         this.DEFAULT_TIMEOUT_MS = 15000;
-        this.DEFAULT_ENDPOINT = 'https://api.githubcopilot.com';
-        this.MODEL = 'gpt-4o';
         this.INTEGRATION_ID = 'servicenow-oi';
         this.EDITOR_VERSION = 'ServiceNow/Operations Intelligence-1.0';
         this.audit = new AuditService();
@@ -46,10 +44,10 @@ CopilotBridge.prototype = {
                 content: 'Specification: ' + specString
             }
         ];
-        var parsed = this._callCopilot(messages, 1000, pat);
+        var parsed = this._callAssist(messages, 1000, pat);
         pat = null;
         if (!parsed) {
-            this.audit.log('copilot_phrases_failed', { creator_person: '' + creatorPersonSysId });
+            this.audit.log('assist_phrases_failed', { creator_person: '' + creatorPersonSysId });
             return failure;
         }
         return {
@@ -89,10 +87,10 @@ CopilotBridge.prototype = {
                     'Already specified: ' + partialString
             }
         ];
-        var parsed = this._callCopilot(messages, 3000, pat);
+        var parsed = this._callAssist(messages, 3000, pat);
         pat = null;
         if (!parsed) {
-            this.audit.log('copilot_spec_failed', {
+            this.audit.log('assist_spec_failed', {
                 creator_person: '' + creatorPersonSysId,
                 artifact_type: '' + artifactType
             });
@@ -122,28 +120,30 @@ CopilotBridge.prototype = {
             var pat = '' + (person.github_pat || '');
             return pat ? pat : null;
         } catch (e) {
-            gs.error('x_infte_ops_int CopilotBridge._readPat failed: ' + e.message);
+            gs.error('x_infte_ops_int CreatorAssistBridge._readPat failed: ' + e);
             return null;
         }
     },
 
-    _callCopilot: function(messages, maxTokens, pat) {
+    _callAssist: function(messages, maxTokens, pat) {
         if (!pat) {
             return null;
         }
-        var timeoutMs = parseInt(gs.getProperty('x_infte_ops_int.copilot_timeout_ms', '' + this.DEFAULT_TIMEOUT_MS), 10);
+        var timeoutMs = parseInt(gs.getProperty('x_infte_ops_int.assist_timeout_ms', '' + this.DEFAULT_TIMEOUT_MS), 10);
         if (isNaN(timeoutMs) || timeoutMs <= 0) {
             timeoutMs = this.DEFAULT_TIMEOUT_MS;
         }
-        var base = '' + gs.getProperty('x_infte_ops_int.copilot_api_endpoint', this.DEFAULT_ENDPOINT);
+        var base = '' + gs.getProperty('x_infte_ops_int.assist_api_endpoint', 'https://api.githubcopilot.com');
         if (!base) {
-            base = this.DEFAULT_ENDPOINT;
+            base = 'https://api.githubcopilot.com';
         }
         base = base.replace(/\/+$/, '');
+        var model = '' + gs.getProperty('x_infte_ops_int.assist_model', 'gpt-4o');
+        if (!model) { model = 'gpt-4o'; }
         var temperature = (maxTokens >= 3000) ? 0.2 : 0.3;
 
         var body = {
-            model: this.MODEL,
+            model: model,
             messages: messages,
             max_tokens: maxTokens,
             temperature: temperature
@@ -183,7 +183,7 @@ CopilotBridge.prototype = {
             }
             return JSON.parse(content);
         } catch (e) {
-            gs.error('x_infte_ops_int CopilotBridge._callCopilot failed: ' + e.message);
+            gs.error('x_infte_ops_int CreatorAssistBridge._callAssist failed: ' + e);
             return null;
         }
     },
@@ -209,5 +209,5 @@ CopilotBridge.prototype = {
         return [];
     },
 
-    type: 'CopilotBridge'
+    type: 'CreatorAssistBridge'
 };

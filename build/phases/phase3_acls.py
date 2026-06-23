@@ -57,8 +57,8 @@ FIELD_ACLS = [
     ("managed_artifact", "artifact_sys_ids", "write", [ADMIN], "", True),
     ("managed_artifact", "creation_spec", "read", [ADMIN, CREATOR], "", True),
     ("managed_artifact", "creation_spec", "write", [ADMIN], "", True),
-    ("managed_artifact", "copilot_assisted", "read", [ADMIN, LEAD, CREATOR], "", True),
-    ("managed_artifact", "copilot_assisted", "write", [ADMIN], "", True),
+    ("managed_artifact", "spec_assist_used", "read", [ADMIN, LEAD, CREATOR], "", True),
+    ("managed_artifact", "spec_assist_used", "write", [ADMIN], "", True),
 ]
 
 
