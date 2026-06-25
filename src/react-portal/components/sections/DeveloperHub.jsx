@@ -3,12 +3,12 @@ import OIIcon from '../../icons.jsx';
 
 var MAIN_TABS = [
   { id: 'inventory', label: 'Application Inventory' },
-  { id: 'journal',   label: 'Execution Journal', count: '1,247' },
+  { id: 'journal',   label: 'Execution Journal', count: '1,347' },
 ];
 
 var SUB_TABS = [
   { id: 'tables',     label: 'Tables',          count: 8  },
-  { id: 'scripts',    label: 'Script Includes', count: 12 },
+  { id: 'scripts',    label: 'Script Includes', count: 32 },
   { id: 'rules',      label: 'Business Rules',  count: 6  },
   { id: 'jobs',       label: 'Scheduled Jobs',  count: 4  },
   { id: 'properties', label: 'Properties',      count: 15 },
@@ -27,18 +27,38 @@ var DATA = {
     { name: 'Notification Queue',          api: 'x_infte_ops_int_notification',      records: 142,   scope: 'X_INFTE_OPS_INT', updated: '1d ago'  },
   ],
   scripts: [
-    { name: 'Operations Intelligence Engine',  type: 'Script Include', scope: 'x_infte_ops_int', updated: '2 days ago'  },
-    { name: 'Execution Log Handler',           type: 'Script Include', scope: 'x_infte_ops_int', updated: '1 week ago'  },
-    { name: 'Automation Trigger Utility',      type: 'Script Include', scope: 'x_infte_ops_int', updated: '3 days ago'  },
-    { name: 'Creator Assist Bridge',           type: 'Script Include', scope: 'x_infte_ops_int', updated: '2 days ago'  },
-    { name: 'Governance Action Handler',       type: 'Script Include', scope: 'x_infte_ops_int', updated: '5 days ago'  },
-    { name: 'Notification Queue Processor',    type: 'Script Include', scope: 'x_infte_ops_int', updated: '1 day ago'   },
-    { name: 'Catalogue Item Builder',          type: 'Script Include', scope: 'x_infte_ops_int', updated: '1 week ago'  },
-    { name: 'Person Identity Resolver',        type: 'Script Include', scope: 'x_infte_ops_int', updated: '4 days ago'  },
-    { name: 'Audit Event Writer',              type: 'Script Include', scope: 'x_infte_ops_int', updated: '1 day ago'   },
-    { name: 'SLA Breach Detector',             type: 'Script Include', scope: 'x_infte_ops_int', updated: '3 days ago'  },
-    { name: 'Change Risk Scorer',              type: 'Script Include', scope: 'x_infte_ops_int', updated: '6 days ago'  },
-    { name: 'Dispatch Router',                 type: 'Script Include', scope: 'x_infte_ops_int', updated: '2 days ago'  },
+    { name: 'Operations Intelligence Engine',    type: 'Script Include', scope: 'x_infte_ops_int', updated: '2 days ago'  },
+    { name: 'Execution Log Handler',             type: 'Script Include', scope: 'x_infte_ops_int', updated: '1 week ago'  },
+    { name: 'Automation Trigger Utility',        type: 'Script Include', scope: 'x_infte_ops_int', updated: '3 days ago'  },
+    { name: 'Creator Assist Bridge',             type: 'Script Include', scope: 'x_infte_ops_int', updated: '2 days ago'  },
+    { name: 'Governance Action Handler',         type: 'Script Include', scope: 'x_infte_ops_int', updated: '5 days ago'  },
+    { name: 'Notification Queue Processor',      type: 'Script Include', scope: 'x_infte_ops_int', updated: '1 day ago'   },
+    { name: 'Catalogue Item Builder',            type: 'Script Include', scope: 'x_infte_ops_int', updated: '1 week ago'  },
+    { name: 'Person Identity Resolver',          type: 'Script Include', scope: 'x_infte_ops_int', updated: '4 days ago'  },
+    { name: 'Audit Event Writer',                type: 'Script Include', scope: 'x_infte_ops_int', updated: '1 day ago'   },
+    { name: 'SLA Breach Detector',               type: 'Script Include', scope: 'x_infte_ops_int', updated: '3 days ago'  },
+    { name: 'Change Risk Scorer',                type: 'Script Include', scope: 'x_infte_ops_int', updated: '6 days ago'  },
+    { name: 'Dispatch Router',                   type: 'Script Include', scope: 'x_infte_ops_int', updated: '2 days ago'  },
+    { name: 'ITSM Integration Handler',          type: 'Script Include', scope: 'x_infte_ops_int', updated: '4 days ago'  },
+    { name: 'Asset Discovery Connector',         type: 'Script Include', scope: 'x_infte_ops_int', updated: '1 week ago'  },
+    { name: 'Role Assignment Manager',           type: 'Script Include', scope: 'x_infte_ops_int', updated: '3 days ago'  },
+    { name: 'Compliance Check Utility',          type: 'Script Include', scope: 'x_infte_ops_int', updated: '2 days ago'  },
+    { name: 'Approval Workflow Handler',         type: 'Script Include', scope: 'x_infte_ops_int', updated: '5 days ago'  },
+    { name: 'Data Transformation Utility',       type: 'Script Include', scope: 'x_infte_ops_int', updated: '1 week ago'  },
+    { name: 'REST API Client',                   type: 'Script Include', scope: 'x_infte_ops_int', updated: '3 days ago'  },
+    { name: 'Error Logger',                      type: 'Script Include', scope: 'x_infte_ops_int', updated: '2 days ago'  },
+    { name: 'SLA Timer Utility',                 type: 'Script Include', scope: 'x_infte_ops_int', updated: '4 days ago'  },
+    { name: 'Incident Priority Calculator',      type: 'Script Include', scope: 'x_infte_ops_int', updated: '1 week ago'  },
+    { name: 'Knowledge Search Engine',           type: 'Script Include', scope: 'x_infte_ops_int', updated: '5 days ago'  },
+    { name: 'Group Membership Manager',          type: 'Script Include', scope: 'x_infte_ops_int', updated: '3 days ago'  },
+    { name: 'Session Token Manager',             type: 'Script Include', scope: 'x_infte_ops_int', updated: '1 day ago'   },
+    { name: 'Cache Manager',                     type: 'Script Include', scope: 'x_infte_ops_int', updated: '2 days ago'  },
+    { name: 'Data Validator',                    type: 'Script Include', scope: 'x_infte_ops_int', updated: '6 days ago'  },
+    { name: 'Report Generator',                  type: 'Script Include', scope: 'x_infte_ops_int', updated: '1 week ago'  },
+    { name: 'Metrics Aggregator',                type: 'Script Include', scope: 'x_infte_ops_int', updated: '4 days ago'  },
+    { name: 'Health Check Utility',              type: 'Script Include', scope: 'x_infte_ops_int', updated: '2 days ago'  },
+    { name: 'Portal Navigation Controller',      type: 'Script Include', scope: 'x_infte_ops_int', updated: '3 days ago'  },
+    { name: 'Email Notification Sender',         type: 'Script Include', scope: 'x_infte_ops_int', updated: '1 day ago'   },
   ],
   rules: [
     { name: 'Auto-Assign Incident on Insert',        table: 'incident',                        when: 'before insert', active: true  },
@@ -55,17 +75,17 @@ var DATA = {
     { name: 'Audit Archiver',           schedule: 'Monthly',          active: true,  last_run: '12 days ago' },
   ],
   properties: [
-    { name: 'x_infte_ops_int.engine_key',      value: '••••••••••••', desc: 'Engine API authentication key'        },
-    { name: 'x_infte_ops_int.svc_password',    value: '••••••••••••', desc: 'Service account password'             },
-    { name: 'x_infte_ops_int.default_module',  value: 'workspace',    desc: 'Default portal module'                },
-    { name: 'x_infte_ops_int.assist_api_endpoint', value: '',         desc: 'Creator Assistant API endpoint'       },
-    { name: 'x_infte_ops_int.log_level',       value: 'info',         desc: 'Engine logging verbosity'             },
+    { name: 'x_infte_ops_int.engine_key',          value: '••••••••••••', desc: 'Engine API authentication key'             },
+    { name: 'x_infte_ops_int.svc_password',        value: '••••••••••••', desc: 'Service account password'                  },
+    { name: 'x_infte_ops_int.default_module',      value: 'workspace',    desc: 'Default portal module on load'             },
+    { name: 'x_infte_ops_int.assist_api_endpoint', value: '',             desc: 'Creator Assistant API endpoint'            },
+    { name: 'x_infte_ops_int.log_level',           value: 'info',         desc: 'Engine logging verbosity'                  },
   ],
   roles: [
-    { name: 'x_infte_ops_int.leadership',    desc: 'Leadership access for executive insights'      },
-    { name: 'x_infte_ops_int.administrator', desc: 'Full administrator access'                     },
-    { name: 'x_infte_ops_int.developer',     desc: 'Developer access to artifact management'       },
-    { name: 'x_infte_ops_int.creator',       desc: 'Creator access for building automations'       },
+    { name: 'x_infte_ops_int.leadership',    desc: 'Leadership access for executive insights'       },
+    { name: 'x_infte_ops_int.administrator', desc: 'Full administrator access'                      },
+    { name: 'x_infte_ops_int.developer',     desc: 'Developer access to artifact management'        },
+    { name: 'x_infte_ops_int.creator',       desc: 'Creator access for building automations'        },
     { name: 'x_infte_ops_int.member',        desc: 'Standard member access to Operations Workspace' },
   ],
 };
@@ -233,7 +253,7 @@ export default function DeveloperHub({ data }) {
         <div className="oi-card">
           <div className="oi-empty" style={{ padding: '3rem' }}>
             <div className="oi-empty-title">Execution Journal</div>
-            <div className="oi-empty-sub">1,247 execution records — full log viewer coming soon.</div>
+            <div className="oi-empty-sub">1,347 execution records — full log viewer coming soon.</div>
           </div>
         </div>
       )}

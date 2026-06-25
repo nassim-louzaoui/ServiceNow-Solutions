@@ -816,6 +816,7 @@
 /* ── Creator Studio layout ──────────────────────────────────────────────────── */
 .oi-studio-layout { display: grid; grid-template-columns: 16rem 1fr; gap: 1.5rem; align-items: start; }
 .oi-studio-projects { position: sticky; top: 0; }
+.oi-studio-detail { min-width: 0; }
 
 /* ── Agentic workspace cards ────────────────────────────────────────────────── */
 .oi-agentic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 1.25rem; }
@@ -984,3 +985,30 @@
   .oi-decision-row { flex-direction: column; }
   .oi-decision-btns { flex-direction: row; }
 }
+
+/* ── Automations search bar ─────────────────────────────────────────────────── */
+.oi-auto-topbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.oi-auto-search { flex: 1; min-width: 12rem; max-width: 22rem; padding: 0.5rem 0.875rem; border: 0.0625rem solid #DCDCDC; border-radius: 0.5rem; font-size: 0.875rem; font-family: inherit; color: #121212; background: #FFFFFF; outline: none; }
+.oi-auto-search:focus { border-color: #00BF6F; box-shadow: 0 0 0 0.1875rem rgba(0,191,111,0.15); }
+
+/* ── Info badge variant ─────────────────────────────────────────────────────── */
+.oi-badge.info { background: rgba(46,109,164,0.12); color: #2E6DA4; }
+
+/* ── Governance Control typed items ─────────────────────────────────────────── */
+.oi-gov-item-type { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.25rem; }
+.oi-gov-item-note { font-size: 0.8125rem; color: #6E6E6E; font-style: italic; margin-top: 0.1875rem; }
+.oi-gov-footer { font-size: 0.8125rem; color: #6E6E6E; padding: 0.75rem 1rem; border-top: 0.0625rem solid #F0F2F5; text-align: center; margin-top: 0.75rem; }
+
+/* ── Creator Studio subtitle and step type badges ───────────────────────────── */
+.oi-studio-subtitle { font-size: 0.8125rem; color: #6E6E6E; font-style: italic; margin-top: 0.125rem; }
+.oi-step-badge { display: inline-flex; align-items: center; padding: 0.125rem 0.4375rem; border-radius: 0.25rem; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; flex-shrink: 0; }
+.oi-step-badge.al     { background: rgba(46,109,164,0.12);  color: #2E6DA4; }
+.oi-step-badge.access { background: rgba(229,115,35,0.12);  color: #E57323; }
+.oi-step-badge.group  { background: rgba(0,137,94,0.12);    color: #00895E; }
+.oi-step-badge.email  { background: rgba(110,110,110,0.12); color: #6E6E6E; }
+.oi-studio-step-content { display: flex; flex: 1; align-items: flex-start; gap: 0.5rem; flex-wrap: wrap; }
+
+/* ── Project list sub-items ─────────────────────────────────────────────────── */
+.oi-list-subitems { padding: 0 0 0.375rem 2.75rem; }
+.oi-list-subitem { font-size: 0.8125rem; color: #6E6E6E; padding: 0.25rem 0; display: flex; align-items: center; gap: 0.375rem; }
+.oi-list-subitem::before { content: ''; width: 0.3125rem; height: 0.3125rem; border-radius: 50%; background: #DCDCDC; flex-shrink: 0; }

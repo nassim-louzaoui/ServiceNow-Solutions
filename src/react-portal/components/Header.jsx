@@ -39,7 +39,7 @@ export default function Header({ activeNav, loading }) {
         )}
         <span className="oi-topbar-date">{monthYear()}</span>
         <button className="oi-notif-btn" aria-label="Notifications">
-          <OIIcon name="warning_icon" size={20} fill="#6E6E6E" />
+          <OIIcon name="bell" size={20} fill="#6E6E6E" />
           {notifCount > 0 && (
             <span className="oi-notif-badge">{notifCount > 9 ? '9+' : notifCount}</span>
           )}

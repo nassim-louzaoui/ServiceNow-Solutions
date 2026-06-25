@@ -3,61 +3,84 @@ import { useApp } from '../../context.js';
 import OIIcon from '../../icons.jsx';
 import { initials } from '../../helpers.js';
 
-var AUTOMATION_REQUESTS = [
+var PENDING_ITEMS = [
   {
-    id: 'ar1',
+    id: 'pi1',
+    type: 'AUTOMATION INITIATIVE',
+    typeColor: '#2E6DA4',
     title: 'Employee Onboarding Automation',
-    desc: 'Automation Requests',
-    requestor: 'Marcus Webb',
-    time: '13 days',
-    urgency: 'high',
+    meta: 'Nassim Louzaoui · Creator Studio · 2h ago',
+    note: 'Requires governance approval',
+    badge: 'DRAFT READY',
+    badgeClass: 'success',
   },
   {
-    id: 'ar2',
+    id: 'pi2',
+    type: 'ACCESS MANAGEMENT REQUEST',
+    typeColor: '#E57323',
     title: 'Leadership Insights access — Marcus Webb',
-    desc: 'Automation Requests',
-    requestor: 'Marcus Webb',
-    time: '30 min ago',
-    urgency: 'medium',
+    meta: 'Marcus Webb (Leadership) requesting read access · 3h ago',
+    note: null,
+    badge: 'ACCESS ELEVATION',
+    badgeClass: 'warning',
   },
   {
-    id: 'ar3',
-    title: 'Developer Hub access — Anna Torres',
-    desc: 'Automation Requests',
-    requestor: 'Anna Torres',
-    time: '1 hour ago',
-    urgency: 'low',
+    id: 'pi3',
+    type: 'ACCESS MANAGEMENT REQUEST',
+    typeColor: '#E57323',
+    title: 'Developer Hub access — Sarah Mitchell',
+    meta: 'Sarah Mitchell (Marketing Manager) requesting read access · 5h ago',
+    note: null,
+    badge: 'ACCESS ELEVATION',
+    badgeClass: 'warning',
   },
-];
-
-var PENDING_PERMISSIONS = [
   {
-    id: 'pp1',
+    id: 'pi4',
+    type: 'ACCESS MANAGEMENT REQUEST',
+    typeColor: '#E57323',
     title: 'New user provisioning — Anna Torres',
-    desc: 'Add to Operations Intelligence Creator group',
-    time: '6 hours ago',
+    meta: 'Anna Torres, Operations View · 1d ago',
+    note: null,
+    badge: 'PENDING ONBOARDING',
+    badgeClass: 'info',
   },
   {
-    id: 'pp2',
-    title: 'Role escalation — Dev environment access',
-    desc: 'Request elevated developer permissions',
-    time: 'Yesterday',
+    id: 'pi5',
+    type: 'GROUP MEMBERSHIP',
+    typeColor: '#00897B',
+    title: 'Add 3 users to Operations Intelligence Creator group',
+    meta: 'Requested by HR Manager · James Harris, Priya Nair, Marcus Webb · 1d ago',
+    note: null,
+    badge: 'BULK UPDATE',
+    badgeClass: 'neutral',
   },
 ];
 
 var MOCK_GROUPS = [
-  { id: 'g1', name: 'Platform Team',   members: 8, manager: 'Jane Smith'  },
-  { id: 'g2', name: 'Network Team',    members: 5, manager: 'Mark Jones'  },
-  { id: 'g3', name: 'Security Team',   members: 6, manager: 'Sara Lee'    },
-  { id: 'g4', name: 'IT Procurement',  members: 3, manager: 'Paul Brown'  },
-  { id: 'g5', name: 'Knowledge Team',  members: 4, manager: 'Nina Patel'  },
+  { id: 'g1', name: 'Platform Team', members: 8, manager: 'Jane Smith' },
+  { id: 'g2', name: 'Network Team',  members: 5, manager: 'Mark Jones' },
+  { id: 'g3', name: 'Security Team', members: 6, manager: 'Sara Lee'   },
 ];
 
-var URGENCY_COLOR = { high: '#C9190B', medium: '#E57323', low: '#3D7317' };
-var TABS = ['Pending Actions', 'Group Management', 'Access Management'];
+var ACCESS_ITEMS = [
+  { id: 'a1', user: 'Marcus Webb',    workspace: 'Leadership Insights',             role: 'Read Access', status: 'pending' },
+  { id: 'a2', user: 'Sarah Mitchell', workspace: 'Developer Hub',                   role: 'Read Access', status: 'pending' },
+  { id: 'a3', user: 'Anna Torres',    workspace: 'Operations Intelligence Creator', role: 'Member',      status: 'pending' },
+  { id: 'a4', user: 'James Harris',   workspace: 'Operations Intelligence Creator', role: 'Member',      status: 'pending' },
+  { id: 'a5', user: 'Priya Nair',     workspace: 'Operations Intelligence Creator', role: 'Member',      status: 'pending' },
+  { id: 'a6', user: 'Dev Team',       workspace: 'Developer Hub',                   role: 'Full Access', status: 'active'  },
+  { id: 'a7', user: 'Platform Team',  workspace: 'All Workspaces',                  role: 'Read Access', status: 'active'  },
+];
+
+var ACCESS_STATUS_CLASS = { pending: 'warning', active: 'success' };
+
+var TABS = [
+  { label: 'Pending Actions', count: 5, countClass: 'warn' },
+  { label: 'Group Management', count: 3, countClass: null },
+  { label: 'Access Management', count: 7, countClass: null },
+];
 
 export default function GovernanceControl({ data }) {
-  var groups = (data && data.groups) || MOCK_GROUPS;
   var [tab, setTab] = useState(0);
   var [actioning, setActioning] = useState({});
   var [dismissed, setDismissed] = useState({});
@@ -79,9 +102,7 @@ export default function GovernanceControl({ data }) {
       });
   }
 
-  var pendingAR = AUTOMATION_REQUESTS.filter(function (a) { return !dismissed[a.id]; });
-  var pendingPP = PENDING_PERMISSIONS.filter(function (p) { return !dismissed[p.id]; });
-  var totalPending = pendingAR.length + pendingPP.length;
+  var visibleItems = PENDING_ITEMS.filter(function (item) { return !dismissed[item.id]; });
 
   return (
     <div className="oi-section">
@@ -90,13 +111,13 @@ export default function GovernanceControl({ data }) {
           {TABS.map(function (t, i) {
             return (
               <button
-                key={t}
+                key={t.label}
                 className={'oi-subtab' + (tab === i ? ' active' : '')}
                 onClick={function () { setTab(i); }}
               >
-                {t}
-                {i === 0 && totalPending > 0 && (
-                  <span className="oi-subtab-count warn">{totalPending}</span>
+                {t.label}
+                {t.count > 0 && (
+                  <span className={'oi-subtab-count' + (t.countClass ? ' ' + t.countClass : '')}>{t.count}</span>
                 )}
               </button>
             );
@@ -106,84 +127,47 @@ export default function GovernanceControl({ data }) {
         <div className="oi-subtab-body">
           {tab === 0 && (
             <div style={{ padding: '1rem 1.25rem' }}>
-              {pendingAR.length > 0 && (
-                <div className="oi-gov-section">
-                  <div className="oi-gov-section-hdr">AUTOMATION REQUESTS</div>
-                  {pendingAR.map(function (a) {
-                    return (
-                      <div
-                        key={a.id}
-                        className="oi-gov-item"
-                        style={{ borderLeft: '3px solid ' + URGENCY_COLOR[a.urgency] }}
-                      >
-                        <div className="oi-gov-item-info">
-                          <div className="oi-gov-item-group">{a.desc}</div>
-                          <div className="oi-gov-item-title">{a.title}</div>
-                          <div className="oi-gov-item-meta">Requested by {a.requestor} &bull; {a.time}</div>
-                        </div>
-                        <div className="oi-action-btns">
-                          <button
-                            className="oi-btn primary sm"
-                            disabled={!!actioning[a.id + 'approve']}
-                            onClick={function () { act(a.id, a.title, 'approve'); }}
-                          >
-                            <OIIcon name="approve" size={13} fill="#fff" />
-                            Approve
-                          </button>
-                          <button
-                            className="oi-btn ghost sm"
-                            disabled={!!actioning[a.id + 'reject']}
-                            onClick={function () { act(a.id, a.title, 'reject'); }}
-                          >
-                            Reject
-                          </button>
-                        </div>
+              {visibleItems.map(function (item) {
+                return (
+                  <div key={item.id} className="oi-gov-item">
+                    <div className="oi-gov-item-info">
+                      <div className="oi-gov-item-type" style={{ color: item.typeColor }}>{item.type}</div>
+                      <div className="oi-gov-item-title">{item.title}</div>
+                      {item.note && <div className="oi-gov-item-note">{item.note}</div>}
+                      <div className="oi-gov-item-meta">{item.meta}</div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem', flexShrink: 0 }}>
+                      <span className={'oi-badge ' + item.badgeClass}>{item.badge}</span>
+                      <div className="oi-action-btns">
+                        <button
+                          className="oi-btn primary sm"
+                          disabled={!!actioning[item.id + 'approve']}
+                          onClick={function () { act(item.id, item.title, 'approve'); }}
+                        >
+                          <OIIcon name="approve" size={13} fill="#fff" />
+                          Approve
+                        </button>
+                        <button
+                          className="oi-btn ghost sm"
+                          disabled={!!actioning[item.id + 'reject']}
+                          onClick={function () { act(item.id, item.title, 'reject'); }}
+                        >
+                          Reject
+                        </button>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {pendingPP.length > 0 && (
-                <div className="oi-gov-section" style={{ marginTop: '1.25rem' }}>
-                  <div className="oi-gov-section-hdr">PENDING PERMISSIONS</div>
-                  {pendingPP.map(function (p) {
-                    return (
-                      <div
-                        key={p.id}
-                        className="oi-gov-item"
-                        style={{ borderLeft: '3px solid #2E6DA4' }}
-                      >
-                        <div className="oi-gov-item-info">
-                          <div className="oi-gov-item-title">{p.title}</div>
-                          <div className="oi-gov-item-meta">{p.desc} &bull; {p.time}</div>
-                        </div>
-                        <div className="oi-action-btns">
-                          <button
-                            className="oi-btn primary sm"
-                            onClick={function () { act(p.id, p.title, 'approve'); }}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            className="oi-btn ghost sm"
-                            onClick={function () { act(p.id, p.title, 'reject'); }}
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {pendingAR.length === 0 && pendingPP.length === 0 && (
+                    </div>
+                  </div>
+                );
+              })}
+              {visibleItems.length === 0 && (
                 <div className="oi-empty">
                   <div className="oi-empty-icon"><OIIcon name="check" size={36} fill="#DCDCDC" /></div>
                   <div className="oi-empty-title">All caught up</div>
                   <div className="oi-empty-sub">There are no pending actions.</div>
                 </div>
+              )}
+              {visibleItems.length > 0 && (
+                <div className="oi-gov-footer">5 items pending. Last refreshed 30s ago.</div>
               )}
             </div>
           )}
@@ -194,7 +178,7 @@ export default function GovernanceControl({ data }) {
                 <tr><th>Group</th><th>Manager</th><th>Members</th><th></th></tr>
               </thead>
               <tbody>
-                {groups.map(function (g) {
+                {MOCK_GROUPS.map(function (g) {
                   return (
                     <tr key={g.id}>
                       <td><span className="oi-td-primary">{g.name}</span></td>
@@ -221,19 +205,31 @@ export default function GovernanceControl({ data }) {
           )}
 
           {tab === 2 && (
-            <div className="oi-empty">
-              <div className="oi-empty-icon"><OIIcon name="lock" size={36} fill="#DCDCDC" /></div>
-              <div className="oi-empty-title">Access Management</div>
-              <div className="oi-empty-sub">Role assignments and access reviews are managed here.</div>
-              <button
-                className="oi-btn ghost sm"
-                style={{ marginTop: '0.5rem' }}
-                onClick={function () { toast('Access management coming soon.', 'info'); }}
-              >
-                <OIIcon name="person_add" size={14} />
-                Grant Access
-              </button>
-            </div>
+            <table className="oi-table">
+              <thead>
+                <tr><th>User / Group</th><th>Workspace</th><th>Role</th><th>Status</th><th></th></tr>
+              </thead>
+              <tbody>
+                {ACCESS_ITEMS.map(function (a) {
+                  return (
+                    <tr key={a.id}>
+                      <td><span className="oi-td-primary">{a.user}</span></td>
+                      <td>{a.workspace}</td>
+                      <td>{a.role}</td>
+                      <td><span className={'oi-badge ' + ACCESS_STATUS_CLASS[a.status]}>{a.status.toUpperCase()}</span></td>
+                      <td>
+                        <button
+                          className="oi-btn ghost sm"
+                          onClick={function () { toast('Access management coming soon.', 'info'); }}
+                        >
+                          Review
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
         </div>
       </div>
