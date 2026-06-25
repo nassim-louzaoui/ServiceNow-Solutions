@@ -1,31 +1,25 @@
-import React, { useCallback, useMemo } from 'react';
+import React from 'react';
 import { useApp } from '../context.js';
-import { MODS } from '../data.js';
-import { Icons } from '../icons.js';
+import OIIcon from '../icons.jsx';
 
-const Header = React.memo(function Header() {
-  const { state, dispatch } = useApp();
-  const mod = useMemo(() => MODS.find(m => m.id === state.mod), [state.mod]);
-  const toggleChat = useCallback(() => dispatch({ type: 'TOGGLE_CHAT' }), [dispatch]);
+export default function Topbar({ activeNav, loading }) {
+  const { dispatch } = useApp();
 
   return (
-    <header className="header" style={{ '--mod-color': mod?.color }}>
-      <span className="header-accent" />
-      <span className="header-title">{mod?.label}</span>
-      <span className="header-spacer" />
-      <div className="header-badge">
-        <Icons.check />
-        Live
+    <header className="oi-topbar">
+      <div className="oi-topbar-left">
+        <button className="oi-mobile-btn" onClick={() => dispatch({ type: 'TOGGLE_MOBILE' })}>
+          <OIIcon name="menu" size={20} />
+        </button>
+        <div className="oi-breadcrumb">
+          <span className="oi-breadcrumb-root">Operations Intelligence</span>
+          <span className="oi-breadcrumb-sep"><OIIcon name="chevron_right" size={14} /></span>
+          <span className="oi-breadcrumb-current">{activeNav ? activeNav.label : ''}</span>
+        </div>
       </div>
-      <button
-        onClick={toggleChat}
-        style={{ background: state.chatOpen ? '#1e2942' : 'none', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', padding: '6px', borderRadius: '6px', marginLeft: '4px' }}
-        title={state.chatOpen ? 'Close assistant' : 'Open assistant'}
-      >
-        <Icons.chat />
-      </button>
+      <div className="oi-topbar-right">
+        {loading && <div className="oi-topbar-spinner"><div className="oi-spinner sm" /></div>}
+      </div>
     </header>
   );
-});
-
-export default Header;
+}

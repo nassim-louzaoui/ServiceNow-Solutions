@@ -1,56 +1,52 @@
-import { createContext, useContext } from 'react';
-
-export const AppContext = createContext(null);
-
-export const useApp = () => {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error('useApp must be used within AppProvider');
-  return ctx;
-};
+import React from 'react';
 
 export const initialState = {
-  mod:         'operations',
-  govTab:      'pending',
-  devTab:      'tables',
-  searchTerm:  '',
-  chatOpen:    true,
-  sidebarOpen: true,
-  chatInput:   '',
-  chatHistory: {},
-  selectedItem: null,
+  section: 'workspace',
+  sectionData: null,
+  loading: true,
+  mobileOpen: false,
+  showRequests: false,
+  error: null,
+  toasts: [],
+  authDenied: false,
+  initData: null,
 };
 
 export function reducer(state, action) {
   switch (action.type) {
-    case 'SET_MOD':
-      return { ...state, mod: action.payload, selectedItem: null, searchTerm: '' };
-    case 'SET_GOV_TAB':
-      return { ...state, govTab: action.payload };
-    case 'SET_DEV_TAB':
-      return { ...state, devTab: action.payload };
-    case 'SET_SEARCH':
-      return { ...state, searchTerm: action.payload };
-    case 'TOGGLE_CHAT':
-      return { ...state, chatOpen: !state.chatOpen };
-    case 'TOGGLE_SIDEBAR':
-      return { ...state, sidebarOpen: !state.sidebarOpen };
-    case 'SET_CHAT_INPUT':
-      return { ...state, chatInput: action.payload };
-    case 'SEND_CHAT': {
-      const { mod, q, r } = action.payload;
-      const existing = state.chatHistory[mod] || [];
-      return {
-        ...state,
-        chatInput: '',
-        chatHistory: {
-          ...state.chatHistory,
-          [mod]: [...existing, { role: 'user', text: q }, { role: 'assistant', text: r }],
-        },
-      };
-    }
-    case 'SELECT_ITEM':
-      return { ...state, selectedItem: action.payload };
+    case 'SET_INIT':
+      return { ...state, initData: action.payload, loading: false };
+    case 'SET_SECTION':
+      return { ...state, section: action.payload, sectionData: null, error: null, mobileOpen: false };
+    case 'SET_SECTION_DATA':
+      return { ...state, sectionData: action.payload, loading: false };
+    case 'SET_LOADING':
+      return { ...state, loading: action.payload };
+    case 'TOGGLE_MOBILE':
+      return { ...state, mobileOpen: !state.mobileOpen };
+    case 'CLOSE_MOBILE':
+      return { ...state, mobileOpen: false };
+    case 'SET_ERROR':
+      return { ...state, error: action.payload, loading: false };
+    case 'PUSH_TOAST':
+      return { ...state, toasts: [...state.toasts, action.payload] };
+    case 'POP_TOAST':
+      return { ...state, toasts: state.toasts.filter(t => t.id !== action.payload) };
+    case 'PATCH_SECTION_DATA':
+      return { ...state, sectionData: { ...state.sectionData, ...action.payload } };
+    case 'SET_AUTH_DENIED':
+      return { ...state, authDenied: action.payload, loading: false };
+    case 'TOGGLE_REQUESTS':
+      return { ...state, showRequests: !state.showRequests };
+    case 'CLOSE_REQUESTS':
+      return { ...state, showRequests: false };
     default:
       return state;
   }
+}
+
+export const AppContext = React.createContext(null);
+
+export function useApp() {
+  return React.useContext(AppContext);
 }

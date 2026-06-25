@@ -1,23 +1,43 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
-import { CSS } from './styles.js';
+import { setBridge } from './App.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 
-window.__OI_MOUNT__ = function(shadowRoot, data) {
-  const style = document.createElement('style');
-  style.textContent = CSS;
-  shadowRoot.appendChild(style);
+var _root = null;
 
-  const container = document.createElement('div');
-  container.style.cssText = 'display:block;height:100vh;overflow:hidden';
-  shadowRoot.appendChild(container);
+function mountReact() {
+  var container = document.getElementById('oi-root');
+  if (container && !_root) {
+    _root = ReactDOM.createRoot(container);
+    _root.render(
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    );
+    return;
+  }
+  if (!container) {
+    var observer = new MutationObserver(function () {
+      var el = document.getElementById('oi-root');
+      if (el && !_root) {
+        observer.disconnect();
+        _root = ReactDOM.createRoot(el);
+        _root.render(
+          <ErrorBoundary>
+            <App />
+          </ErrorBoundary>
+        );
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+}
 
-  const root = ReactDOM.createRoot(container);
-  root.render(
-    <React.StrictMode>
-      <App initialData={data} />
-    </React.StrictMode>
-  );
+window.addEventListener('oi:ready', function (e) {
+  var detail = e.detail || {};
+  setBridge({ call: detail.call });
+  mountReact();
+});
 
-  return root;
-};
+mountReact();

@@ -1,51 +1,54 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import { useApp } from '../context.js';
-import { MODS } from '../data.js';
-import { Icons } from '../icons.js';
+import OIIcon from '../icons.jsx';
+import { initials, ROLE_LABELS } from '../helpers.js';
 
-const NavItem = React.memo(function NavItem({ mod, active, collapsed, onClick }) {
-  const Icon = Icons[mod.id];
-  return (
-    <button
-      className={`nav-item${active ? ' active' : ''}`}
-      style={{ '--mod-color': mod.color }}
-      onClick={() => onClick(mod.id)}
-      title={collapsed ? mod.label : undefined}
-    >
-      {Icon && <Icon />}
-      {!collapsed && <span className="nav-label">{mod.label}</span>}
-    </button>
-  );
-});
-
-const Sidebar = React.memo(function Sidebar() {
-  const { state, dispatch } = useApp();
-  const setMod = useCallback(id => dispatch({ type: 'SET_MOD', payload: id }), [dispatch]);
-  const toggleSidebar = useCallback(() => dispatch({ type: 'TOGGLE_SIDEBAR' }), [dispatch]);
-  const collapsed = !state.sidebarOpen;
+export default function Sidebar({ navItems, activeId, initData }) {
+  const { dispatch, loadSection } = useApp();
+  const idata = initData || {};
+  const userName = idata.userName || 'User';
+  const userRole = idata.userRole || 'member';
+  const userInits = idata.userInitials || initials(userName);
 
   return (
-    <nav className={`sidebar${collapsed ? ' collapsed' : ''}`}>
-      <div className="sidebar-header">
-        <div className="sidebar-logo">OI</div>
-        {!collapsed && <span className="sidebar-title">Operations Intelligence</span>}
-        <button className="sidebar-toggle" onClick={toggleSidebar} aria-label="Toggle sidebar">
-          <Icons.chevron />
+    <aside className="oi-sidebar">
+      <div className="oi-brand">
+        <div className="oi-brand-icon">
+          <OIIcon name="workspace" size={20} fill="#fff" />
+        </div>
+        <span className="oi-brand-text">Operations Intelligence</span>
+      </div>
+
+      <nav className="oi-nav">
+        {navItems.map(item => (
+          <button
+            key={item.id}
+            className={`oi-nav-item${activeId === item.id ? ' active' : ''}`}
+            onClick={() => {
+              if (activeId !== item.id) loadSection(item.id);
+              dispatch({ type: 'CLOSE_MOBILE' });
+            }}
+          >
+            <span className="oi-nav-icon"><OIIcon name={item.icon} size={18} fill="currentColor" /></span>
+            <span className="oi-nav-label">{item.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      <div className="oi-sb-requests">
+        <button className="oi-requests-btn" onClick={() => dispatch({ type: 'TOGGLE_REQUESTS' })}>
+          <span className="oi-nav-icon"><OIIcon name="inbox" size={18} fill="currentColor" /></span>
+          <span className="oi-nav-label">My Requests</span>
         </button>
       </div>
-      <div className="sidebar-nav">
-        {MODS.map(mod => (
-          <NavItem
-            key={mod.id}
-            mod={mod}
-            active={state.mod === mod.id}
-            collapsed={collapsed}
-            onClick={setMod}
-          />
-        ))}
-      </div>
-    </nav>
-  );
-});
 
-export default Sidebar;
+      <div className="oi-sb-footer">
+        <div className="oi-user-avatar">{userInits}</div>
+        <div className="oi-user-info">
+          <div className="oi-user-name">{userName}</div>
+          <div className="oi-user-role">{ROLE_LABELS[userRole] || userRole}</div>
+        </div>
+      </div>
+    </aside>
+  );
+}
