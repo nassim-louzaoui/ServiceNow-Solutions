@@ -1,57 +1,52 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context.js';
-import OIIcon from '../../icons.jsx';
 
-var CATEGORIES = [
-  { id: 'incidents',    label: 'Incident Management',  icon: 'error_icon',    count: 5 },
-  { id: 'changes',      label: 'Change Management',    icon: 'refresh',       count: 3 },
-  { id: 'problems',     label: 'Problem Management',   icon: 'warning_icon',  count: 2 },
-  { id: 'requests',     label: 'Service Requests',     icon: 'inbox',         count: 8 },
-  { id: 'assets',       label: 'Asset Management',     icon: 'document',      count: 4 },
-  { id: 'knowledge',    label: 'Knowledge Base',       icon: 'info_icon',     count: 12 },
+var CATALOG = [
+  {
+    id: 'knowledge',
+    label: 'Knowledge Management',
+    color: '#2E6DA4',
+    items: [
+      { id: 'kb_search',  name: 'Knowledge Base Search',       desc: 'Search the full knowledge base for solutions and guidance.' },
+      { id: 'kb_submit',  name: 'Submit Knowledge Article',     desc: 'Contribute a new article for review and publication.' },
+      { id: 'kb_access',  name: 'Request Article Access',       desc: 'Request access to restricted knowledge content.' },
+    ],
+  },
+  {
+    id: 'itsm',
+    label: 'ITSM Operations',
+    color: '#E57323',
+    items: [
+      { id: 'itsm_inc',   name: 'Incident Report',               desc: 'Raise a new incident for immediate IT attention and resolution.' },
+      { id: 'itsm_pwd',   name: 'Password Reset',                 desc: 'Self-service password reset across identity systems.' },
+      { id: 'itsm_acc',   name: 'Application Access Request',     desc: 'Request access to a business application or system.' },
+      { id: 'itsm_chg',   name: 'Change Management Entry',        desc: 'Submit a change record for CAB review and approval.' },
+      { id: 'itsm_vpn',   name: 'VPN and Remote Access Setup',    desc: 'Configure secure remote access for authorised users.' },
+    ],
+  },
+  {
+    id: 'itam',
+    label: 'ITAM Operations',
+    color: '#00897B',
+    items: [
+      { id: 'itam_hw',    name: 'New Hardware Request',           desc: 'Request a laptop, monitor, or peripheral device.' },
+      { id: 'itam_sw',    name: 'Software Licence Request',       desc: 'Request a commercial software licence or installation.' },
+      { id: 'itam_xfr',   name: 'Asset Transfer or Reassignment', desc: 'Reassign an asset to another user or department.' },
+      { id: 'itam_dec',   name: 'Asset Decommission Request',     desc: 'Retire and securely wipe end-of-life assets.' },
+    ],
+  },
 ];
 
-var CATALOG_ITEMS = {
-  incidents: [
-    { id: 'inc_new',    name: 'Report Incident',           desc: 'Log a new incident for immediate attention.' },
-    { id: 'inc_major',  name: 'Escalate to Major Incident', desc: 'Elevate priority and notify stakeholders.' },
-    { id: 'inc_review', name: 'Post-Incident Review',       desc: 'Schedule a PIR for a resolved incident.' },
-  ],
-  changes: [
-    { id: 'chg_std',    name: 'Standard Change Request',   desc: 'Submit a pre-approved standard change.' },
-    { id: 'chg_normal', name: 'Normal Change Request',     desc: 'Raise a change requiring CAB approval.' },
-    { id: 'chg_emerg',  name: 'Emergency Change',          desc: 'Fast-track an urgent change request.' },
-  ],
-  problems: [
-    { id: 'prb_new',    name: 'New Problem Record',        desc: 'Initiate root cause analysis.' },
-    { id: 'prb_workaround', name: 'Request Workaround',   desc: 'Document and share a known workaround.' },
-  ],
-  requests: [
-    { id: 'req_access',  name: 'Access Request',           desc: 'Request system or application access.' },
-    { id: 'req_hardware', name: 'Hardware Request',        desc: 'Order hardware for an end user.' },
-    { id: 'req_software', name: 'Software Licence',        desc: 'Request a software licence or install.' },
-    { id: 'req_onboard',  name: 'Onboarding Request',     desc: 'Prepare a new joiner for day one.' },
-  ],
-  assets: [
-    { id: 'ast_return', name: 'Asset Return',              desc: 'Arrange return of company equipment.' },
-    { id: 'ast_repair',  name: 'Repair Request',           desc: 'Send an asset for repair or replacement.' },
-  ],
-  knowledge: [
-    { id: 'kb_new',     name: 'Submit Knowledge Article',  desc: 'Contribute a new article to the knowledge base.' },
-    { id: 'kb_review',  name: 'Request Article Review',    desc: 'Flag an article for accuracy review.' },
-  ],
-};
+var TOTAL = CATALOG.reduce(function (n, g) { return n + g.items.length; }, 0);
 
-function SectionContent({ data }) {
-  var [activeCat, setActiveCat] = useState('incidents');
+export default function OperationsWorkspace({ data }) {
   var { callServer, toast } = useApp();
-  var [requesting, setRequesting] = useState(null);
+  var [requesting, setRequesting] = useState({});
 
-  var items = CATALOG_ITEMS[activeCat] || [];
-
-  function requestItem(item) {
-    setRequesting(item.id);
-    callServer({ action: 'request_operation', category: activeCat, item: item.id, name: item.name })
+  function requestItem(groupId, item) {
+    if (requesting[item.id]) return;
+    setRequesting(function (prev) { var n = Object.assign({}, prev); n[item.id] = true; return n; });
+    callServer({ action: 'request_operation', category: groupId, item: item.id, name: item.name })
       .then(function () {
         toast('Request submitted: ' + item.name, 'success');
       })
@@ -59,84 +54,43 @@ function SectionContent({ data }) {
         toast('Failed to submit request. Please try again.', 'error');
       })
       .finally(function () {
-        setRequesting(null);
+        setRequesting(function (prev) { var n = Object.assign({}, prev); delete n[item.id]; return n; });
       });
   }
 
   return (
     <div className="oi-section">
-      <div className="oi-toolbar">
-        <h1 className="oi-section-title">Operations Workspace</h1>
+      <div className="oi-catalog-topbar">
+        <span className="oi-catalog-count">{TOTAL} <span style={{ fontWeight: 400, fontSize: '0.8rem' }}>AVAILABLE</span></span>
+        <button className="oi-btn ghost sm" onClick={function () { toast('Browse all coming soon.', 'info'); }}>Browse All</button>
       </div>
 
-      <div className="oi-workspace-layout">
-        <div className="oi-cat-panel">
-          <div className="oi-card">
-            <div className="oi-card-hdr"><span className="oi-card-title">Service Catalog</span></div>
-            <div className="oi-item-list">
-              {CATEGORIES.map(function (cat) {
-                return (
+      {CATALOG.map(function (group) {
+        return (
+          <div key={group.id} className="oi-catalog-group">
+            <div className="oi-catalog-group-hdr" style={{ color: group.color }}>
+              {group.label}
+            </div>
+            {group.items.map(function (item) {
+              return (
+                <div key={item.id} className="oi-catalog-row">
+                  <div className="oi-catalog-row-body">
+                    <div className="oi-catalog-row-name">{item.name}</div>
+                    <div className="oi-catalog-row-desc">{item.desc}</div>
+                  </div>
                   <button
-                    key={cat.id}
-                    className={'oi-list-item' + (activeCat === cat.id ? ' selected' : '')}
-                    onClick={function () { setActiveCat(cat.id); }}
+                    className="oi-btn primary sm"
+                    disabled={!!requesting[item.id]}
+                    onClick={function () { requestItem(group.id, item); }}
                   >
-                    <div className="oi-list-item-icon">
-                      <OIIcon name={cat.icon} size={16} fill="#00BF6F" />
-                    </div>
-                    <div className="oi-list-item-body">
-                      <div className="oi-list-item-title">{cat.label}</div>
-                    </div>
-                    <span className="oi-list-item-count">{cat.count}</span>
-                    <span className="oi-list-item-caret"><OIIcon name="chevron_right" size={14} /></span>
+                    {requesting[item.id] ? 'Submitting...' : 'Request'}
                   </button>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
-
-        <div className="oi-items-panel">
-          <div className="oi-card">
-            <div className="oi-card-hdr">
-              <span className="oi-card-title">
-                {CATEGORIES.find(function (c) { return c.id === activeCat; })
-                  ? CATEGORIES.find(function (c) { return c.id === activeCat; }).label
-                  : 'Items'}
-              </span>
-            </div>
-            {items.length === 0 ? (
-              <div className="oi-empty">
-                <div className="oi-empty-title">No items available</div>
-              </div>
-            ) : (
-              <div className="oi-catalog-items">
-                {items.map(function (item) {
-                  return (
-                    <div key={item.id} className="oi-catalog-item">
-                      <div className="oi-catalog-item-body">
-                        <div className="oi-catalog-item-name">{item.name}</div>
-                        <div className="oi-catalog-item-desc">{item.desc}</div>
-                      </div>
-                      <button
-                        className="oi-btn primary sm"
-                        disabled={requesting === item.id}
-                        onClick={function () { requestItem(item); }}
-                      >
-                        {requesting === item.id ? 'Submitting...' : 'Request'}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+        );
+      })}
     </div>
   );
-}
-
-export default function OperationsWorkspace({ data }) {
-  return <SectionContent data={data} />;
 }

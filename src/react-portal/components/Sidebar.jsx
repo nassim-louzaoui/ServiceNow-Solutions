@@ -17,9 +17,7 @@ export default function Sidebar({ navItems, activeId, initData }) {
   return (
     <aside className="oi-sidebar">
       <div className="oi-brand">
-        <div className="oi-brand-icon">
-          <OIIcon name="ops_workspace" size={18} fill="#fff" />
-        </div>
+        <div className="oi-brand-initials">OI</div>
         <span className="oi-brand-text">Operations Intelligence</span>
       </div>
 

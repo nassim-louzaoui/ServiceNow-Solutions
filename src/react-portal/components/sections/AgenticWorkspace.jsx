@@ -1,104 +1,91 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useApp } from '../../context.js';
 import OIIcon from '../../icons.jsx';
-import { statusClass } from '../../helpers.js';
 
 var WORKSPACES = [
-  { id: 'cmdb',     name: 'CMDB Intelligence',      desc: 'AI-powered configuration item analysis and relationship mapping.', icon: 'document',    active: true  },
-  { id: 'serviceops', name: 'Service Operations',   desc: 'Autonomous incident triage, routing, and resolution assistance.', icon: 'ops_workspace', active: true },
-  { id: 'change',   name: 'Change Intelligence',    desc: 'Risk assessment and collision detection for change requests.',    icon: 'refresh',     active: false },
-  { id: 'capacity', name: 'Capacity Planning',      desc: 'Predictive analysis for resource and infrastructure planning.',   icon: 'insights',    active: false },
+  {
+    id: 'cmdb',
+    name: 'CMDB Workspace',
+    desc: 'Configuration Management Database — explore CIs, impact relationships and availability metrics across the full infrastructure inventory.',
+    status: 'ONLINE',
+    stat: '14,832 CIs',
+    icon: 'developer',
+  },
+  {
+    id: 'svc_ops',
+    name: 'Service Operations Workspace',
+    desc: 'Monitor service health, manage incidents and coordinate operational response — real-time alerting with contextual assignment guidance.',
+    status: 'ONLINE',
+    stat: '3 open P1s',
+    icon: 'ops_workspace',
+  },
 ];
 
-var MOCK_TASKS = [
-  { id: 't1', name: 'Triage INC0123456 — Database Timeout',      workspace: 'Service Operations', status: 'running', agent: 'Operations Assistant', updated: '3 min ago' },
-  { id: 't2', name: 'Map CI relationships for Production DB',     workspace: 'CMDB Intelligence',  status: 'success', agent: 'CMDB Agent',           updated: '1 hour ago' },
-  { id: 't3', name: 'Identify root cause for CHG0045678',        workspace: 'Change Intelligence', status: 'pending', agent: 'Change Agent',         updated: '12 min ago' },
-  { id: 't4', name: 'Summarise SLA breaches — last 30 days',     workspace: 'Service Operations', status: 'success', agent: 'Operations Assistant', updated: '2 hours ago' },
-  { id: 't5', name: 'Capacity forecast — Q3 Infrastructure',     workspace: 'Capacity Planning',  status: 'pending', agent: 'Capacity Agent',       updated: '30 min ago' },
+var ACTIVITY = [
+  { workspace: 'Service Operations', event: 'INC0012847 — P1 resolved',           impact: 'SAP Production', status: 'resolved',  time: '4 min ago'  },
+  { workspace: 'CMDB Workspace',     event: 'CI relationship mapped — 12 nodes',  impact: 'Network tier',   status: 'complete',  time: '22 min ago' },
+  { workspace: 'Service Operations', event: 'Alert triggered — disk threshold',    impact: 'DB Cluster A',   status: 'warning',   time: '1h 10m ago' },
 ];
 
-var STATUS_LABELS = { success: 'Completed', running: 'In Progress', pending: 'Queued', failed: 'Failed' };
+var STATUS_LABELS = { resolved: 'RESOLVED', complete: 'COMPLETE', warning: 'WARNING' };
+var STATUS_CLASS  = { resolved: 'success',  complete: 'running',  warning: 'warning'  };
 
 export default function AgenticWorkspace({ data }) {
-  var tasks = (data && data.tasks) || MOCK_TASKS;
-  var { callServer, toast } = useApp();
-  var [activating, setActivating] = useState(null);
-
-  function activate(ws) {
-    if (ws.active || activating) return;
-    setActivating(ws.id);
-    callServer({ action: 'activate_workspace', workspace: ws.id })
-      .then(function () {
-        toast(ws.name + ' activated.', 'success');
-      })
-      .catch(function () {
-        toast('Activation failed. Please try again.', 'error');
-      })
-      .finally(function () { setActivating(null); });
-  }
+  var { toast } = useApp();
 
   return (
     <div className="oi-section">
-      <div className="oi-toolbar">
-        <h1 className="oi-section-title">Agentic Workspace</h1>
-      </div>
-
-      <div className="oi-agentic-grid">
+      <div className="oi-agentic-cards">
         {WORKSPACES.map(function (ws) {
           return (
-            <div key={ws.id} className={'oi-agentic-card' + (ws.active ? ' active' : '')}>
-              <div className="oi-agentic-card-hdr">
-                <div className="oi-agentic-card-icon">
-                  <OIIcon name={ws.icon} size={18} fill={ws.active ? '#FFFFFF' : '#00BF6F'} />
-                </div>
-                {ws.active && <span className="oi-badge success">Active</span>}
+            <div key={ws.id} className="oi-agentic-card">
+              <div className="oi-agentic-card-icon">
+                <OIIcon name={ws.icon} size={28} fill="#00BF6F" />
               </div>
               <div className="oi-agentic-card-name">{ws.name}</div>
               <div className="oi-agentic-card-desc">{ws.desc}</div>
-              {!ws.active && (
-                <button
-                  className="oi-btn ghost sm"
-                  disabled={activating === ws.id}
-                  onClick={function () { activate(ws); }}
+              <div className="oi-agentic-card-foot">
+                <span className="oi-badge success">{ws.status}</span>
+                <span className="oi-agentic-stat">{ws.stat}</span>
+                <a
+                  className="oi-agentic-open"
+                  href="#"
+                  onClick={function (e) { e.preventDefault(); toast('Opening ' + ws.name + '...', 'info'); }}
                 >
-                  {activating === ws.id ? 'Activating...' : 'Activate'}
-                </button>
-              )}
+                  <OIIcon name="open_in_new" size={13} fill="currentColor" />
+                  Open Workspace
+                </a>
+              </div>
             </div>
           );
         })}
       </div>
 
-      <div className="oi-card">
+      <div className="oi-card" style={{ marginTop: '1.25rem' }}>
         <div className="oi-card-hdr">
-          <span className="oi-card-title">Agentic Task Activity</span>
+          <span className="oi-card-title">Recent Workspace Activity</span>
         </div>
         <table className="oi-table">
           <thead>
             <tr>
-              <th>Task</th>
               <th>Workspace</th>
-              <th>Agent</th>
+              <th>Event</th>
+              <th>Impact</th>
               <th>Status</th>
-              <th>Updated</th>
+              <th>Time</th>
             </tr>
           </thead>
           <tbody>
-            {tasks.map(function (t) {
-              var sc = statusClass(t.status);
+            {ACTIVITY.map(function (row, i) {
               return (
-                <tr key={t.id}>
-                  <td><span className="oi-td-primary">{t.name}</span></td>
-                  <td>{t.workspace}</td>
-                  <td>{t.agent}</td>
+                <tr key={i}>
+                  <td><span className="oi-td-primary">{row.workspace}</span></td>
+                  <td>{row.event}</td>
+                  <td className="oi-td-muted">{row.impact}</td>
                   <td>
-                    <span className={'oi-badge ' + sc}>
-                      <span className={'oi-dot ' + sc} />
-                      {STATUS_LABELS[t.status] || t.status}
-                    </span>
+                    <span className={'oi-badge ' + STATUS_CLASS[row.status]}>{STATUS_LABELS[row.status]}</span>
                   </td>
-                  <td className="oi-td-muted">{t.updated}</td>
+                  <td className="oi-td-muted">{row.time}</td>
                 </tr>
               );
             })}

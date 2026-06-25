@@ -858,3 +858,129 @@
   .oi-shell.mobile-open .oi-sidebar { left: 0; }
   .oi-agentic-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Brand initials (OI text badge) ────────────────────────────────────────── */
+.oi-brand-initials {
+  width: 2.25rem; height: 2.25rem; background: #00BF6F; border-radius: 0.5rem;
+  display: flex; align-items: center; justify-content: center;
+  color: #FFFFFF; font-weight: 800; font-size: 0.9375rem; flex-shrink: 0; letter-spacing: -0.02em;
+}
+
+/* ── Assistant header tagline ───────────────────────────────────────────────── */
+.oi-asst-hdr-tag { font-size: 0.75rem; color: rgba(255,255,255,0.6); margin-top: 0.125rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Catalog topbar ─────────────────────────────────────────────────────────── */
+.oi-catalog-topbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.oi-catalog-count { font-size: 1rem; font-weight: 700; color: #121212; }
+
+/* ── Operations Workspace vertical grouped catalog ──────────────────────────── */
+.oi-catalog-group { background: #FFFFFF; border: 0.0625rem solid #DCDCDC; border-radius: 0.625rem; overflow: hidden; margin-bottom: 1rem; }
+.oi-catalog-group-hdr { padding: 0.875rem 1.25rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 0.0625rem solid #F0F2F5; background: #FAFAFA; }
+.oi-catalog-row { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 0.0625rem solid #F0F2F5; }
+.oi-catalog-row:last-child { border-bottom: none; }
+.oi-catalog-row-body { flex: 1; min-width: 0; }
+.oi-catalog-row-name { font-size: clamp(0.9375rem, 1.1vw, 1rem); font-weight: 600; color: #121212; }
+.oi-catalog-row-desc { font-size: 0.8125rem; color: #6E6E6E; margin-top: 0.125rem; line-height: 1.4; }
+
+/* ── Automations Workspace grouped cards ────────────────────────────────────── */
+.oi-auto-group { margin-bottom: 1.5rem; }
+.oi-auto-group-hdr { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+.oi-auto-group-label { font-size: 0.875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.oi-auto-group-count { font-size: 0.75rem; font-weight: 600; color: #6E6E6E; background: #F0F2F5; padding: 0.1875rem 0.625rem; border-radius: 0.75rem; }
+.oi-auto-group-link { font-size: 0.75rem; color: #2E6DA4; text-decoration: none; margin-left: auto; }
+.oi-auto-group-link:hover { text-decoration: underline; }
+.oi-auto-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+.oi-auto-card { background: #FFFFFF; border: 0.0625rem solid #DCDCDC; border-radius: 0.625rem; padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; transition: box-shadow 0.15s; }
+.oi-auto-card:hover { box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.08); }
+.oi-auto-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+.oi-auto-card-name { font-size: clamp(0.875rem, 1.1vw, 0.9375rem); font-weight: 700; color: #121212; flex: 1; }
+.oi-auto-card-desc { font-size: 0.8125rem; color: #6E6E6E; line-height: 1.45; flex: 1; }
+
+/* ── Agentic Workspace 2-card layout ───────────────────────────────────────── */
+.oi-agentic-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.oi-agentic-card-foot { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.25rem; flex-wrap: wrap; }
+.oi-agentic-stat { font-size: 0.8125rem; color: #6E6E6E; font-weight: 600; }
+.oi-agentic-open { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.8125rem; color: #2E6DA4; text-decoration: none; margin-left: auto; }
+.oi-agentic-open:hover { text-decoration: underline; }
+
+/* ── Creator Studio structured sections ─────────────────────────────────────── */
+.oi-studio-section { border-top: 0.0625rem solid #F0F2F5; padding: 1rem 1.25rem; }
+.oi-studio-section-hdr { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #6E6E6E; margin-bottom: 0.875rem; }
+.oi-studio-fields { display: flex; flex-direction: column; gap: 0.625rem; }
+.oi-studio-field { display: flex; gap: 1rem; font-size: 0.875rem; }
+.oi-studio-field-lbl { width: 5rem; flex-shrink: 0; color: #6E6E6E; font-weight: 600; }
+.oi-studio-field-val { color: #121212; line-height: 1.5; }
+.oi-studio-steps { display: flex; flex-direction: column; gap: 0.75rem; }
+.oi-studio-step { display: flex; gap: 0.875rem; align-items: flex-start; }
+.oi-studio-step-num { font-size: 0.75rem; font-weight: 700; color: #6E6E6E; white-space: nowrap; width: 3rem; flex-shrink: 0; padding-top: 0.125rem; }
+.oi-studio-step-label { font-size: 0.875rem; color: #121212; line-height: 1.5; }
+
+/* ── Governance Control action items ────────────────────────────────────────── */
+.oi-gov-section { margin-bottom: 0.5rem; }
+.oi-gov-section-hdr { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #6E6E6E; margin-bottom: 0.625rem; }
+.oi-gov-item { display: flex; align-items: center; gap: 1rem; padding: 0.875rem 1rem; background: #FAFAFA; border-radius: 0.5rem; margin-bottom: 0.5rem; border-left: 3px solid #DCDCDC; }
+.oi-gov-item-info { flex: 1; min-width: 0; }
+.oi-gov-item-group { font-size: 0.75rem; font-weight: 600; color: #6E6E6E; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.1875rem; }
+.oi-gov-item-title { font-size: clamp(0.875rem, 1.05vw, 0.9375rem); font-weight: 600; color: #121212; }
+.oi-gov-item-meta { font-size: 0.8125rem; color: #6E6E6E; margin-top: 0.1875rem; }
+
+/* ── Leadership Insights stats ──────────────────────────────────────────────── */
+.oi-leadership-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.25rem; }
+.oi-leadership-stat { background: #FFFFFF; border: 0.0625rem solid #DCDCDC; border-radius: 0.625rem; padding: 1.25rem 1.5rem; text-align: center; }
+.oi-leadership-stat-value { font-size: clamp(1.75rem, 2.5vw, 2.25rem); font-weight: 800; line-height: 1; margin-bottom: 0.375rem; }
+.oi-leadership-stat-label { font-size: 0.8125rem; color: #6E6E6E; font-weight: 500; }
+
+/* ── Stage badge (colored border + text) ────────────────────────────────────── */
+.oi-stage-badge { display: inline-block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.1875rem 0.5rem; border: 0.0625rem solid; border-radius: 0.25rem; }
+
+/* ── Pending decision form ──────────────────────────────────────────────────── */
+.oi-leadership-decision-section { margin-bottom: 1rem; }
+.oi-decision-row { display: flex; gap: 0.75rem; align-items: flex-start; }
+.oi-decision-notes { flex: 1; padding: 0.625rem 0.875rem; border: 0.0625rem solid #DCDCDC; border-radius: 0.5rem; font-size: 0.875rem; font-family: inherit; color: #121212; resize: none; outline: none; transition: border-color 0.15s; }
+.oi-decision-notes:focus { border-color: #00BF6F; box-shadow: 0 0 0 0.1875rem rgba(0,191,111,0.15); }
+.oi-decision-btns { display: flex; flex-direction: column; gap: 0.375rem; }
+
+/* ── Developer Hub main tabs (underlined style) ─────────────────────────────── */
+.oi-dev-main-tabs { display: flex; gap: 0; border-bottom: 0.125rem solid #DCDCDC; margin-bottom: 1rem; }
+.oi-dev-main-tab { background: transparent; border: none; border-bottom: 0.1875rem solid transparent; margin-bottom: -0.125rem; cursor: pointer; padding: 0.75rem 1.25rem; font-size: clamp(0.9375rem, 1.15vw, 1rem); font-weight: 600; color: #6E6E6E; font-family: inherit; transition: color 0.15s, border-color 0.15s; display: inline-flex; align-items: center; gap: 0.5rem; }
+.oi-dev-main-tab.active { color: #121212; border-bottom-color: #00BF6F; }
+.oi-dev-main-tab:hover:not(.active) { color: #121212; }
+.oi-dev-tab-count { font-size: 0.75rem; color: #6E6E6E; font-weight: 400; }
+.oi-dev-main-tab.active .oi-dev-tab-count { color: #121212; }
+
+/* ── Scope tag (highlighted green) ─────────────────────────────────────────── */
+.oi-scope-tag { display: inline-block; background: rgba(0,191,111,0.12); color: #007A4C; font-size: 0.75rem; font-weight: 700; padding: 0.1875rem 0.5rem; border-radius: 0.25rem; font-family: "Courier New", monospace; text-transform: uppercase; letter-spacing: 0.02em; }
+
+/* ── Notification badge orange fix ──────────────────────────────────────────── */
+.oi-notif-badge { background: #E57323 !important; }
+.oi-req-badge { background: #E57323 !important; }
+
+/* ── Admin Hub catalog ──────────────────────────────────────────────────────── */
+.oi-admin-catalog-topbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+.oi-admin-cat-block { margin-bottom: 1.5rem; }
+.oi-admin-cat-hdr { display: flex; align-items: center; gap: 0.625rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.5rem 0; margin-bottom: 0.375rem; }
+.oi-admin-cat-dot { width: 0.625rem; height: 0.625rem; border-radius: 50%; flex-shrink: 0; }
+.oi-admin-add-item-btn { margin-left: auto; background: transparent; border: none; cursor: pointer; color: #2E6DA4; font-size: 0.8125rem; font-weight: 600; font-family: inherit; padding: 0.1875rem 0.5rem; border-radius: 0.25rem; }
+.oi-admin-add-item-btn:hover { background: rgba(46,109,164,0.08); }
+.oi-admin-delete-cat-btn { background: transparent; border: none; cursor: pointer; color: #DCDCDC; font-size: 0.875rem; padding: 0.1875rem 0.375rem; border-radius: 0.25rem; }
+.oi-admin-delete-cat-btn:hover { color: #C9190B; background: rgba(201,25,11,0.06); }
+.oi-admin-delete-btn { background: transparent; border: none; cursor: pointer; color: #DCDCDC; font-size: 0.875rem; padding: 0.25rem 0.5rem; border-radius: 0.25rem; }
+.oi-admin-delete-btn:hover { color: #C9190B; background: rgba(201,25,11,0.06); }
+.oi-admin-input { width: 100%; padding: 0.4375rem 0.625rem; border: 0.0625rem solid #DCDCDC; border-radius: 0.375rem; font-size: 0.875rem; font-family: inherit; color: #121212; outline: none; }
+.oi-admin-input:focus { border-color: #00BF6F; }
+.oi-admin-new-row { background: #F5F9FF; }
+.oi-select { padding: 0.4375rem 0.75rem; border: 0.0625rem solid #DCDCDC; border-radius: 0.375rem; font-size: 0.875rem; font-family: inherit; color: #121212; background: #FFFFFF; outline: none; cursor: pointer; }
+.oi-select:focus { border-color: #00BF6F; }
+
+/* ── Mobile responsive for new layouts ─────────────────────────────────────── */
+@media (max-width: 64rem) {
+  .oi-auto-grid { grid-template-columns: repeat(2, 1fr); }
+  .oi-agentic-cards { grid-template-columns: 1fr; }
+  .oi-leadership-stats { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 48rem) {
+  .oi-auto-grid { grid-template-columns: 1fr; }
+  .oi-leadership-stats { grid-template-columns: 1fr 1fr; }
+  .oi-decision-row { flex-direction: column; }
+  .oi-decision-btns { flex-direction: row; }
+}

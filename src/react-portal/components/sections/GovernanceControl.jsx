@@ -3,59 +3,88 @@ import { useApp } from '../../context.js';
 import OIIcon from '../../icons.jsx';
 import { initials } from '../../helpers.js';
 
-var MOCK_APPROVALS = [
-  { id: 'ap1', title: 'Emergency Change — Network Firewall Update', requestor: 'Alice Chen',    group: 'Network Team',     urgency: 'High',   requested: '20 min ago' },
-  { id: 'ap2', title: 'Standard Change — Patch Deployment Batch 4', requestor: 'Bob Patel',    group: 'Platform Team',    urgency: 'Medium', requested: '1 hour ago' },
-  { id: 'ap3', title: 'Access Request — CRM Admin Role',            requestor: 'Carol Davis',   group: 'Security Team',    urgency: 'Low',    requested: '3 hours ago' },
-  { id: 'ap4', title: 'Software Licence — Splunk Enterprise',       requestor: 'David Kim',     group: 'IT Procurement',   urgency: 'Medium', requested: 'Yesterday' },
+var AUTOMATION_REQUESTS = [
+  {
+    id: 'ar1',
+    title: 'Employee Onboarding Automation',
+    desc: 'Automation Requests',
+    requestor: 'Marcus Webb',
+    time: '13 days',
+    urgency: 'high',
+  },
+  {
+    id: 'ar2',
+    title: 'Leadership Insights access — Marcus Webb',
+    desc: 'Automation Requests',
+    requestor: 'Marcus Webb',
+    time: '30 min ago',
+    urgency: 'medium',
+  },
+  {
+    id: 'ar3',
+    title: 'Developer Hub access — Anna Torres',
+    desc: 'Automation Requests',
+    requestor: 'Anna Torres',
+    time: '1 hour ago',
+    urgency: 'low',
+  },
+];
+
+var PENDING_PERMISSIONS = [
+  {
+    id: 'pp1',
+    title: 'New user provisioning — Anna Torres',
+    desc: 'Add to Operations Intelligence Creator group',
+    time: '6 hours ago',
+  },
+  {
+    id: 'pp2',
+    title: 'Role escalation — Dev environment access',
+    desc: 'Request elevated developer permissions',
+    time: 'Yesterday',
+  },
 ];
 
 var MOCK_GROUPS = [
-  { id: 'g1', name: 'Platform Team',    members: 8,  manager: 'Jane Smith' },
-  { id: 'g2', name: 'Network Team',     members: 5,  manager: 'Mark Jones' },
-  { id: 'g3', name: 'Security Team',    members: 6,  manager: 'Sara Lee' },
-  { id: 'g4', name: 'IT Procurement',   members: 3,  manager: 'Paul Brown' },
-  { id: 'g5', name: 'Knowledge Team',   members: 4,  manager: 'Nina Patel' },
+  { id: 'g1', name: 'Platform Team',   members: 8, manager: 'Jane Smith'  },
+  { id: 'g2', name: 'Network Team',    members: 5, manager: 'Mark Jones'  },
+  { id: 'g3', name: 'Security Team',   members: 6, manager: 'Sara Lee'    },
+  { id: 'g4', name: 'IT Procurement',  members: 3, manager: 'Paul Brown'  },
+  { id: 'g5', name: 'Knowledge Team',  members: 4, manager: 'Nina Patel'  },
 ];
 
-var URGENCY_CLASS = { High: 'danger', Medium: 'warning', Low: 'neutral' };
-
-var TABS = ['Pending Approvals', 'Group Management', 'Access Management'];
+var URGENCY_COLOR = { high: '#C9190B', medium: '#E57323', low: '#3D7317' };
+var TABS = ['Pending Actions', 'Group Management', 'Access Management'];
 
 export default function GovernanceControl({ data }) {
-  var approvals = (data && data.approvals) || MOCK_APPROVALS;
-  var groups    = (data && data.groups)    || MOCK_GROUPS;
-  var [tab, setTab]         = useState(0);
+  var groups = (data && data.groups) || MOCK_GROUPS;
+  var [tab, setTab] = useState(0);
   var [actioning, setActioning] = useState({});
   var [dismissed, setDismissed] = useState({});
   var { callServer, toast } = useApp();
 
-  function act(approval, action) {
-    var key = approval.id + action;
+  function act(id, title, action) {
+    var key = id + action;
     if (actioning[key]) return;
     setActioning(function (prev) { var n = Object.assign({}, prev); n[key] = true; return n; });
     var serverAction = action === 'approve' ? 'approve_execution' : 'reject_execution';
-    callServer({ action: serverAction, approval_id: approval.id, title: approval.title })
+    callServer({ action: serverAction, approval_id: id, title: title })
       .then(function () {
-        toast(approval.title + ' ' + (action === 'approve' ? 'approved.' : 'rejected.'), action === 'approve' ? 'success' : 'info');
-        setDismissed(function (prev) { var n = Object.assign({}, prev); n[approval.id] = true; return n; });
+        toast(title + ' ' + (action === 'approve' ? 'approved.' : 'rejected.'), action === 'approve' ? 'success' : 'info');
+        setDismissed(function (prev) { var n = Object.assign({}, prev); n[id] = true; return n; });
       })
-      .catch(function () {
-        toast('Action failed. Please try again.', 'error');
-      })
+      .catch(function () { toast('Action failed. Please try again.', 'error'); })
       .finally(function () {
-        setActioning(function (prev) { var n = Object.assign({}, prev); delete n[approval.id + action]; return n; });
+        setActioning(function (prev) { var n = Object.assign({}, prev); delete n[id + action]; return n; });
       });
   }
 
-  var pending = approvals.filter(function (a) { return !dismissed[a.id]; });
+  var pendingAR = AUTOMATION_REQUESTS.filter(function (a) { return !dismissed[a.id]; });
+  var pendingPP = PENDING_PERMISSIONS.filter(function (p) { return !dismissed[p.id]; });
+  var totalPending = pendingAR.length + pendingPP.length;
 
   return (
     <div className="oi-section">
-      <div className="oi-toolbar">
-        <h1 className="oi-section-title">Governance Control</h1>
-      </div>
-
       <div className="oi-card">
         <div className="oi-subtabs">
           {TABS.map(function (t, i) {
@@ -66,8 +95,8 @@ export default function GovernanceControl({ data }) {
                 onClick={function () { setTab(i); }}
               >
                 {t}
-                {i === 0 && pending.length > 0 && (
-                  <span className={'oi-subtab-count' + (pending.length > 0 ? ' warn' : '')}>{pending.length}</span>
+                {i === 0 && totalPending > 0 && (
+                  <span className="oi-subtab-count warn">{totalPending}</span>
                 )}
               </button>
             );
@@ -76,47 +105,87 @@ export default function GovernanceControl({ data }) {
 
         <div className="oi-subtab-body">
           {tab === 0 && (
-            pending.length === 0 ? (
-              <div className="oi-empty">
-                <div className="oi-empty-icon"><OIIcon name="check" size={36} fill="#DCDCDC" /></div>
-                <div className="oi-empty-title">All caught up</div>
-                <div className="oi-empty-sub">There are no pending approvals.</div>
-              </div>
-            ) : (
-              <div className="oi-action-list">
-                {pending.map(function (a) {
-                  return (
-                    <div key={a.id} className="oi-action-item">
-                      <div className="oi-action-info">
-                        <div className="oi-action-type">{a.group}</div>
-                        <div className="oi-action-desc" title={a.title}>{a.title}</div>
-                        <div className="oi-action-meta">
-                          Requested by {a.requestor} &bull; {a.requested}
+            <div style={{ padding: '1rem 1.25rem' }}>
+              {pendingAR.length > 0 && (
+                <div className="oi-gov-section">
+                  <div className="oi-gov-section-hdr">AUTOMATION REQUESTS</div>
+                  {pendingAR.map(function (a) {
+                    return (
+                      <div
+                        key={a.id}
+                        className="oi-gov-item"
+                        style={{ borderLeft: '3px solid ' + URGENCY_COLOR[a.urgency] }}
+                      >
+                        <div className="oi-gov-item-info">
+                          <div className="oi-gov-item-group">{a.desc}</div>
+                          <div className="oi-gov-item-title">{a.title}</div>
+                          <div className="oi-gov-item-meta">Requested by {a.requestor} &bull; {a.time}</div>
+                        </div>
+                        <div className="oi-action-btns">
+                          <button
+                            className="oi-btn primary sm"
+                            disabled={!!actioning[a.id + 'approve']}
+                            onClick={function () { act(a.id, a.title, 'approve'); }}
+                          >
+                            <OIIcon name="approve" size={13} fill="#fff" />
+                            Approve
+                          </button>
+                          <button
+                            className="oi-btn ghost sm"
+                            disabled={!!actioning[a.id + 'reject']}
+                            onClick={function () { act(a.id, a.title, 'reject'); }}
+                          >
+                            Reject
+                          </button>
                         </div>
                       </div>
-                      <span className={'oi-badge ' + (URGENCY_CLASS[a.urgency] || 'neutral')}>{a.urgency}</span>
-                      <div className="oi-action-btns">
-                        <button
-                          className="oi-btn primary sm"
-                          disabled={!!actioning[a.id + 'approve']}
-                          onClick={function () { act(a, 'approve'); }}
-                        >
-                          <OIIcon name="approve" size={14} fill="#FFFFFF" />
-                          Approve
-                        </button>
-                        <button
-                          className="oi-btn ghost sm"
-                          disabled={!!actioning[a.id + 'reject']}
-                          onClick={function () { act(a, 'reject'); }}
-                        >
-                          Reject
-                        </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {pendingPP.length > 0 && (
+                <div className="oi-gov-section" style={{ marginTop: '1.25rem' }}>
+                  <div className="oi-gov-section-hdr">PENDING PERMISSIONS</div>
+                  {pendingPP.map(function (p) {
+                    return (
+                      <div
+                        key={p.id}
+                        className="oi-gov-item"
+                        style={{ borderLeft: '3px solid #2E6DA4' }}
+                      >
+                        <div className="oi-gov-item-info">
+                          <div className="oi-gov-item-title">{p.title}</div>
+                          <div className="oi-gov-item-meta">{p.desc} &bull; {p.time}</div>
+                        </div>
+                        <div className="oi-action-btns">
+                          <button
+                            className="oi-btn primary sm"
+                            onClick={function () { act(p.id, p.title, 'approve'); }}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            className="oi-btn ghost sm"
+                            onClick={function () { act(p.id, p.title, 'reject'); }}
+                          >
+                            Reject
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )
+                    );
+                  })}
+                </div>
+              )}
+
+              {pendingAR.length === 0 && pendingPP.length === 0 && (
+                <div className="oi-empty">
+                  <div className="oi-empty-icon"><OIIcon name="check" size={36} fill="#DCDCDC" /></div>
+                  <div className="oi-empty-title">All caught up</div>
+                  <div className="oi-empty-sub">There are no pending actions.</div>
+                </div>
+              )}
+            </div>
           )}
 
           {tab === 1 && (

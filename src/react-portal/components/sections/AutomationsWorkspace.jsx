@@ -1,55 +1,55 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context.js';
-import OIIcon from '../../icons.jsx';
-import { statusClass } from '../../helpers.js';
 
-var MOCK_AUTOMATIONS = [
-  { id: 'a1', name: 'Incident Auto-Assignment',     type: 'Business Rule',  last_run: '2 hours ago',  status: 'success', owner: 'Platform Team' },
-  { id: 'a2', name: 'SLA Breach Notification',      type: 'Scheduled Job',  last_run: '1 hour ago',   status: 'running', owner: 'ITSM Team' },
-  { id: 'a3', name: 'Change Advisory Board Report', type: 'Report',         last_run: 'Yesterday',    status: 'success', owner: 'Change Mgmt' },
-  { id: 'a4', name: 'Asset Discovery Sync',         type: 'Integration',    last_run: '30 min ago',   status: 'pending', owner: 'Asset Team' },
-  { id: 'a5', name: 'Knowledge Article Expiry',     type: 'Scheduled Job',  last_run: '3 days ago',   status: 'success', owner: 'Knowledge Mgmt' },
-  { id: 'a6', name: 'Stale Incident Closure',       type: 'Business Rule',  last_run: '12 hours ago', status: 'failed',  owner: 'Platform Team' },
+var GROUPS = [
+  {
+    id: 'knowledge',
+    label: 'Knowledge Management',
+    color: '#2E6DA4',
+    items: [
+      { id: 'km1', name: 'Knowledge Base Publisher',  status: 'live',    desc: 'Automatically publishes approved articles to the knowledge portal.' },
+      { id: 'km2', name: 'Knowledge Scheduler',       status: 'live',    desc: 'Schedules periodic review cycles for all published articles.' },
+      { id: 'km3', name: 'Article Expiry Review',     status: 'pending', desc: 'Flags articles approaching their expiry date for author review.' },
+      { id: 'km4', name: 'Brain Scan',                status: 'live',    desc: 'Analyses knowledge gaps and suggests new article topics.' },
+    ],
+  },
+  {
+    id: 'itsm',
+    label: 'ITSM Operations',
+    color: '#E57323',
+    items: [
+      { id: 'it1', name: 'Password Reset Flow',       status: 'live',    desc: 'Self-service password reset with identity provider integration.' },
+      { id: 'it2', name: 'Application Access Flow',   status: 'live',    desc: 'Automated provisioning of application access upon approval.' },
+      { id: 'it3', name: 'Server Health Check',       status: 'live',    desc: 'Monitors server uptime and alerts on threshold breaches.' },
+      { id: 'it4', name: 'VDI 1',                     status: 'pending', desc: 'Provisions virtual desktop instances for remote workers.' },
+    ],
+  },
+  {
+    id: 'itam',
+    label: 'ITAM Operations',
+    color: '#00897B',
+    items: [
+      { id: 'ia1', name: 'Asset Lifecycle Manager',   status: 'live',    desc: 'Tracks asset lifecycle from procurement to decommission.' },
+      { id: 'ia2', name: 'Licence Compliance Alert',  status: 'live',    desc: 'Alerts when licence usage approaches contractual limits.' },
+      { id: 'ia3', name: 'Asset Decommissioner',      status: 'live',    desc: 'Automates secure wipe and disposal of end-of-life assets.' },
+      { id: 'ia4', name: 'Hardware Rotation',         status: 'pending', desc: 'Schedules hardware rotation cycles and refresh requests.' },
+    ],
+  },
 ];
 
-var STATUS_FILTERS = [
-  { id: 'all',     label: 'All' },
-  { id: 'success', label: 'Healthy' },
-  { id: 'running', label: 'Running' },
-  { id: 'pending', label: 'Pending' },
-  { id: 'failed',  label: 'Failed' },
-];
-
-var STATUS_LABELS = {
-  success: 'Healthy',
-  running: 'Running',
-  pending: 'Pending',
-  failed:  'Failed',
-};
+var TOTAL = GROUPS.reduce(function (n, g) { return n + g.items.length; }, 0);
+var STATUS_CLASS = { live: 'success', pending: 'warning', inactive: 'neutral' };
 
 export default function AutomationsWorkspace({ data }) {
-  var items = (data && data.automations) || MOCK_AUTOMATIONS;
-  var [filter, setFilter]   = useState('all');
-  var [search, setSearch]   = useState('');
-  var [running, setRunning] = useState({});
   var { callServer, toast } = useApp();
-
-  var visible = items.filter(function (a) {
-    var matchStatus = filter === 'all' || a.status === filter;
-    var matchSearch = !search || a.name.toLowerCase().indexOf(search.toLowerCase()) >= 0;
-    return matchStatus && matchSearch;
-  });
+  var [running, setRunning] = useState({});
 
   function runAutomation(item) {
     if (running[item.id]) return;
     setRunning(function (prev) { var n = Object.assign({}, prev); n[item.id] = true; return n; });
-    callServer({ action: 'trigger_automation', automation_id: item.id, name: item.name })
-      .then(function () {
-        toast(item.name + ' triggered successfully.', 'success');
-      })
-      .catch(function () {
-        toast('Failed to trigger automation.', 'error');
-      })
+    callServer({ action: 'run_automation', automation_id: item.id, name: item.name })
+      .then(function () { toast('Automation started: ' + item.name, 'success'); })
+      .catch(function () { toast('Failed to start automation.', 'error'); })
       .finally(function () {
         setRunning(function (prev) { var n = Object.assign({}, prev); delete n[item.id]; return n; });
       });
@@ -57,75 +57,52 @@ export default function AutomationsWorkspace({ data }) {
 
   return (
     <div className="oi-section">
-      <div className="oi-toolbar">
-        <h1 className="oi-section-title">Automations Workspace</h1>
-        <div className="oi-toolbar-right">
-          <div className="oi-search-wrap">
-            <span className="oi-search-icon"><OIIcon name="search" size={15} /></span>
-            <input
-              className="oi-search-input"
-              placeholder="Search automations..."
-              value={search}
-              onChange={function (e) { setSearch(e.target.value); }}
-            />
-          </div>
+      <div className="oi-catalog-topbar">
+        <span className="oi-catalog-count">{TOTAL} <span style={{ fontWeight: 400, fontSize: '0.8rem' }}>AUTOMATIONS</span></span>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <select className="oi-select"><option>All Categories</option></select>
+          <select className="oi-select"><option>All Types</option></select>
+          <select className="oi-select"><option>All Statuses</option></select>
         </div>
       </div>
 
-      <div className="oi-filter-bar">
-        {STATUS_FILTERS.map(function (f) {
-          return (
-            <button
-              key={f.id}
-              className={'oi-filter-chip' + (filter === f.id ? ' active' : '')}
-              onClick={function () { setFilter(f.id); }}
-            >
-              {f.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {visible.length === 0 ? (
-        <div className="oi-card">
-          <div className="oi-empty">
-            <div className="oi-empty-icon"><OIIcon name="automations" size={36} fill="#DCDCDC" /></div>
-            <div className="oi-empty-title">No automations found</div>
-            <div className="oi-empty-sub">Try adjusting your search or filter.</div>
+      {GROUPS.map(function (group) {
+        return (
+          <div key={group.id} className="oi-auto-group">
+            <div className="oi-auto-group-hdr">
+              <span className="oi-auto-group-label" style={{ color: group.color }}>{group.label}</span>
+              <span className="oi-auto-group-count">{group.items.length} AUTOMATIONS</span>
+              <a
+                className="oi-auto-group-link"
+                href="#"
+                onClick={function (e) { e.preventDefault(); toast('View all coming soon.', 'info'); }}
+              >
+                View all in library
+              </a>
+            </div>
+            <div className="oi-auto-grid">
+              {group.items.map(function (item) {
+                return (
+                  <div key={item.id} className="oi-auto-card">
+                    <div className="oi-auto-card-top">
+                      <span className="oi-auto-card-name">{item.name}</span>
+                      <span className={'oi-badge ' + STATUS_CLASS[item.status]}>{item.status.toUpperCase()}</span>
+                    </div>
+                    <div className="oi-auto-card-desc">{item.desc}</div>
+                    <button
+                      className="oi-btn ghost xs"
+                      disabled={!!running[item.id]}
+                      onClick={function () { runAutomation(item); }}
+                    >
+                      {running[item.id] ? 'Running...' : 'Run'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="oi-auto-grid">
-          {visible.map(function (item) {
-            var sc = statusClass(item.status);
-            return (
-              <div key={item.id} className="oi-auto-card">
-                <div className="oi-auto-card-icon">
-                  <OIIcon name="automations" size={20} fill="#00BF6F" />
-                </div>
-                <div className="oi-auto-card-name">{item.name}</div>
-                <div className="oi-auto-card-desc">{item.type}</div>
-                <div className="oi-auto-card-owner">
-                  <OIIcon name="user" size={12} fill="#6E6E6E" />
-                  {item.owner}
-                </div>
-                <div className="oi-auto-card-foot">
-                  <span className={'oi-badge ' + sc}>{STATUS_LABELS[item.status] || item.status}</span>
-                  <span className="oi-td-muted">{item.last_run}</span>
-                  <button
-                    className="oi-btn primary sm"
-                    disabled={!!running[item.id]}
-                    onClick={function () { runAutomation(item); }}
-                  >
-                    <OIIcon name="play" size={13} fill="#FFFFFF" />
-                    {running[item.id] ? 'Running...' : 'Run'}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+        );
+      })}
     </div>
   );
 }

@@ -75,6 +75,7 @@ export default function AssistantPanel({ sectionId }) {
         </div>
         <div className="oi-asst-hdr-info">
           <div className="oi-asst-hdr-name">{cfg.name}</div>
+          <div className="oi-asst-hdr-tag">{cfg.tagline}</div>
         </div>
       </div>
 
