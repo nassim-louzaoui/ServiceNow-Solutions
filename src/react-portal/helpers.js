@@ -1,8 +1,8 @@
 export function relTime(val) {
   if (!val) return '';
-  const d = new Date(val);
+  var d = new Date(val);
   if (isNaN(d.getTime())) return val;
-  const diff = (Date.now() - d.getTime()) / 1000;
+  var diff = (Date.now() - d.getTime()) / 1000;
   if (diff < 60) return 'just now';
   if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
   if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
@@ -11,7 +11,7 @@ export function relTime(val) {
 
 export function statusClass(status) {
   if (!status) return 'neutral';
-  const s = status.toLowerCase();
+  var s = status.toLowerCase();
   if (s === 'success' || s === 'completed' || s === 'complete') return 'success';
   if (s === 'running' || s === 'in_progress' || s === 'in progress') return 'running';
   if (s === 'failed' || s === 'error' || s === 'failure') return 'failed';
@@ -22,14 +22,24 @@ export function statusClass(status) {
 
 export function initials(name) {
   if (!name) return '?';
-  const parts = name.trim().split(/\s+/);
+  var parts = name.trim().split(/\s+/);
   if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
-export const ROLE_LABELS = {
+export function fmtDate(val) {
+  if (!val) return '';
+  var d = new Date(val);
+  if (isNaN(d.getTime())) return val;
+  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
+export var ROLE_LABELS = {
   admin: 'Administrator',
+  administrator: 'Administrator',
   leadership: 'Leadership',
   creator: 'Creator',
+  developer: 'Developer',
   user: 'User',
+  member: 'Member',
 };

@@ -6,11 +6,15 @@ import Header from './components/Header.jsx';
 import ToastContainer from './components/ToastContainer.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import RequestsModal from './components/modals/RequestsModal.jsx';
-import WorkspaceSection from './components/sections/Workspace.jsx';
-import GallerySection from './components/sections/Gallery.jsx';
-import StudioSection from './components/sections/Studio.jsx';
-import GovernanceSection from './components/sections/Governance.jsx';
-import CommandSection from './components/sections/Command.jsx';
+import AssistantPanel from './components/AssistantPanel.jsx';
+import OperationsWorkspace from './components/sections/OperationsWorkspace.jsx';
+import AutomationsWorkspace from './components/sections/AutomationsWorkspace.jsx';
+import AgenticWorkspace from './components/sections/AgenticWorkspace.jsx';
+import CreatorStudio from './components/sections/CreatorStudio.jsx';
+import GovernanceControl from './components/sections/GovernanceControl.jsx';
+import LeadershipInsights from './components/sections/LeadershipInsights.jsx';
+import DeveloperHub from './components/sections/DeveloperHub.jsx';
+import AdminHub from './components/sections/AdminHub.jsx';
 import OIIcon from './icons.jsx';
 
 var _toastId = 0;
@@ -24,12 +28,15 @@ export function setBridge(b) {
 function renderSection(sectionId, sectionData) {
   var data = sectionData || {};
   switch (sectionId) {
-    case 'workspace':   return React.createElement(WorkspaceSection, { data: data });
-    case 'gallery':     return React.createElement(GallerySection,   { data: data });
-    case 'studio':      return React.createElement(StudioSection,    { data: data });
-    case 'governance':  return React.createElement(GovernanceSection, { data: data });
-    case 'command':     return React.createElement(CommandSection,   { data: data });
-    default:            return React.createElement(WorkspaceSection, { data: data });
+    case 'workspace':   return React.createElement(OperationsWorkspace,  { data: data });
+    case 'automations': return React.createElement(AutomationsWorkspace, { data: data });
+    case 'agentic':     return React.createElement(AgenticWorkspace,     { data: data });
+    case 'studio':      return React.createElement(CreatorStudio,        { data: data });
+    case 'governance':  return React.createElement(GovernanceControl,    { data: data });
+    case 'leadership':  return React.createElement(LeadershipInsights,   { data: data });
+    case 'developer':   return React.createElement(DeveloperHub,         { data: data });
+    case 'admin':       return React.createElement(AdminHub,             { data: data });
+    default:            return React.createElement(OperationsWorkspace,  { data: data });
   }
 }
 
@@ -133,32 +140,38 @@ export default function App() {
           initData={state.initData}
         />
         <div className="oi-main">
-          <Header
-            activeNav={activeNav}
-            loading={state.loading}
-          />
-          <main className="oi-content">
-            {state.loading && !state.sectionData ? (
-              <div className="oi-loading-center">
-                <div className="oi-spinner" />
-              </div>
-            ) : state.error ? (
-              <div className="oi-section-error">
-                <OIIcon name="error_icon" size={32} fill="#D9534F" />
-                <div className="oi-section-error-msg">{state.error}</div>
-                <button className="oi-btn primary" onClick={function () { loadSection(state.section); }}>
-                  Retry
-                </button>
-              </div>
-            ) : (
-              <ErrorBoundary key={state.section}>
-                {renderSection(state.section, state.sectionData)}
-              </ErrorBoundary>
-            )}
-          </main>
+          <Header activeNav={activeNav} loading={state.loading} />
+          <div className="oi-body">
+            <main className="oi-content">
+              {state.loading && !state.sectionData ? (
+                <div className="oi-loading-center">
+                  <div className="oi-spinner lg" />
+                </div>
+              ) : state.error ? (
+                <div className="oi-section-error">
+                  <OIIcon name="error_icon" size={32} fill="#D9534F" />
+                  <div className="oi-section-error-msg">{state.error}</div>
+                  <button
+                    className="oi-btn primary"
+                    onClick={function () { loadSection(state.section); }}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : (
+                <ErrorBoundary key={state.section}>
+                  {renderSection(state.section, state.sectionData)}
+                </ErrorBoundary>
+              )}
+            </main>
+            <AssistantPanel sectionId={state.section || 'workspace'} />
+          </div>
         </div>
         {state.mobileOpen && (
-          <div className="oi-mobile-overlay" onClick={function () { dispatch({ type: 'CLOSE_MOBILE' }); }} />
+          <div
+            className="oi-mobile-overlay"
+            onClick={function () { dispatch({ type: 'CLOSE_MOBILE' }); }}
+          />
         )}
       </div>
       <ToastContainer />
