@@ -11,6 +11,77 @@ _Last updated: 2026-07-20._
 
 ---
 
+## THE DEFINITIVE DESIGN (from the user's actual instructions across all sessions — follow exactly)
+
+### The product: an AI factory for building ServiceNow portal web applications
+Users interact with the **Enterprise Assistant** (single voice). Through a Service Catalog, the
+four collaborating models design + build embedded-React Service Portal web apps (frontend) + big
+ES5 Script Includes (backend), deployed into `x_solutions`, each with its own per-app security
+bridge. All in the hardened house style, running on the models' OWN system context.
+
+### The four models and their EXACT scopes (all run IN the instance, all from-scratch)
+- **Enterprise Intelligence Model (flagship, 1.03B, val 0.40)** — expert in ALL ServiceNow:
+  administration, development, instance configuration, **Glide**, **Jelly**, ServiceNow JS objects,
+  Developer-site + Administrator-site knowledge, and all associated capabilities. (HTML/CSS/JS was
+  deliberately moved OUT of EIM to Technology.)
+- **Enterprise Assistant Model (706M, val 0.09)** — a genuine LLM (analyze intent → reason →
+  generate contextually; NOT pattern matching / predefined responses). Handles ANY human input
+  (small talk, formal/casual/terse/verbose, gibberish, etiquette, context follow-ups). The single
+  user-facing voice.
+- **Technology Intelligence Model (317M, val 1.45)** — web engineering: embedded-React, AngularJS
+  lockdown, DOM cleanup/takeover, service-portal security lockdown, builds the portals (frontend) +
+  Script Includes (backend). Collaborates with EIM for ServiceNow-specific knowledge.
+- **Integration Intelligence Model (405M, val 0.48)** — external API integration: Flexera,
+  Microsoft/M365/Graph/Entra, SolarWinds, AWS, Azure.
+
+### KNOWLEDGE IS IN THE MODELS (do NOT build a separate knowledge layer)
+The models were TRAINED on the whole corpus (6,278 docs + graph relations + capability traces +
+web/MDN + external-API docs). Knowledge, reasoning, and how-to live in the weights. The old
+BM25 `KnowledgeStore` / `AdaptiveKnowledgeMesh` / `CapabilityKnowledge` were crutches for the dim-80
+toy and are RETIRED. Server-side keeps ONLY the system-context capability engine (the "hands").
+
+### Collaboration is the strongest part
+Genuine multi-round DISCUSSION between the models (each model's reasoning engaged, like a real
+discussion), returning to the user when needed. Assistant is the only one talking to the user.
+
+### The enterprise-intelligence web application (the platform front end — NOT operations intelligence)
+An embedded-React Service Portal in `x_intelligence`, house style. First nav tab **"Assistant"** =
+a **Service Catalog** + the **Enterprise Assistant chat**. Service Catalog Category **"Enterprise
+Solutions"** with three catalog items, each a closed-loop chat interaction:
+1. **New Solution Development** — gather requirements → show web-app layouts as clickable tiles →
+   popup preview of the actual shell skeleton → user picks a shell → Assistant gathers nav-bar
+   modules + content per module + optional special access control → if access control requested,
+   auto-create an **Access Management Module** visible to Administrator/Developer/Management/Owner
+   roles → build the app into `x_solutions`.
+2. **Existing Solution Maintenance** — pick an existing `x_solutions` web app → tag it at the top of
+   the Assistant chat → define adjustments to its modules.
+3. **Module Bridge Maintenance** — pick an existing web app → analyze/tune the capabilities in that
+   app's bridge toward the Enterprise Assistant.
+
+### The concrete deliverable to build (via the 3 catalog items, in a browser session)
+**operations-intelligence-new** in `x_solutions` — an enhanced replication of the everestdev
+`operations-intelligence` portal (reference it for VISUALS + the Operations Workspace closed-loop
+concept only), using our models + hardened house style, so the old one can be retired.
+
+### House style (hardened — reference operations-intelligence visuals)
+Strip the Service Portal DOM head/body and replace with the web app's; anti-tamper (revert any
+DOM change not made by our app, MutationObserver); obfuscation; NO window globals; secure storage;
+stub/disable console + eval + default browser APIs; NO default browser CSS (custom content-area
+scrollbars only, everything in the viewport, no page/horizontal scroll); **perfect symmetry
+mandatory**; vh/vw units only; icon height = adjacent label text height; same palette + navbar +
+header + content-area shell; AngularJS locked to a bare-minimum bootstrap that hands off to the
+embedded-React package. Tampering must be made as physically impossible as possible.
+
+### Scope of work NOW (user, line 1378): only these, decide the rest later
+The existing roles + the enterprise-intelligence web application + the four models. Focus
+`x_intelligence` + `x_solutions`. Defer `x_maintenance`.
+
+### Every user-facing text
+Professional, precise, each sentence on its own line, and **never the "-" character** (it reveals
+generated text). Never reference any AI tool/model/vendor name in any ServiceNow artifact or commit.
+
+---
+
 ## 0. HARD RULES — mistakes never to repeat
 
 1. **Operations Intelligence is NOT the Enterprise Intelligence platform front end.** It is
