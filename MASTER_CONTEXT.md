@@ -185,7 +185,24 @@ Each built solution: house style + its own security bridge. Four-model collabora
   No export was taken (models are secure on the box `out/si2` + object storage `models/`, redeployable).
   The old app code is still recoverable from object storage `src/pdi_scaffold_scripts.txt` if ever needed.
 - `x_solutions`: empty. `x_maintenance`: `IntelligenceMaintenanceRecovery` only. (Both left as-is.)
-- No custom Service Portal widgets/themes yet.
+- **Enterprise Intelligence portal (Phase 2, deployed + browser-verified 2026-07-20)** at
+  `https://dev283926.service-now.com/ei`. Records in `x_intelligence`: `sp_widget id=ei-portal-app`
+  (template `<div id="ei-root"></div>` only; client_script = thin Angular bootstrap that inlines the
+  obfuscated IIFE bundle, builds the closure `call()` bridge, dispatches `ei:mount`; server script =
+  identity + grounded Assistant reply), `sp_theme "Enterprise Intelligence"`, `sp_page ei_home`,
+  container/row/column/instance, `sp_portal url_suffix=ei`. Bundle stored at object storage
+  `src/ei_react_bundle.js`; source at `src/ei_hard_src.tgz` and repo `src/ei-portal-hardened/`.
+  **HARDENED HOUSE STYLE** (per `docs/design/HARDENED_HOUSE_STYLE.md`): visual references the
+  operations-intelligence portal (dark-slate `#293E40` sidebar, brand `#00BF6F`, white topbar, soft
+  `#F0F2F5` canvas) reimplemented as a strict vh/vw stylesheet; full-viewport DOM takeover (root lifted
+  to `<body>`, every platform sibling hidden, no default ServiceNow element visible); MutationObserver
+  anti-tamper auto-reverts edits to our style/root; no `window` globals (single self-removing `ei:mount`
+  listener); frozen intrinsics; `window.eval` trapped; local/sessionStorage neutered; console silenced;
+  contextmenu + devtools-shortcut deterrents; bundle obfuscated. Verified: shell + 3 catalog cards +
+  4 nav + chat render full-viewport, card-click routes into the Assistant, anti-tamper reverts a forced
+  `display:none` on root, storage writes blocked. NOTE: strict CSP header (doc §6) deliberately DEFERRED
+  — a `script-src 'self'` policy is incompatible with the inline-script Service Portal host and would
+  risk the instance; it needs a nonce/UI-Page delivery path. Server-side own-security wall is the real guarantee.
 - **PROVEN:** in-instance targeted weight load+dequant is byte-exact (verify endpoint returned
   ok:true, wte row matched PyTorch). Client-side engine generates correct domain text
   (parity vs reference, logit diff 7e-7): e.g. "How do I create an ACL" → coherent output.
