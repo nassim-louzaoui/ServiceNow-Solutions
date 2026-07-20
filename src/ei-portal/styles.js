@@ -6,7 +6,10 @@ export var CSS = [
   '*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;outline:0;border:0;',
   'font:inherit;color:inherit;background:transparent;-webkit-tap-highlight-color:transparent;',
   'list-style:none;text-decoration:none;-webkit-font-smoothing:antialiased}',
-  'html,body,#ei-root{height:100vh;width:100vw;overflow:hidden}',
+  'html,body{height:100vh;width:100vw;overflow:hidden}',
+  // full-viewport takeover: lift our app out of the platform layout entirely
+  '#ei-root{position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;',
+  'z-index:2147483000;overflow:hidden;background:#F0F2F5}',
   'body{font-family:"Source Sans Pro","Segoe UI",sans-serif;color:#121212;background:#F0F2F5}',
   // hide any native scrollbar globally
   '::-webkit-scrollbar{width:0;height:0}',
