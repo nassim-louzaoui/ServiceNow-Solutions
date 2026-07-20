@@ -34,11 +34,19 @@ bridge. All in the hardened house style, running on the models' OWN system conte
 - **Integration Intelligence Model (405M, val 0.48)** — external API integration: Flexera,
   Microsoft/M365/Graph/Entra, SolarWinds, AWS, Azure.
 
-### KNOWLEDGE IS IN THE MODELS (do NOT build a separate knowledge layer)
-The models were TRAINED on the whole corpus (6,278 docs + graph relations + capability traces +
-web/MDN + external-API docs). Knowledge, reasoning, and how-to live in the weights. The old
-BM25 `KnowledgeStore` / `AdaptiveKnowledgeMesh` / `CapabilityKnowledge` were crutches for the dim-80
-toy and are RETIRED. Server-side keeps ONLY the system-context capability engine (the "hands").
+### KNOWLEDGE = NEURO-SYMBOLIC (trained-in weights + runtime graph/retrieval ensemble)
+The system is neuro-symbolic (per REAL_AI_ARCHITECTURE / BOX_ENHANCEMENT / PRODUCTION_HARDENING).
+Each model = trained neural core WRAPPED by a runtime ensemble: **graphify + slime-mold + GraphRAG
+retrieval grounding + verifier**. Base knowledge is trained INTO the weights, AND the runtime graph +
+retrieval index are CORE and intentional because they: (1) ground every answer / anti-hallucination
+gate (retrieve-then-reason, verifier before any answer or capability), (2) are how NEW knowledge is
+added for FREE without retraining (Pillar 1 incremental ingestion — the whole "no future GPU retrain"
+mandate), (3) make generated ServiceNow code correct (graph-grounded generation).
+WHAT IS DEAD: only the old dim-80 TOY's standalone `KnowledgeStore`/`Mesh`/`CapabilityKnowledge` as a
+*substitute* for a real model. Now the models are real; the graph/retrieval is their grounding
+ensemble, NOT a substitute — it must be REBUILT as the ensemble (code-as-data, client + server), not
+dropped. (Correction: I earlier wrongly said "drop the knowledge layer entirely" — that contradicted
+the design; the ensemble stays.)
 
 ### Collaboration is the strongest part
 Genuine multi-round DISCUSSION between the models (each model's reasoning engaged, like a real
