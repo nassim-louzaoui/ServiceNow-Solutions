@@ -97,18 +97,15 @@ Each built solution: house style + its own security bridge. Four-model collabora
 ## 3. Current state (verified 2026-07-20)
 
 ### PDI `dev283926`
-- `x_intelligence`: **912 `EI_*` Script Includes** = the 910 model chunks + my experimental
-  `EI_infer_engine` + `EI_runtime`. Plus the OLD app (to be wiped): `EnterpriseIntelligenceModel`
-  (agentic brain, 36-cap catalog, plan/execute w/ dry-run+confirm+destructive gating),
-  `EnterpriseIntelligenceCore/Operations/Discovery/Security`, `EnterpriseAssistantModel`,
-  `KnowledgeStore` + `KnowledgeShard0-3` (BM25), `AdaptiveKnowledgeMesh` (graph + slime-mold
-  reinforce/decay/prune/maintain), `CapabilityKnowledge` (1MB). Plus OLD system properties:
-  char-level toy model (`eim.part.*`, `model_meta` v1.1.0 dim80/vocab65), `kstore/krouter/mesh.part.*`,
-  `assistant_intents`, junk (`_bigtmp`, `captest`, `_tr*`, `_cv*`). **The old generative core is a
-  dim-80 char-level toy — the 4 real models replace it. Migration was left half-done**
-  (`EnterpriseAssistantModel` still calls `model.tokenize()` which the current brain lacks).
-- A Scripted REST "EI Runtime API" (`service_id=ei`, op `verify`) I deployed — experimental.
-- `x_solutions`: empty. `x_maintenance`: `IntelligenceMaintenanceRecovery` only.
+- **`x_intelligence`: CLEANED (Phase 0 done 2026-07-20) — now exactly the 910 `EI_*` model
+  Script Includes and NOTHING else** (0 `x_intelligence.*` properties). Deleted: old app
+  (`EnterpriseIntelligenceModel/Core/Operations/Discovery/Security/AssistantModel`, `KnowledgeStore`,
+  `KnowledgeShard0-3`, `AdaptiveKnowledgeMesh`, `CapabilityKnowledge`, `EnterpriseIntelligenceBuilder`,
+  `EnterpriseIntelligenceDesign`), my experimental `EI_infer_engine`/`EI_runtime` + the "EI Runtime
+  API" Scripted REST, the char-level toy model + all `eim/kstore/krouter/mesh.part.*` + junk props.
+  No export was taken (models are secure on the box `out/si2` + object storage `models/`, redeployable).
+  The old app code is still recoverable from object storage `src/pdi_scaffold_scripts.txt` if ever needed.
+- `x_solutions`: empty. `x_maintenance`: `IntelligenceMaintenanceRecovery` only. (Both left as-is.)
 - No custom Service Portal widgets/themes yet.
 - **PROVEN:** in-instance targeted weight load+dequant is byte-exact (verify endpoint returned
   ok:true, wte row matched PyTorch). Client-side engine generates correct domain text
@@ -153,4 +150,5 @@ factory catalog. Prove end-to-end in a real browser.
 channel); `x_maintenance` monitoring + slime-mold improvement + recovery; `x_solutions`
 `operations-intelligence-new` (first factory-built solution, house style, own security bridge).
 
-**Status:** plan approved in principle; awaiting explicit "go" for Phase 0. Nothing wiped yet.
+**Status:** Phase 0 DONE (x_intelligence wiped to the 910 model SIs, verified). Next: Phase 1
+(server-side core) — build clean on top of the ready models.
