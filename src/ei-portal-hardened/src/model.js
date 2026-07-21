@@ -83,25 +83,71 @@ export function loadModel(bridge, model, onProgress) {
   });
 }
 
-// Generate nTokens greedily, streaming the decoded continuation via onToken(textSoFar).
+// Special token ids, read from the tokenizer so this stays correct for any model.
+function special(st, name, dflt) {
+  var v = st.tok.specialTokens && st.tok.specialTokens[name];
+  return (v === undefined || v === null) ? dflt : v;
+}
+
+// Block size for either backend.
+function blockOf(st) { return st.kind === 'webgpu' ? st.session.cfg.block_size : st.M.cfg.block_size; }
+
+// One forward pass over a context window, returning logits. Backend agnostic.
+function forwardCtx(st, ctx) {
+  if (st.kind === 'webgpu') return EIWebGPUInfer.forward(st.session, ctx);
+  return Promise.resolve(EIClientInfer.forward(st.M, ctx));
+}
+function pickArgmax(st, lg) {
+  return st.kind === 'webgpu' ? EIWebGPUInfer.argmax(lg) : EIClientInfer.argmax(lg);
+}
+
+// Chat generation, single voice. Builds the turn sequence
+//   <|system|> systemText <|user|> userText <|assistant|>
+// with the special token ids interleaved (the tokenizer does not encode the markers itself), then
+// generates greedily up to maxTokens, streaming the decoded assistant text via onToken(textSoFar).
+// Generation stops early at <|endoftext|> so replies end naturally. Same code path for WebGPU and
+// the pure JS fallback, so the on device answer is identical whichever backend is active.
+export function generateChat(st, systemText, userText, maxTokens, onToken) {
+  var SYS = special(st, '<|system|>', null), USR = special(st, '<|user|>', null);
+  var ASST = special(st, '<|assistant|>', null), EOS = special(st, '<|endoftext|>', 1);
+  var ids = [];
+  if (SYS !== null && systemText) ids = ids.concat([SYS], st.tok.encode(systemText));
+  if (USR !== null) ids.push(USR);
+  ids = ids.concat(st.tok.encode(userText));
+  if (ASST !== null) ids.push(ASST);
+  // If the model has no chat markers, fall back to plain continuation of the user text.
+  if (SYS === null && USR === null && ASST === null) ids = st.tok.encode(userText);
+
+  var produced = [], block = blockOf(st), n = 0;
+  return new Promise(function (resolve, reject) {
+    function step() {
+      if (n >= maxTokens) { resolve(st.tok.decode(produced)); return; }
+      var ctx = ids.length > block ? ids.slice(ids.length - block) : ids;
+      forwardCtx(st, ctx).then(function (lg) {
+        var next = pickArgmax(st, lg);
+        if (next === EOS) { resolve(st.tok.decode(produced)); return; }
+        ids.push(next); produced.push(next); n++;
+        if (onToken) onToken(st.tok.decode(produced));
+        setTimeout(step, 0);
+      })['catch'](reject);
+    }
+    setTimeout(step, 0);
+  });
+}
+
+// Plain greedy continuation (kept for non chat use). Streams decoded text via onToken(textSoFar).
 export function generate(st, prompt, nTokens, onToken) {
-  var ids = st.tok.encode(prompt);
-  var produced = [];
-  if (st.kind === 'webgpu') {
-    return EIWebGPUInfer.generate(st.session, ids, nTokens, function (id) {
-      produced.push(id); if (onToken) onToken(st.tok.decode(produced));
-    }).then(function () { return st.tok.decode(produced); });
-  }
-  var block = st.M.cfg.block_size, n = 0;
-  return new Promise(function (resolve) {
+  var ids = st.tok.encode(prompt), produced = [], block = blockOf(st), n = 0;
+  return new Promise(function (resolve, reject) {
     function step() {
       if (n >= nTokens) { resolve(st.tok.decode(produced)); return; }
       var ctx = ids.length > block ? ids.slice(ids.length - block) : ids;
-      var lg = EIClientInfer.forward(st.M, ctx);
-      var next = EIClientInfer.argmax(lg);
-      ids.push(next); produced.push(next); n++;
-      if (onToken) onToken(st.tok.decode(produced));
-      setTimeout(step, 0);
+      forwardCtx(st, ctx).then(function (lg) {
+        var next = pickArgmax(st, lg);
+        ids.push(next); produced.push(next); n++;
+        if (onToken) onToken(st.tok.decode(produced));
+        setTimeout(step, 0);
+      })['catch'](reject);
     }
     setTimeout(step, 0);
   });

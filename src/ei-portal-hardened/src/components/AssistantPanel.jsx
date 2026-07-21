@@ -3,13 +3,17 @@ import { useApp } from '../context.js';
 import OIIcon from '../icons.jsx';
 import { ASSISTANT_CONFIGS } from '../data.js';
 import { FLOWS } from '../flows.js';
-import { loadModel, generate, backendOf } from '../model.js';
+import { loadModel, generateChat, backendOf } from '../model.js';
+import { buildSystem } from '../collab.js';
 
-// The Enterprise Assistant ALWAYS generates on-device (WebGPU, with a pure-JS fallback). This is
-// the default and only chat engine, not an option. The model loads through the bridge as soon as
-// the Assistant mounts and stays running for the session; every message is generated on-device.
-var CHAT_MODEL = 'technology';
-var CHAT_TOKENS = 24;
+// The Enterprise Assistant is the ONLY model that speaks to the user. It ALWAYS generates on-device
+// (WebGPU, with a byte-identical pure-JS fallback); this is the default and only chat engine, not an
+// option. Behind the scenes it consults the three specialists (Flagship, Integration, Technology)
+// through its own system channel, so their domain grounding shapes the reply while none of them ever
+// addresses the user. The model loads through the bridge on the first message and stays running for
+// the session; every message is generated on-device.
+var CHAT_MODEL = 'assistant';
+var CHAT_TOKENS = 48;
 
 // Session-wide loaded model state, so it stays running across section changes and remounts.
 var _model = { st: null, loading: null, phase: 'idle', pct: 0 };
@@ -118,9 +122,11 @@ export default function AssistantPanel({ sectionId }) {
       if (!_model.st) patchMsg(mid, _model.phase === 'gpu' ? 'Preparing the model on your device.' : 'Loading the model. ' + _model.pct + ' percent.');
     };
     var done = function () { setBusy(false); };
+    // Consult the specialists behind the scenes, then let the Assistant answer as the single voice.
+    var collab = buildSystem(text, sectionId);
     ensureModel(bridgeRef.current, onStatus).then(function (st) {
       patchMsg(mid, '');
-      return generate(st, text, CHAT_TOKENS, function (soFar) { patchMsg(mid, soFar); });
+      return generateChat(st, collab.system, text, CHAT_TOKENS, function (soFar) { patchMsg(mid, soFar); });
     })['catch'](function () {
       // Only if the on-device model cannot load at all, fall back to the server bridge reply.
       return callServer({ action: 'assistant_query', section: sectionId, query: text }).then(function (res) {
