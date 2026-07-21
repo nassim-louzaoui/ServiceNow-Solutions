@@ -131,7 +131,9 @@ function pickArgmax(st, lg) {
 function replyOf(text) {
   var m = /(^|\n)\s*Reply\s*:\s*/i.exec(text);
   if (m) return { visible: text.slice(m.index + m[0].length).replace(/^\s+/, ''), started: true };
-  if (/(^|\n)\s*Reasoning\s*:/i.test(text)) return { visible: '', started: false };
+  // No Reply marker yet. If the output starts with "Reason" (the whole Reasoning section, or any
+  // prefix building that word), keep it hidden as thinking so not even a one token flash leaks.
+  if (/^\s*Reason/i.test(text)) return { visible: '', started: false };
   return { visible: text.replace(/^\s+/, ''), started: true };
 }
 
