@@ -172,6 +172,24 @@ Each built solution: house style + its own security bridge. Four-model collabora
   <script.sh> <maxpoll>` writes the script to the box, executor `eic.sh` (systemd, runs as ROOT)
   runs it, output returns. One command at a time. Use it to launch/poll the box Claude and to run
   my privileged deploys — not to hand-build what the box Claude should build.
+  **CRITICAL: NEVER run a long/blocking process in a mailbox foreground command** (e.g.
+  `runuser ... node bigjob` without `nohup ... &`). `eic.sh` runs `bash cmd.sh` and WAITS; a
+  foreground long job wedges the mailbox for everyone (learned the hard way — a 95-min lavapipe node
+  froze the channel). Always launch long work as `nohup ... &` and poll separately.
+- **Box recovery channels (when the mailbox is wedged):** the instance is `ei-builder`,
+  OCID `ocid1.instance.oc1.eu-frankfurt-1.antheljrueyhwpaclow6ag7fg4cfricatly4ql6dnbgjs37uehtz5swd7t5q`,
+  region eu-frankfurt-1, public IP 92.5.117.206, tenancy/compartment
+  `ocid1.tenancy.oc1..aaaaaaaahecih3azbru7xw6dplrw3zsx3pgcb4r4oko7aj6pbimzlrrmcjgq`. OCI CLI:
+  `/root/.oci-venv/bin/oci` (works over the HTTPS proxy). (1) **OCA Run Command** (bypasses the
+  mailbox): `oci instance-agent command create --compartment-id <T> --timeout-in-seconds N
+  --target file://{"instance-id":IID} --content file://{"source":{"source-type":"TEXT","text":SCRIPT},"output":{"output-type":"TEXT"}}`;
+  poll with `command-execution get --command-id <id> --instance-id <IID>`. BUT it runs as
+  UNPRIVILEGED `ocarun` (cannot kill eiagent procs or `systemctl`), and its inline TEXT output comes
+  back EMPTY — so have the script `curl -X PUT` its output to object storage `out/<name>.txt` and
+  read that. (2) **Reboot to clear a wedged mailbox:** `oci compute instance action --instance-id
+  <IID> --action SOFTRESET`; box returns in ~40s, `eic.service` auto-starts (enabled), `/tmp/mgpu_env3`
+  (lavapipe) SURVIVES reboot, models are on persistent disk. `ssh` is not available in the control
+  container and outbound 22 is likely blocked — use OCA / reboot, not SSH. Key at `/root/.ssh/ei_box.pem`.
 - **PAR URL (object storage `ei-control` bucket, read+write, plain curl, no creds):**
   `https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/-fvZyjo7sfHJLLt6pvb_7QxVPQldq-zvZlxgL0Jg56ivCXiLknA3mSeKBz8uw3Wq/n/fryrxfdwttez/b/ei-control/o/`
   Layout: `models/` (13.3GB int8 bundles + model.pt), `backup/` (code/corpora/runtime tgz),
