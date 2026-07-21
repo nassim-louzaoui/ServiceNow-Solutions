@@ -185,11 +185,26 @@ Each built solution: house style + its own security bridge. Four-model collabora
   No export was taken (models are secure on the box `out/si2` + object storage `models/`, redeployable).
   The old app code is still recoverable from object storage `src/pdi_scaffold_scripts.txt` if ever needed.
 - `x_solutions`: empty. `x_maintenance`: `IntelligenceMaintenanceRecovery` only. (Both left as-is.)
-- **Enterprise Intelligence portal (Phase 2, deployed + browser-verified 2026-07-20)** at
+- **BACKEND IS PRODUCTION-CLEAN (2026-07-21): NO custom REST API.** `x_intelligence` backend =
+  exactly the 910 `EI_*` models + 8 engine Script Includes (`EnterpriseIntelligenceRuntime`,
+  `Core`, `Discovery`, `Operations`, `Security`, `Model`, `Builder`, `EnterpriseAssistantModel`) +
+  the portal records. The Phase 1 Scripted REST "Enterprise Intelligence API" (`sys_ws_definition`
+  + its 7 ops catalog/manifest/tokenizer/chunk/verify/brain/diag) was **DELETED** — verified 0
+  `sys_ws_definition` / 0 `sys_ws_operation` in scope, endpoints now 404/400. Its capabilities were
+  MOVED into the widget server bridge (below), which is the SOLE server entry point. No business
+  rules, client scripts, processors, scheduled jobs, UI actions/pages, or REST messages in scope.
+  Engine API: `EnterpriseIntelligenceRuntime` `.catalog()/.manifest(m)/.tokenizer(m)/.weightChunk(m,part)/.verify(m)`;
+  `EnterpriseIntelligenceModel` `.capabilities()/.plan(goal)/.execute(plan,opts)/.achieve(goal,opts)/.howto(q,rel)/.tokenize(t)/.models()`;
+  `EnterpriseAssistantModel.respond(text)`; `EnterpriseIntelligenceOperations` `.capabilities()/.describe(table)`.
+  (Note: `_kstore/_mesh/_capk` grounding return null since the standalone knowledge SIs were removed
+  in Phase 0 — the real generation is the four neural models running client-side.)
+- **Enterprise Intelligence portal (Phase 2, deployed + browser-verified 2026-07-21)** at
   `https://dev283926.service-now.com/ei`. Records in `x_intelligence`: `sp_widget id=ei-portal-app`
   (template `<div id="ei-root"></div>` only; client_script = thin Angular bootstrap that inlines the
-  obfuscated IIFE bundle, builds the closure `call()` bridge, dispatches `ei:mount`; server script =
-  identity + grounded Assistant reply), `sp_theme "Enterprise Intelligence"`, `sp_page ei_home`,
+  obfuscated IIFE bundle, builds the closure `call()` bridge, dispatches `ei:mount`; **server script =
+  the SINGLE server-side bridge**: dispatches `init`/`check_auth`/`load_section`/`assistant_query`
+  plus the client model loader `catalog`/`manifest`/`tokenizer`/`chunk`/`verify` to the engine, all
+  through `$scope.server.get` (server context, gated), NO REST), `sp_theme "Enterprise Intelligence"`, `sp_page ei_home`,
   container/row/column/instance, `sp_portal url_suffix=ei`. Bundle stored at object storage
   `src/ei_react_bundle.js`; source at `src/ei_hard_src.tgz` and repo `src/ei-portal-hardened/`.
   **HARDENED HOUSE STYLE** (per `docs/design/HARDENED_HOUSE_STYLE.md`): FAITHFULLY REPLICATES the
