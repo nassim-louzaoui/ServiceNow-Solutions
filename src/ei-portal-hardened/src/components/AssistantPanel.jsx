@@ -51,14 +51,32 @@ function Welcome({ name, tagline }) {
 
 // Closed-loop route panel: one node's guidance text + route options. Choosing replaces it with
 // the next node's; Back steps toward the item's main menu, and at the root it leaves the flow.
-function FlowPanel({ flowId, onExit }) {
+// An option may carry an `action` (build / apply): choosing it runs a real server bridge action and
+// the result (for example the new application URL) is reported in place, keeping the loop closed.
+function FlowPanel({ flowId, onExit, callServer, solutionName }) {
   var flow = FLOWS[flowId];
   var st = useState({ nodeId: flow.root, stack: [] });
   var state = st[0], setState = st[1];
-  useEffect(function () { setState({ nodeId: flow.root, stack: [] }); }, [flowId]);
+  var [work, setWork] = useState(null); // { busy } | { url } | { error }
+  useEffect(function () { setState({ nodeId: flow.root, stack: [] }); setWork(null); }, [flowId]);
   var node = flow.nodes[state.nodeId] || flow.nodes[flow.root];
-  function choose(opt) { setState(function (s) { return { nodeId: opt.next, stack: s.stack.concat([s.nodeId]) }; }); }
+  function runAction(action) {
+    setWork({ busy: true });
+    callServer({ action: action === 'build' ? 'build_solution' : 'apply_change', name: solutionName })
+      .then(function (r) {
+        var res = (r && r.result) || r || {};
+        if (res.status === 'built' && res.url) setWork({ url: res.url });
+        else if (res.status === 'submitted') setWork({ submitted: res.note || 'The build request has been submitted.' });
+        else if (res.error) setWork({ error: res.error });
+        else setWork({ status: res.status || 'done' });
+      })['catch'](function (e) { setWork({ error: '' + e }); });
+  }
+  function choose(opt) {
+    if (opt.action) runAction(opt.action);
+    setState(function (s) { return { nodeId: opt.next, stack: s.stack.concat([s.nodeId]) }; });
+  }
   function back() {
+    setWork(null);
     setState(function (s) {
       if (s.stack.length === 0) { onExit(); return s; }
       var stack = s.stack.slice(); var prev = stack.pop(); return { nodeId: prev, stack: stack };
@@ -68,6 +86,15 @@ function FlowPanel({ flowId, onExit }) {
     <div className="ei-flow">
       <div className="ei-flow-title">{flow.title}</div>
       <div className="ei-flow-text">{node.text}</div>
+      {work && (
+        <div className="ei-flow-result">
+          {work.busy && <span>Building into Enterprise Solutions. One moment.</span>}
+          {work.url && <span>Done. The application is live at <a href={work.url} target="_blank" rel="noopener noreferrer">{work.url}</a>.</span>}
+          {work.submitted && <span>{work.submitted}</span>}
+          {work.status && !work.url && !work.submitted && !work.busy && <span>The change has been applied.</span>}
+          {work.error && <span>The build could not complete. {work.error}</span>}
+        </div>
+      )}
       <div className="ei-flow-options">
         {node.options.map(function (o, i) {
           return (
@@ -160,7 +187,9 @@ export default function AssistantPanel({ sectionId }) {
       </div>
 
       {inFlow ? (
-        <FlowPanel key={activeFlow + ':' + flowNonce} flowId={activeFlow} onExit={function () { dispatch({ type: 'END_FLOW' }); }} />
+        <FlowPanel key={activeFlow + ':' + flowNonce} flowId={activeFlow}
+          callServer={callServer} solutionName={'operations-intelligence-new'}
+          onExit={function () { dispatch({ type: 'END_FLOW' }); }} />
       ) : (
         <div className="ei-asst-messages">
           {messages.length === 0 && <Welcome name={cfg.name} tagline={cfg.tagline} />}

@@ -70,7 +70,7 @@ export var FLOWS = {
         ]
       },
       review_sum: { text: 'The application will be built with the chosen layout, its modules, its access model, and its own bridge.', options: [{ label: 'Build now', next: 'build', action: 'build' }] },
-      build: { text: 'The build has started in Enterprise Solutions.\nThe Assistant reports progress here as it works.', terminal: true, options: [{ label: 'Back to the menu', next: 'start' }] }
+      build: { text: 'The Assistant is building the application into Enterprise Solutions now.\nThe result appears here when it is ready.', terminal: true, options: [{ label: 'Back to the menu', next: 'start' }] }
     }
   },
 

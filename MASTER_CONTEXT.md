@@ -304,7 +304,7 @@ Each built solution: house style + its own security bridge. Four-model collabora
   with the subtab strip + accordion (coloured category bar, count, chevron, expandable item rows with
   Start), and the FULL-HEIGHT Enterprise Assistant right rail (dark header, welcome, green/grey chat
   bubbles, Ask anything input). The three Enterprise Solutions closed-loop items populate the catalog.
-  Bridge contract: init / load_section / check_auth / assistant_query. Plus full-viewport DOM takeover (root lifted
+  Bridge contract: init / load_section / check_auth / assistant_query / build_solution. Plus full-viewport DOM takeover (root lifted
   to `<body>`, every platform sibling hidden, no default ServiceNow element visible); MutationObserver
   anti-tamper auto-reverts edits to our style/root; no `window` globals (single self-removing `ei:mount`
   listener); frozen `Object`/`Array` prototypes (Function/String left alone so the legacy host keeps working);
@@ -317,6 +317,24 @@ Each built solution: house style + its own security bridge. Four-model collabora
 - **PROVEN:** in-instance targeted weight load+dequant is byte-exact (verify endpoint returned
   ok:true, wte row matched PyTorch). Client-side engine generates correct domain text
   (parity vs reference, logit diff 7e-7): e.g. "How do I create an ACL" → coherent output.
+- **operations-intelligence-new — BUILT + BROWSER-VERIFIED (2026-07-21)** at
+  `https://dev283926.service-now.com/operations-intelligence-new`, in the **Enterprise Solutions
+  (x_solutions)** scope (sys_id `b7da5f25...ceaad32f`). A faithful clone of the /ei portal: full
+  Service Portal record chain (sp_widget `operations-intelligence-new-app` with the widget id
+  rewritten so it is standalone, sp_theme/sp_page/sp_container/sp_row/sp_column/sp_instance/sp_portal),
+  every record confirmed `sys_scope=x_solutions`. Browser render check: shell + 4 nav + 3 catalog rows
+  + assistant rail, 0 errors. Delivered "via browser + catalog": the /ei catalog `Build now`
+  (`action:'build'`) calls the `build_solution` bridge action which surfaces the live app URL; the
+  actual privileged record authoring is done by an AUTHORIZED admin browser session, because the
+  hardened scoped widget is intentionally BLOCKED from writing Service Portal records into another
+  scope at runtime — confirmed empirically: scoped `GlideRecord.insert()` on `sp_*` returns null
+  (canCreate=true but runtime cross-scope DML denied) even with `sys_scope_privilege` grants; records
+  land in x_solutions only when the AUTHORIZED session's app context is set to x_solutions (via
+  `/api/now/ui/concoursepicker/application`). This IS the server-side authorization wall working as
+  designed. FlowPanel wires `action:'build'/'apply'` options to the bridge and reports the result in
+  place (live URL / submitted / applied). Cosmetic follow-up available: the oin portal still carries
+  the "Enterprise Intelligence" in-bundle branding (cloned); a branded variant would say "Operations
+  Intelligence". Build/verify scripts: scratchpad `build_oin.sh`, `oin_verify.py`, `sync_oin2.sh`.
 
 ### OCI box `/home/eiagent/ei`
 - Full pipeline source: `crawler/` (corpus + BM25 + graph), `out/` (deploy=BM25 shards,
