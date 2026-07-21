@@ -13,7 +13,7 @@ export default function CatalogSection() {
   var [open, setOpen] = useState(CATALOG.length ? CATALOG[0].id : null);
 
   function start(item) {
-    dispatch({ type: 'SET_ASSISTANT_SEED', payload: 'I would like to begin: ' + item.name + '.' });
+    dispatch({ type: 'START_FLOW', payload: item.id });
   }
 
   var total = CATALOG.reduce(function (n, g) { return n + g.items.length; }, 0);

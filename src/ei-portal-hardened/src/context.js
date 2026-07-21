@@ -11,6 +11,8 @@ export const initialState = {
   authDenied: false,
   initData: null,
   assistantSeed: null,
+  activeFlow: null,
+  flowNonce: 0,
 };
 
 export function reducer(state, action) {
@@ -41,6 +43,10 @@ export function reducer(state, action) {
       return { ...state, assistantSeed: action.payload };
     case 'CLEAR_ASSISTANT_SEED':
       return { ...state, assistantSeed: null };
+    case 'START_FLOW':
+      return { ...state, activeFlow: action.payload, flowNonce: state.flowNonce + 1 };
+    case 'END_FLOW':
+      return { ...state, activeFlow: null };
     case 'TOGGLE_REQUESTS':
       return { ...state, showRequests: !state.showRequests };
     case 'CLOSE_REQUESTS':

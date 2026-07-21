@@ -1581,17 +1581,21 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; }
 }
 .ei-help-btn:hover { background: rgba(255,255,255,0.1); color: #FFFFFF; }
 
-/* ── Assistant on-device toggle + backend tag ────────────────────────────────── */
-.ei-asst-mode {
-  margin-left: auto; flex-shrink: 0; align-self: center;
-  padding: 0.35vw 0.7vw; border-radius: 1vw; border: 0.08vw solid rgba(255,255,255,0.35);
-  background: transparent; color: rgba(255,255,255,0.85); font-family: inherit;
-  font-size: 0.7vw; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background .15s, color .15s, border-color .15s;
-}
-.ei-asst-mode:hover { border-color: #00BF6F; color: #FFFFFF; }
-.ei-asst-mode.on { background: #00BF6F; border-color: #00BF6F; color: #FFFFFF; }
-.ei-chat-tag {
-  display: block; margin-top: 0.4vh; font-size: 0.62vw; font-weight: 700; letter-spacing: 0.03vw;
-  text-transform: uppercase; color: #00895E; opacity: 0.85;
-}
-.ei-chat-msg.user .ei-chat-tag { color: rgba(255,255,255,0.85); }
+/* ── Closed-loop route panel (catalog item interaction in the Assistant) ──────── */
+.ei-flow { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column;
+  padding: 1.6vh 1.2vw; gap: 1.4vh; }
+.ei-flow-title { font-size: 0.72vw; font-weight: 700; letter-spacing: 0.06vw; text-transform: uppercase;
+  color: #00895E; }
+.ei-flow-text { font-size: 0.92vw; line-height: 1.6; color: #121212; white-space: pre-line; }
+.ei-flow-options { display: flex; flex-direction: column; gap: 0.7vh; margin-top: 0.4vh; }
+.ei-flow-opt { display: flex; align-items: center; justify-content: space-between; gap: 0.6vw;
+  width: 100%; text-align: left; padding: 1.15vh 1vw; border: 0.08vw solid #DCDCDC; border-radius: 0.7vh;
+  background: #FFFFFF; color: #121212; font-family: inherit; font-size: 0.86vw; font-weight: 600;
+  cursor: pointer; transition: border-color .12s, box-shadow .12s, background .12s; }
+.ei-flow-opt:hover { border-color: #00BF6F; background: #F7FBF9; box-shadow: 0 0.3vh 1vh rgba(0,137,94,0.1); }
+.ei-flow-opt svg { color: #00BF6F; flex-shrink: 0; }
+.ei-flow-back { margin-top: auto; align-self: flex-start; display: inline-flex; align-items: center;
+  gap: 0.4vw; padding: 0.9vh 0.9vw; border: none; background: transparent; color: #6E6E6E;
+  font-family: inherit; font-size: 0.82vw; font-weight: 700; cursor: pointer; transition: color .12s; }
+.ei-flow-back:hover { color: #00895E; }
+.ei-flow-back svg { transform: rotate(180deg); }
