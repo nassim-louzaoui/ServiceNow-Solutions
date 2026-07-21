@@ -6,11 +6,15 @@
 
 // ---- 1. Freeze the intrinsics (SES / lockdown style) to stop prototype pollution. ----
 export function freezeIntrinsics() {
-  var targets = [
-    Object, Object.prototype, Array, Array.prototype, Function, Function.prototype,
-    String, String.prototype, Number, Number.prototype, Boolean, Boolean.prototype,
-    RegExp, RegExp.prototype, Date, Date.prototype
-  ];
+  // Freeze the prototypes that are the real prototype-pollution targets. We deliberately do NOT
+  // freeze Function.prototype (the host Service Portal page keeps running background scripts that
+  // legitimately redefine toString on it, and freezing it only produces hidden console noise
+  // without adding real defense once our app is mounted).
+  // Object.prototype and Array.prototype are the classic pollution targets and are not
+  // re-polyfilled by the host. We leave String/Number/Boolean/Function prototypes alone, since
+  // the legacy Service Portal page re-defines methods on them (e.g. String.prototype.trim) and
+  // freezing those only yields hidden console noise without adding real defense post-mount.
+  var targets = [Object.prototype, Array.prototype];
   for (var i = 0; i < targets.length; i++) {
     try { Object.freeze(targets[i]); } catch (e) {}
   }

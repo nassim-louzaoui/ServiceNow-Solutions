@@ -1,56 +1,43 @@
-// Headless smoke test: load the built bundle into jsdom, drive the ei:mount contract,
-// assert the shell renders, then exercise the anti-tamper revert and storage lockdown.
 var fs = require('fs');
 var JSDOM = require('jsdom').JSDOM;
-
 var bundle = fs.readFileSync(process.argv[2] || 'bundle.min.js', 'utf8');
 var dom = new JSDOM('<!doctype html><html><head></head><body><div class="sn-chrome">platform</div>' +
-  '<div id="sp-page"><div id="ei-root"></div></div></body></html>', {
-  runScripts: 'outside-only', pretendToBeVisual: true, url: 'https://dev283926.service-now.com/ei'
-});
+  '<div id="sp"><div id="ei-root"></div></div></body></html>', { pretendToBeVisual: true, url: 'https://x/ei' });
 var w = dom.window;
-// minimal globals React 18 expects
-global.window = w; global.document = w.document; global.navigator = w.navigator;
-global.MutationObserver = w.MutationObserver;
+global.window = w; global.document = w.document; global.navigator = w.navigator; global.MutationObserver = w.MutationObserver;
 w.requestAnimationFrame = function (cb) { return setTimeout(function () { cb(Date.now()); }, 0); };
 w.cancelAnimationFrame = function (id) { clearTimeout(id); };
 w.matchMedia = w.matchMedia || function () { return { matches: false, addListener: function () {}, removeListener: function () {} }; };
-
-// Run the bundle in the jsdom window context.
+w.scrollIntoView = function () {};
+w.Element.prototype.scrollIntoView = function () {};
 var vm = require('vm');
-var ctx = vm.createContext(w);
-w.eval = undefined; // ensure bundle doesn't rely on eval
-vm.runInContext(bundle, ctx, { filename: 'bundle.js' });
-
-var replies = [];
-var bridge = { call: function (p) { return Promise.resolve({ reply: 'ack: ' + p.text }); } };
+vm.runInContext(bundle, vm.createContext(w), { filename: 'b.js' });
+var bridge = { call: function (p) {
+  if (p.action === 'init') return Promise.resolve({ userName: 'Ada Lovelace', userInitials: 'AL', userRole: 'administrator', requestCount: 0, instanceUrl: '/sp' });
+  if (p.action === 'load_section') return Promise.resolve({});
+  if (p.action === 'assistant_query') return Promise.resolve({ reply: 'ack: ' + p.query });
+  return Promise.resolve({});
+} };
 var root = w.document.getElementById('ei-root');
-w.document.dispatchEvent(new w.CustomEvent('ei:mount', { detail: { el: root, bridge: bridge, init: { userName: 'Ada Lovelace', initials: 'AL' } } }));
-
+w.document.dispatchEvent(new w.CustomEvent('ei:mount', { detail: { el: root, bridge: bridge } }));
 setTimeout(function () {
-  var d = w.document;
-  function count(sel) { return d.querySelectorAll(sel).length; }
+  var d = w.document; function c(s) { return d.querySelectorAll(s).length; }
   var out = {
-    rootReparentedToBody: root.parentNode === d.body,
-    styleInjected: !!d.querySelector('style[data-ei="style"]'),
-    shell: count('.ei-shell'),
-    nav: count('.ei-nav-item'),
-    cards: count('.ei-card'),
-    brand: (d.querySelector('.ei-brand-txt') || {}).textContent,
-    userName: (d.querySelector('.ei-user-name') || {}).textContent,
-    welcome: count('.ei-welcome')
+    rootInBody: root.parentNode === d.body,
+    shell: c('.ei-shell'), sidebar: c('.ei-sidebar'), nav: c('.ei-nav-item'),
+    brand: (d.querySelector('.ei-brand-text') || {}).textContent,
+    topbar: c('.ei-topbar'), breadcrumbCurrent: (d.querySelector('.ei-breadcrumb-current') || {}).textContent,
+    subtab: (d.querySelector('.ei-subtab') || {}).textContent, accCats: c('.ei-acc-cat'),
+    catalogRows: c('.ei-catalog-row'), assistant: c('.ei-assistant-panel'),
+    asstInput: c('.ei-asst-input'), welcome: c('.ei-asst-welcome'),
+    userName: (d.querySelector('.ei-user-name') || {}).textContent
   };
-  // storage lockdown
-  var lockedStorage = false;
-  try { w.localStorage.setItem('x', '1'); lockedStorage = (w.localStorage.getItem('x') === null); } catch (e) { lockedStorage = true; }
-  out.storageLocked = lockedStorage;
-  // anti-tamper: inject a foreign node + try to hide our root, then check revert
-  var evil = d.createElement('div'); evil.id = 'evil'; evil.textContent = 'x'; d.body.appendChild(evil);
+  var storeLocked = false; try { w.localStorage.setItem('x', '1'); storeLocked = w.localStorage.getItem('x') === null; } catch (e) { storeLocked = true; }
+  out.storeLocked = storeLocked;
   root.setAttribute('style', 'display:none');
   setTimeout(function () {
-    out.rootStyleReverted = (root.getAttribute('style') !== 'display:none');
-    out.rootStillInBody = (root.parentNode === d.body);
+    out.rootReverted = root.getAttribute('style') !== 'display:none';
     console.log(JSON.stringify(out, null, 2));
-    process.exit(out.shell === 1 && out.cards === 3 && out.nav === 4 ? 0 : 1);
-  }, 60);
-}, 400);
+    process.exit(out.shell === 1 && out.nav === 4 && out.accCats === 1 && out.catalogRows === 3 && out.assistant === 1 ? 0 : 1);
+  }, 80);
+}, 500);

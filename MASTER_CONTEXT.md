@@ -192,12 +192,20 @@ Each built solution: house style + its own security bridge. Four-model collabora
   identity + grounded Assistant reply), `sp_theme "Enterprise Intelligence"`, `sp_page ei_home`,
   container/row/column/instance, `sp_portal url_suffix=ei`. Bundle stored at object storage
   `src/ei_react_bundle.js`; source at `src/ei_hard_src.tgz` and repo `src/ei-portal-hardened/`.
-  **HARDENED HOUSE STYLE** (per `docs/design/HARDENED_HOUSE_STYLE.md`): visual references the
-  operations-intelligence portal (dark-slate `#293E40` sidebar, brand `#00BF6F`, white topbar, soft
-  `#F0F2F5` canvas) reimplemented as a strict vh/vw stylesheet; full-viewport DOM takeover (root lifted
+  **HARDENED HOUSE STYLE** (per `docs/design/HARDENED_HOUSE_STYLE.md`): FAITHFULLY REPLICATES the
+  LIVE operations-intelligence portal on everestdev — `src/base.css` IS the live portal stylesheet
+  (already viewport-based `vw`/`vh`/`%`) rebranded `oi-`→`ei-`, and the React components are the real
+  portal components (Sidebar/Header/AssistantPanel/accordion catalog). So the DOM matches the
+  reference exactly: dark FULL-WIDTH header (`#293E40`, breadcrumb + date + bell + avatar), dark-slate
+  sidebar (brand + nav + Open Service Portal + My Requests + user card), white Service Catalog card
+  with the subtab strip + accordion (coloured category bar, count, chevron, expandable item rows with
+  Start), and the FULL-HEIGHT Enterprise Assistant right rail (dark header, welcome, green/grey chat
+  bubbles, Ask anything input). The three Enterprise Solutions closed-loop items populate the catalog.
+  Bridge contract: init / load_section / check_auth / assistant_query. Plus full-viewport DOM takeover (root lifted
   to `<body>`, every platform sibling hidden, no default ServiceNow element visible); MutationObserver
   anti-tamper auto-reverts edits to our style/root; no `window` globals (single self-removing `ei:mount`
-  listener); frozen intrinsics; `window.eval` trapped; local/sessionStorage neutered; console silenced;
+  listener); frozen `Object`/`Array` prototypes (Function/String left alone so the legacy host keeps working);
+  `window.eval` trapped; local/sessionStorage neutered; console silenced;
   contextmenu + devtools-shortcut deterrents; bundle obfuscated. Verified: shell + 3 catalog cards +
   4 nav + chat render full-viewport, card-click routes into the Assistant, anti-tamper reverts a forced
   `display:none` on root, storage writes blocked. NOTE: strict CSP header (doc §6) deliberately DEFERRED
