@@ -51,59 +51,106 @@ function Welcome({ name, tagline }) {
 
 // Closed-loop route panel: one node's guidance text + route options. Choosing replaces it with
 // the next node's; Back steps toward the item's main menu, and at the root it leaves the flow.
-// An option may carry an `action` (build / apply): choosing it runs a real server bridge action and
-// the result (for example the new application URL) is reported in place, keeping the loop closed.
+// Nodes can be DYNAMIC: a node with `load` calls a real server bridge action on entry and renders
+// live data (the list of deployed solutions, or an app's real bridge capabilities). Options may
+// carry an `action` (build / apply) that runs a real bridge action and reports the result in place.
+// Choosing a solution pins it as the flow's context so later steps operate on that real app.
 function FlowPanel({ flowId, onExit, callServer, solutionName }) {
   var flow = FLOWS[flowId];
-  var st = useState({ nodeId: flow.root, stack: [] });
+  var st = useState({ nodeId: flow.root, stack: [], pickedApp: null });
   var state = st[0], setState = st[1];
-  var [work, setWork] = useState(null); // { busy } | { url } | { error }
-  useEffect(function () { setState({ nodeId: flow.root, stack: [] }); setWork(null); }, [flowId]);
+  var [work, setWork] = useState(null);       // action result banner
+  var [dyn, setDyn] = useState({ busy: false }); // loaded data for the current node
   var node = flow.nodes[state.nodeId] || flow.nodes[flow.root];
+  var picked = state.pickedApp || solutionName;
+
+  useEffect(function () { setState({ nodeId: flow.root, stack: [], pickedApp: null }); setWork(null); }, [flowId]);
+
+  // Load live data when the current node asks for it.
+  useEffect(function () {
+    if (!node.load) { setDyn({ busy: false }); return; }
+    setDyn({ busy: true });
+    callServer({ action: node.load, name: picked }).then(function (r) {
+      var res = (r && r.result) || r || {};
+      setDyn({ busy: false, data: res });
+    })['catch'](function (e) { setDyn({ busy: false, error: '' + e }); });
+  }, [state.nodeId, node.load]);
+
+  function subst(text) { return ('' + text).split('{app}').join(prettyName(picked)); }
+
   function runAction(action) {
     setWork({ busy: true });
-    callServer({ action: action === 'build' ? 'build_solution' : 'apply_change', name: solutionName })
+    callServer({ action: action === 'build' ? 'build_solution' : 'apply_change', name: picked })
       .then(function (r) {
         var res = (r && r.result) || r || {};
         if (res.status === 'built' && res.url) setWork({ url: res.url });
-        else if (res.status === 'submitted') setWork({ submitted: res.note || 'The build request has been submitted.' });
         else if (res.error) setWork({ error: res.error });
         else setWork({ status: res.status || 'done' });
       })['catch'](function (e) { setWork({ error: '' + e }); });
   }
-  function choose(opt) {
-    if (opt.action) runAction(opt.action);
-    setState(function (s) { return { nodeId: opt.next, stack: s.stack.concat([s.nodeId]) }; });
+  function go(nextId, pickedApp) {
+    setState(function (s) {
+      return { nodeId: nextId, stack: s.stack.concat([s.nodeId]), pickedApp: pickedApp !== undefined ? pickedApp : s.pickedApp };
+    });
+    setWork(null);
   }
+  function choose(opt) { if (opt.action) runAction(opt.action); go(opt.next); }
   function back() {
     setWork(null);
     setState(function (s) {
       if (s.stack.length === 0) { onExit(); return s; }
-      var stack = s.stack.slice(); var prev = stack.pop(); return { nodeId: prev, stack: stack };
+      var stack = s.stack.slice(); var prev = stack.pop(); return { nodeId: prev, stack: stack, pickedApp: s.pickedApp };
     });
   }
+
+  // Render the option rows: dynamic solution list, otherwise the node's static options.
+  function renderOptions() {
+    if (node.load === 'list_solutions') {
+      var apps = (dyn.data && dyn.data.length !== undefined) ? dyn.data : [];
+      if (dyn.busy) return <div className="ei-flow-text">Loading the deployed applications.</div>;
+      if (apps.length === 0) return (
+        <button className="ei-flow-opt" onClick={function () { go(node.emptyNext || 'start'); }}>
+          <span>No applications are deployed yet</span><OIIcon name="chevron_right" size={15} fill="currentColor" />
+        </button>
+      );
+      return apps.map(function (a, i) {
+        return (
+          <button key={i} className="ei-flow-opt" onClick={function () { go(node.pickNext, a.name); }}>
+            <span>{a.title || prettyName(a.name)}</span><OIIcon name="chevron_right" size={15} fill="currentColor" />
+          </button>
+        );
+      });
+    }
+    return (node.options || []).map(function (o, i) {
+      return (
+        <button key={i} className="ei-flow-opt" onClick={function () { choose(o); }}>
+          <span>{o.label}</span><OIIcon name="chevron_right" size={15} fill="currentColor" />
+        </button>
+      );
+    });
+  }
+
+  var bridge = (node.load === 'describe_bridge' && dyn.data) ? dyn.data : null;
+
   return (
     <div className="ei-flow">
       <div className="ei-flow-title">{flow.title}</div>
-      <div className="ei-flow-text">{node.text}</div>
-      {work && (
+      <div className="ei-flow-text">{subst(node.text)}</div>
+      {bridge && bridge.capabilities && (
         <div className="ei-flow-result">
-          {work.busy && <span>Building into Enterprise Solutions. One moment.</span>}
-          {work.url && <span>Done. The application is live at <a href={work.url} target="_blank" rel="noopener noreferrer">{work.url}</a>.</span>}
-          {work.submitted && <span>{work.submitted}</span>}
-          {work.status && !work.url && !work.submitted && !work.busy && <span>The change has been applied.</span>}
-          {work.error && <span>The build could not complete. {work.error}</span>}
+          <span>This bridge reaches the Enterprise Assistant Model: {bridge.reaches_model ? 'yes' : 'no'}.
+          {' '}It exposes {bridge.capabilities.length} capabilities.</span>
         </div>
       )}
-      <div className="ei-flow-options">
-        {node.options.map(function (o, i) {
-          return (
-            <button key={i} className="ei-flow-opt" onClick={function () { choose(o); }}>
-              <span>{o.label}</span><OIIcon name="chevron_right" size={15} fill="currentColor" />
-            </button>
-          );
-        })}
-      </div>
+      {work && (
+        <div className="ei-flow-result">
+          {work.busy && <span>Working. One moment.</span>}
+          {work.url && <span>Done. The application is live at <a href={work.url} target="_blank" rel="noopener noreferrer">{work.url}</a>.</span>}
+          {work.status && !work.url && !work.busy && <span>The change has been applied.</span>}
+          {work.error && <span>That could not complete. {work.error}</span>}
+        </div>
+      )}
+      <div className="ei-flow-options">{renderOptions()}</div>
       <button className="ei-flow-back" onClick={back}>
         <OIIcon name="chevron_right" size={14} fill="currentColor" />
         <span>{state.stack.length === 0 ? 'Back to the catalog' : 'Back'}</span>
@@ -111,6 +158,9 @@ function FlowPanel({ flowId, onExit, callServer, solutionName }) {
     </div>
   );
 }
+
+// A url-suffix like "operations-intelligence-new" shown as words, no dash, Title style kept simple.
+function prettyName(n) { return ('' + (n || '')).split('-').join(' '); }
 
 export default function AssistantPanel({ sectionId }) {
   var cfg = ASSISTANT_CONFIGS[sectionId] || ASSISTANT_CONFIGS.workspace;

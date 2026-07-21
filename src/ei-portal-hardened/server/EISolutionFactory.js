@@ -56,6 +56,30 @@ EISolutionFactory.prototype = {
     return { status: 'built', url: '/' + name, portal: portal, widget: w };
   },
 
+  // List the web applications present in the Enterprise Solutions scope (for the maintenance flows).
+  listSolutions: function() {
+    var out = [];
+    var pg = new GlideRecord('sp_portal');
+    pg.addQuery('sys_scope', this.SOL); pg.orderBy('title'); pg.query();
+    while (pg.next()) {
+      out.push({ name: '' + pg.getValue('url_suffix'), title: '' + pg.getValue('title'), url: '/' + pg.getValue('url_suffix') });
+    }
+    return out;
+  },
+  // Describe an app's bridge: the actions its widget server actually exposes, and whether it reaches
+  // the Enterprise Assistant Model. This is what Module Bridge Maintenance inspects.
+  describeBridge: function(rawName) {
+    var name = ('' + (rawName || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    var w = new GlideRecord('sp_widget');
+    if (!w.get('id', name + '-app')) { return { status: 'error', error: 'app not found' }; }
+    var script = '' + w.getValue('script');
+    var caps = [], re = /a === '([a-z_]+)'/g, m;
+    while ((m = re.exec(script))) { caps.push(m[1]); }
+    var model = script.indexOf('EnterpriseIntelligenceRuntime') > -1 || script.indexOf("'chunks'") > -1;
+    return { status: 'ok', name: name, capabilities: caps, reaches_model: model,
+      model_ops: ['manifest', 'tokenizer', 'chunks', 'assistant_query'] };
+  },
+
   remove: function(rawName) {
     var name = ('' + (rawName || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     if (!name) { return { status: 'error', error: 'no name' }; }
