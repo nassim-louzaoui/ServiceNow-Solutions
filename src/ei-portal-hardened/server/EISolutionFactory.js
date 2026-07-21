@@ -22,9 +22,13 @@ EISolutionFactory.prototype = {
   initialize: function() {},
   SOL: 'b7da5f2583460710f36fec80ceaad32f', // Enterprise Solutions (x_solutions) sys_scope
 
-  build: function(rawName) {
+  build: function(rawName, specJson) {
     var name = ('' + (rawName || 'operations-intelligence')).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     if (!name) { name = 'operations-intelligence'; }
+    // The wizard passes a spec (title, purpose, layout, modules, access) as JSON. We record it on the
+    // built widget so Existing Solution Maintenance can see how the app was defined.
+    var spec = null; try { spec = specJson ? JSON.parse('' + specJson) : null; } catch (e) { spec = null; }
+    var title = (spec && spec.title) ? ('' + spec.title) : 'Operations Intelligence';
     var widId = name + '-app';
     var existing = new GlideRecord('sp_portal');
     existing.addQuery('url_suffix', name); existing.query();
@@ -44,14 +48,14 @@ EISolutionFactory.prototype = {
     // Model Bridge: the built app runs in another scope, so its server must reach the Enterprise
     // Assistant Model runtime by its scope qualified, cross scope callable name.
     var server = ('' + src.getValue('script')).split('new EnterpriseIntelligenceRuntime()').join('new x_intelligence.EnterpriseIntelligenceRuntime()');
-    var w = mk('sp_widget', { id: widId, name: 'Operations Intelligence', template: src.getValue('template'), css: src.getValue('css'), client_script: client, script: server, 'public': 'false' });
-    var theme = mk('sp_theme', { name: 'Operations Intelligence', css_variables: '--navbar-height:0;--footer-height:0;' });
-    var page = mk('sp_page', { id: name + '-home', title: 'Operations Intelligence' });
+    var w = mk('sp_widget', { id: widId, name: title, description: (specJson ? ('' + specJson) : ''), template: src.getValue('template'), css: src.getValue('css'), client_script: client, script: server, 'public': 'false' });
+    var theme = mk('sp_theme', { name: title, css_variables: '--navbar-height:0;--footer-height:0;' });
+    var page = mk('sp_page', { id: name + '-home', title: title });
     var cont = mk('sp_container', { sp_page: page, order: '100', width: 'fluid', name: name + '_main' });
     var row = mk('sp_row', { sp_container: cont, order: '100' });
     var col = mk('sp_column', { sp_row: row, size: '12', order: '100' });
-    mk('sp_instance', { sp_column: col, sp_widget: w, order: '100', title: 'Operations Intelligence' });
-    var portal = mk('sp_portal', { url_suffix: name, title: 'Operations Intelligence', homepage: page, theme: theme });
+    mk('sp_instance', { sp_column: col, sp_widget: w, order: '100', title: title });
+    var portal = mk('sp_portal', { url_suffix: name, title: title, homepage: page, theme: theme });
     if (errs.length) { return { status: 'error', url: '/' + name, errors: errs }; }
     return { status: 'built', url: '/' + name, portal: portal, widget: w };
   },

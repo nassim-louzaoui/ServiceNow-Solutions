@@ -1603,6 +1603,64 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; }
 .ei-flow-back:hover { color: #00895E; }
 .ei-flow-back svg { transform: rotate(180deg); }
 
+/* Interactive wizard: tiles, inputs, chips, and the clickable result tile. */
+.ei-wiz { display: flex; flex-direction: column; min-height: 0; flex: 1; gap: 1.2vh; overflow: hidden; }
+.ei-wiz-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 1vh; padding-right: 0.3vw; }
+.ei-wiz-step { font-size: 0.7vw; font-weight: 700; letter-spacing: 0.05vw; text-transform: uppercase; color: #6E6E6E; }
+.ei-wiz-say { font-size: 0.92vw; line-height: 1.55; color: #121212; white-space: pre-line; }
+.ei-wiz-echo { font-size: 0.9vw; line-height: 1.5; color: #0B5B44; background: #F0FBF6;
+  border-left: 0.25vw solid #00BF6F; border-radius: 0.4vh; padding: 1vh 1vw; }
+.ei-tile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9vh 0.8vw; }
+.ei-tile { display: flex; flex-direction: column; gap: 0.5vh; padding: 0.9vh 0.8vw; border: 0.1vh solid #DCDCDC;
+  border-radius: 0.7vh; background: #FFFFFF; cursor: pointer; text-align: left; font-family: inherit;
+  transition: border-color .12s, box-shadow .12s, transform .12s, background .12s; }
+.ei-tile:hover { border-color: #00BF6F; box-shadow: 0 0.5vh 1.6vh rgba(0,137,94,0.14); transform: translateY(-0.2vh); }
+.ei-tile.selected { border-color: #00895E; background: #F0FBF6; box-shadow: 0 0 0 0.12vh #00895E inset; }
+.ei-tile-title { font-size: 0.88vw; font-weight: 700; color: #121212; }
+.ei-tile-desc { font-size: 0.76vw; color: #6E6E6E; line-height: 1.35; }
+/* mini shell previews drawn in CSS so the tile shows the real skeleton */
+.ei-mini { display: flex; width: 100%; height: 7.5vh; border-radius: 0.4vh; overflow: hidden;
+  border: 0.1vh solid #E4E4E4; background: #F0F2F5; }
+.ei-mini-side { width: 20%; background: #293E40; }
+.ei-mini-col { flex: 1; display: flex; flex-direction: column; }
+.ei-mini-top { height: 22%; background: #293E40; }
+.ei-mini-content { flex: 1; margin: 8%; background: #FFFFFF; border-radius: 0.3vh; border: 0.1vh solid #E4E4E4; }
+.ei-mini-chat { width: 26%; background: #E7F5EF; border-left: 0.1vh solid #CDE8DD; }
+.ei-mini-grid { flex: 1; margin: 8%; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
+  gap: 6%; }
+.ei-mini-grid > i { background: #FFFFFF; border-radius: 0.2vh; border: 0.1vh solid #E4E4E4; }
+.ei-mini-split { flex: 1; margin: 8%; display: grid; grid-template-columns: 1fr 1fr; gap: 6%; }
+.ei-mini-split > i { background: #FFFFFF; border-radius: 0.2vh; border: 0.1vh solid #E4E4E4; }
+.ei-chip-row { display: flex; flex-wrap: wrap; gap: 0.4vh 0.4vw; }
+.ei-chip { display: inline-flex; align-items: center; gap: 0.4vw; background: #EEF3F1; color: #0B5B44;
+  border-radius: 1vh; padding: 0.35vh 0.7vw; font-size: 0.76vw; font-weight: 600; }
+.ei-chip b { font-weight: 700; }
+.ei-wiz-input { width: 100%; box-sizing: border-box; padding: 0.9vh 0.8vw; border: 0.1vh solid #DCDCDC;
+  border-radius: 0.5vh; font-size: 0.9vw; font-family: inherit; color: #121212; resize: vertical; min-height: 9vh; }
+.ei-wiz-input.one { min-height: 0; }
+.ei-wiz-actions { display: flex; gap: 0.6vw; align-items: center; margin-top: auto; padding-top: 0.6vh; }
+.ei-btn-primary { background: #00BF6F; color: #FFFFFF; border: none; border-radius: 0.5vh; padding: 0.95vh 1.3vw;
+  font-family: inherit; font-weight: 700; font-size: 0.86vw; cursor: pointer; transition: background .12s; }
+.ei-btn-primary:hover { background: #00A961; }
+.ei-btn-primary:disabled { opacity: 0.45; cursor: default; }
+.ei-btn-ghost { background: transparent; color: #6E6E6E; border: none; font-family: inherit; font-weight: 700;
+  font-size: 0.82vw; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35vw; }
+.ei-btn-ghost:hover { color: #00895E; }
+.ei-btn-ghost svg { transform: rotate(180deg); }
+.ei-summary { display: flex; flex-direction: column; gap: 0.6vh; }
+.ei-summary-row { display: flex; gap: 0.6vw; font-size: 0.86vw; }
+.ei-summary-row .k { color: #6E6E6E; min-width: 6vw; }
+.ei-summary-row .v { color: #121212; font-weight: 600; }
+.ei-result-tile { display: flex; align-items: center; gap: 0.9vw; padding: 1.3vh 1vw; border: 0.12vh solid #9FDCC3;
+  border-radius: 0.8vh; background: linear-gradient(180deg,#F3FCF8,#EAF7F1); cursor: pointer; text-decoration: none;
+  transition: box-shadow .12s, transform .12s; }
+.ei-result-tile:hover { box-shadow: 0 0.7vh 2vh rgba(0,137,94,0.18); transform: translateY(-0.2vh); }
+.ei-result-ic { width: 2.4vw; height: 2.4vw; border-radius: 0.6vh; background: #00BF6F; display: flex;
+  align-items: center; justify-content: center; flex-shrink: 0; }
+.ei-result-tx { display: flex; flex-direction: column; gap: 0.2vh; min-width: 0; }
+.ei-result-tt { font-size: 0.92vw; font-weight: 700; color: #0B5B44; }
+.ei-result-sub { font-size: 0.78vw; color: #3B6B58; word-break: break-all; }
+
 /* ── Assistant on-device model status (read-only indicator, not a control) ────── */
 .ei-asst-status { margin-left: auto; flex-shrink: 0; align-self: center; white-space: nowrap;
   padding: 0.3vw 0.6vw; border-radius: 1vw; background: rgba(0,191,111,0.18);

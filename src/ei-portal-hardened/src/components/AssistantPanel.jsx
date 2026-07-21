@@ -5,6 +5,7 @@ import { ASSISTANT_CONFIGS } from '../data.js';
 import { FLOWS } from '../flows.js';
 import { loadModel, generateChat, backendOf } from '../model.js';
 import { buildSystem } from '../collab.js';
+import NewSolutionWizard from './NewSolutionWizard.jsx';
 
 // The Enterprise Assistant is the ONLY model that speaks to the user. It ALWAYS generates on-device
 // (WebGPU, with a byte-identical pure-JS fallback); this is the default and only chat engine, not an
@@ -237,9 +238,14 @@ export default function AssistantPanel({ sectionId }) {
       </div>
 
       {inFlow ? (
-        <FlowPanel key={activeFlow + ':' + flowNonce} flowId={activeFlow}
-          callServer={callServer} solutionName={'operations-intelligence-new'}
-          onExit={function () { dispatch({ type: 'END_FLOW' }); }} />
+        activeFlow === 'new_solution_development' ? (
+          <NewSolutionWizard key={activeFlow + ':' + flowNonce}
+            callServer={callServer} onExit={function () { dispatch({ type: 'END_FLOW' }); }} />
+        ) : (
+          <FlowPanel key={activeFlow + ':' + flowNonce} flowId={activeFlow}
+            callServer={callServer} solutionName={'operations-intelligence-new'}
+            onExit={function () { dispatch({ type: 'END_FLOW' }); }} />
+        )
       ) : (
         <div className="ei-asst-messages">
           {messages.length === 0 && <Welcome name={cfg.name} tagline={cfg.tagline} />}
