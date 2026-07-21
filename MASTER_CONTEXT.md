@@ -226,10 +226,23 @@ Each built solution: house style + its own security bridge. Four-model collabora
   interactive* client assistant is NOT viable in pure JS. Making it usable needs WebGPU kernels
   (matmul/attention/layernorm WGSL) — a large build that needs a real GPU to validate (headless has
   none) — and ideally instruction-tuning (base models continue text, they do not follow instructions).
-  DECISION PENDING with the user: (a) build WebGPU now, (b) ship the slow pure-JS path as an explicit
-  opt-in while the default stays the fast server-routed guidance, or (c) rethink transport/hosting.
-  Until then the live Assistant keeps the fast server-routed replies; the client pipeline is committed
-  and drops in the moment acceleration lands.
+  User chose WebGPU. **WEBGPU ACCELERATION — BUILT + VERIFIED + INTEGRATED + DEPLOYED (2026-07-21),
+  built by the BOX CLAUDE AGENT (first correct use of the orchestration model).** `src/vendor/webgpu_infer.js`
+  = WGSL compute kernels (embed, layernorm, int8-dequant matmul, exact-erf GELU, residual add, causal
+  MHA, tied logits) with `createSession/forward/generate`; uses `navigator.gpu` in the browser, no
+  runtime deps. VERIFIED numerically against the pure-JS reference via `@kmamal/gpu` (Dawn + Mesa
+  lavapipe software Vulkan on the box): **worst logit diff 1.907e-5 on the real technology model, all
+  next-token argmaxes match, 8-token continuations byte-identical**; **9-15x faster than pure JS even
+  on software Vulkan** (~310-707ms/tok vs ~5.3s), far faster expected on real GPU. Evidence in repo
+  `src/ei-portal-hardened/webgpu/parity_report.md` + `verify_result.json`. `src/model.js` picks WebGPU
+  when `navigator.gpu` exists, else the pure-JS engine (never breaks). `AssistantPanel.jsx` has an
+  opt-in **"On device"** toggle (default OFF → fast server-routed guidance): ON loads the technology
+  model through the bridge (progress) and streams real generated tokens, tagged with the backend used.
+  Deployed to `/ei` (client bundle 447KB) and browser-verified (toggle renders, default path intact).
+  KNOWN GAPS (from the box agent, honest): no KV cache (v1; per-token cost grows with context),
+  per-byte int8 unpack (not u32-vectorized, ~2-4x left), MAX_CTX=2048 compile bound, and the 339MB /
+  119-bridge-call LOAD transport is still the first-load bottleneck (next optimization). Real-GPU speed
+  runs on the user's hardware (headless has no GPU; correctness proven via Dawn).
 - **Enterprise Intelligence portal (Phase 2, deployed + browser-verified 2026-07-21)** at
   `https://dev283926.service-now.com/ei`. Records in `x_intelligence`: `sp_widget id=ei-portal-app`
   (template `<div id="ei-root"></div>` only; client_script = thin Angular bootstrap that inlines the

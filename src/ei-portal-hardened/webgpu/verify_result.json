@@ -1,0 +1,68 @@
+{
+  "synth": {
+    "worst": 0.00003814697265625,
+    "allMatch": true
+  },
+  "real": [
+    {
+      "prompt": "How do I create an ACL",
+      "ids": [
+        4737,
+        876,
+        409,
+        772,
+        305,
+        1627
+      ],
+      "maxAbsDiff": 0.00001239776611328125,
+      "argmaxMatch": true,
+      "refCont": " experience by selecting Create > Experience .\n",
+      "gpuCont": " experience by selecting Create > Experience .\n",
+      "tokensMatch": true,
+      "tRef": 3479,
+      "tGpu": 411,
+      "tGenRef": 42299,
+      "tGenGpu": 4547,
+      "perTokMs": [
+        415,
+        404,
+        506,
+        603,
+        603,
+        603,
+        707,
+        706
+      ]
+    },
+    {
+      "prompt": "A business rule is",
+      "ids": [
+        38,
+        1468,
+        1557,
+        357
+      ],
+      "maxAbsDiff": 0.000019073486328125,
+      "argmaxMatch": true,
+      "refCont": " available in secure contexts (HTTPS),",
+      "gpuCont": " available in secure contexts (HTTPS),",
+      "tokensMatch": true,
+      "tRef": 2230,
+      "tGpu": 314,
+      "tGenRef": 33185,
+      "tGenGpu": 3633,
+      "perTokMs": [
+        310,
+        303,
+        402,
+        404,
+        503,
+        504,
+        603,
+        604
+      ]
+    }
+  ],
+  "worstReal": 0.000019073486328125,
+  "allMatchReal": true
+}

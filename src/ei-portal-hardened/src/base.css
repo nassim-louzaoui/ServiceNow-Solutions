@@ -1580,3 +1580,18 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; }
   color: rgba(255,255,255,0.7); transition: background 0.15s, color 0.15s; padding: 0;
 }
 .ei-help-btn:hover { background: rgba(255,255,255,0.1); color: #FFFFFF; }
+
+/* ── Assistant on-device toggle + backend tag ────────────────────────────────── */
+.ei-asst-mode {
+  margin-left: auto; flex-shrink: 0; align-self: center;
+  padding: 0.35vw 0.7vw; border-radius: 1vw; border: 0.08vw solid rgba(255,255,255,0.35);
+  background: transparent; color: rgba(255,255,255,0.85); font-family: inherit;
+  font-size: 0.7vw; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background .15s, color .15s, border-color .15s;
+}
+.ei-asst-mode:hover { border-color: #00BF6F; color: #FFFFFF; }
+.ei-asst-mode.on { background: #00BF6F; border-color: #00BF6F; color: #FFFFFF; }
+.ei-chat-tag {
+  display: block; margin-top: 0.4vh; font-size: 0.62vw; font-weight: 700; letter-spacing: 0.03vw;
+  text-transform: uppercase; color: #00895E; opacity: 0.85;
+}
+.ei-chat-msg.user .ei-chat-tag { color: rgba(255,255,255,0.85); }
