@@ -259,23 +259,33 @@ Each built solution: house style + its own security bridge. Four-model collabora
   Deployed to `/ei` (client bundle 447KB) and browser-verified (toggle renders, default path intact).
   KNOWN GAPS (from the box agent, honest): no KV cache (v1; per-token cost grows with context),
   per-byte int8 unpack (not u32-vectorized, ~2-4x left), MAX_CTX=2048 compile bound.
-- **BROWSER E2E VERIFIED (2026-07-21) — the on-device model LOADS + GENERATES real text in a real
-  browser.** Fixed the tab-hang: added a batched `chunks` bridge action (native `indexOf` base64
-  extraction, ~8 chunks/call) + `model.js` batched fetch with event-loop yields + LAZY load on first
-  message (not on mount). Result on the box's Chrome-for-Testing 148 (Playwright/CDP): closed-loop
-  catalog all 3 items pass; the technology model streams in cleanly (`Loading 0%..94%..On device`, tab
-  responsive) and GENERATES the byte-correct domain text (`"How do I create an ACL" -> " experience by
-  selecting"`). 17/19 checks pass. TWO honest gaps: (1) **load is ~15 min** for 339MB (Rhino/Service
-  Portal transport; a binary/attachment delivery would be the real speedup); (2) **generation ran on
-  the JS backend, not WebGPU**, because `navigator.gpu` is present on the HTTPS page but
-  `requestAdapter()` returns null under headless software Chrome driven by Playwright/CDP (no real GPU
-  + a Playwright automation quirk — verified across all flag combos). The app path is correct
-  (`navigator.gpu` present -> WebGPU `createSession` -> else JS), so on real user hardware with a GPU it
-  uses WebGPU automatically; WebGPU correctness+speed is separately proven on the box via Node/Dawn.
-  NOTE: 4 big models resident in one browser tab (2.5GB total, ~15min each) is NOT physically feasible;
-  the collaboration must keep the Enterprise Assistant model as the single resident voice with the
-  other models consulted via the trained `<|system|>` channel / targeted calls, never a 4-model
-  concurrent browser load.
+- **PDI /ei BROWSER E2E — FULLY VERIFIED ON WEBGPU (2026-07-21).** 19/19 checks pass in the live
+  portal on the box's Chrome-for-Testing 148: WebGPU adapter binds (`arch: swiftshader`), all 3
+  closed-loop catalog items (open/branch/back), the **Enterprise Assistant** model loads and
+  **generates on the WebGPU path** (`final = "On device, GPU"`, not the JS fallback), no page errors.
+  THREE root causes found and fixed, each proven by re-test:
+  1. **WebGPU adapter returned null because Chrome ran as ROOT** — the GPU process could not load
+     `libGLESv2.so` from eiagent's Playwright cache (`Permission denied`) and exited, so no adapter.
+     FIX: run Chrome **as user eiagent** (the E2E launches via `runuser -l eiagent`; the mailbox
+     listener is root). Adapter then binds reliably (22/22 in the standalone probe).
+  2. **Load was ~40 min for the 977MB assistant model** because the Service Portal data broker
+     (`$scope.server.get`) SERIALISES every request through one channel — batching alone did not
+     parallelise. FIX: the client controller now also exposes `bridge.post` (a direct `fetch()` to
+     `/api/now/sp/widget/ei-portal-app` with `X-UserToken=g_ck`), and `model.js` loads weights with
+     8 requests in flight, 4 chunks/call (~15 MB, under the widget REST response cap; count>=8 is
+     truncated to empty). Instance is throughput-bound ~4 MB/s → **assistant loads in ~1-2.7 min**.
+  3. **Hardening emitted `Cannot assign to read only property 'toString'`** — freezing
+     `Object.prototype` makes inherited `toString` non-writable, so host/library `inst.toString = fn`
+     throws. FIX: `Object.preventExtensions` instead of `Object.freeze` (blocks new-property
+     pollution, keeps methods writable). Final E2E `errors: []`.
+  Generation speed is the honest remaining cost: on the box's SOFTWARE WebGPU (SwiftShader browser /
+  lavapipe Dawn) the 706M assistant runs ~7-8 s/token and the first forward pays a multi-minute WGSL
+  pipeline compile — a worst-case GPU-less box; real notebook iGPUs (the target env) accelerate this
+  far more. No KV cache yet (per-token cost grows with context).
+  NOTE: 4 big models resident in one browser tab (2.5GB) is NOT feasible; the collaboration keeps the
+  Enterprise Assistant as the single resident voice, the other three consulted via the trained
+  `<|system|>` channel (`src/collab.js` routes Flagship/Integration/Technology grounding into one
+  hidden system primer; `generateChat` uses the real chat tokens with `<|endoftext|>` stop).
 - **Enterprise Intelligence portal (Phase 2, deployed + browser-verified 2026-07-21)** at
   `https://dev283926.service-now.com/ei`. Records in `x_intelligence`: `sp_widget id=ei-portal-app`
   (template `<div id="ei-root"></div>` only; client_script = thin Angular bootstrap that inlines the
