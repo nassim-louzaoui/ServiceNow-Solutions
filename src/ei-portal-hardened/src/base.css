@@ -1567,4 +1567,16 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; }
 
 /* ── Body row (content + assistant rail) — the flex container the shell needs ─── */
 .ei-body { flex: 1 1 auto; min-height: 0; display: flex; overflow: hidden; }
-.ei-assistant-panel { width: 30%; min-width: 22vw; max-width: 34vw; }
+/* Assistant rail widened by ~30% (from 30% to 40% of the body). */
+.ei-assistant-panel { width: 40%; min-width: 30vw; max-width: 44vw; }
+
+/* Catalog descriptions are single line: they never wrap and clip with an ellipsis. */
+.ei-acc-desc, .ei-catalog-row-desc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Header help icon — the only control in the right corner, tuned for the dark header. */
+.ei-help-btn {
+  width: 2.16vw; height: 2.16vw; display: flex; align-items: center; justify-content: center;
+  background: transparent; border: none; border-radius: 0.35vw; cursor: pointer;
+  color: rgba(255,255,255,0.7); transition: background 0.15s, color 0.15s; padding: 0;
+}
+.ei-help-btn:hover { background: rgba(255,255,255,0.1); color: #FFFFFF; }

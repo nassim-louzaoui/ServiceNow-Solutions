@@ -11,8 +11,6 @@ export default function Sidebar({ navItems, activeId, initData }) {
   var userName = idata.userName || 'User';
   var userRole = idata.userRole || 'member';
   var userInits = idata.userInitials || initials(userName);
-  var requestCount = idata.requestCount || 0;
-  var instanceUrl = idata.instanceUrl || '/sp';
 
   return (
     <aside className="ei-sidebar">
@@ -38,29 +36,6 @@ export default function Sidebar({ navItems, activeId, initData }) {
           );
         })}
       </nav>
-
-      <div className="ei-sb-bottom">
-        <a
-          className="ei-sb-portal-btn"
-          href={instanceUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <OIIcon name="open_in_new" size={15} fill="currentColor" />
-          Open Service Portal
-        </a>
-
-        <button
-          className="ei-requests-btn"
-          onClick={function () { dispatch({ type: 'TOGGLE_REQUESTS' }); }}
-        >
-          <span className="ei-nav-icon"><OIIcon name="inbox" size={16} fill="currentColor" /></span>
-          <span className="ei-nav-label">My Requests</span>
-          {requestCount > 0 && (
-            <span className="ei-req-badge">{requestCount}</span>
-          )}
-        </button>
-      </div>
 
       <div className="ei-sb-footer">
         <div className="ei-user-avatar">{userInits}</div>

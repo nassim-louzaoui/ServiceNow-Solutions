@@ -22,14 +22,14 @@ export const CATALOG = [
     id: 'enterprise_solutions',
     label: 'Enterprise Solutions',
     color: '#00BF6F',
-    desc: 'Develop and maintain scoped web applications, each with its own house style and security bridge.',
+    desc: 'Develop and maintain scoped web applications.',
     items: [
       { id: 'new_solution_development', name: 'New Solution Development',
-        desc: 'Design and build a new web application. The Enterprise Assistant gathers your requirements, previews live layouts, and the models build it into Enterprise Solutions.' },
+        desc: 'Design and build a new web application.' },
       { id: 'existing_solution_maintenance', name: 'Existing Solution Maintenance',
-        desc: 'Adjust an application already in production. Choose the application, then define changes to its modules, content, data, or layout under impact analysis.' },
+        desc: 'Adjust an application already in production.' },
       { id: 'module_bridge_maintenance', name: 'Module Bridge Maintenance',
-        desc: 'Inspect and tune an application bridge. Review the capabilities, methods, and integrations in scope, and adjust them under least privilege.' },
+        desc: 'Inspect and tune an application bridge under least privilege.' },
     ],
   },
 ];
