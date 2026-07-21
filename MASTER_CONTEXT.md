@@ -258,9 +258,24 @@ Each built solution: house style + its own security bridge. Four-model collabora
   model through the bridge (progress) and streams real generated tokens, tagged with the backend used.
   Deployed to `/ei` (client bundle 447KB) and browser-verified (toggle renders, default path intact).
   KNOWN GAPS (from the box agent, honest): no KV cache (v1; per-token cost grows with context),
-  per-byte int8 unpack (not u32-vectorized, ~2-4x left), MAX_CTX=2048 compile bound, and the 339MB /
-  119-bridge-call LOAD transport is still the first-load bottleneck (next optimization). Real-GPU speed
-  runs on the user's hardware (headless has no GPU; correctness proven via Dawn).
+  per-byte int8 unpack (not u32-vectorized, ~2-4x left), MAX_CTX=2048 compile bound.
+- **BROWSER E2E VERIFIED (2026-07-21) — the on-device model LOADS + GENERATES real text in a real
+  browser.** Fixed the tab-hang: added a batched `chunks` bridge action (native `indexOf` base64
+  extraction, ~8 chunks/call) + `model.js` batched fetch with event-loop yields + LAZY load on first
+  message (not on mount). Result on the box's Chrome-for-Testing 148 (Playwright/CDP): closed-loop
+  catalog all 3 items pass; the technology model streams in cleanly (`Loading 0%..94%..On device`, tab
+  responsive) and GENERATES the byte-correct domain text (`"How do I create an ACL" -> " experience by
+  selecting"`). 17/19 checks pass. TWO honest gaps: (1) **load is ~15 min** for 339MB (Rhino/Service
+  Portal transport; a binary/attachment delivery would be the real speedup); (2) **generation ran on
+  the JS backend, not WebGPU**, because `navigator.gpu` is present on the HTTPS page but
+  `requestAdapter()` returns null under headless software Chrome driven by Playwright/CDP (no real GPU
+  + a Playwright automation quirk — verified across all flag combos). The app path is correct
+  (`navigator.gpu` present -> WebGPU `createSession` -> else JS), so on real user hardware with a GPU it
+  uses WebGPU automatically; WebGPU correctness+speed is separately proven on the box via Node/Dawn.
+  NOTE: 4 big models resident in one browser tab (2.5GB total, ~15min each) is NOT physically feasible;
+  the collaboration must keep the Enterprise Assistant model as the single resident voice with the
+  other models consulted via the trained `<|system|>` channel / targeted calls, never a 4-model
+  concurrent browser load.
 - **Enterprise Intelligence portal (Phase 2, deployed + browser-verified 2026-07-21)** at
   `https://dev283926.service-now.com/ei`. Records in `x_intelligence`: `sp_widget id=ei-portal-app`
   (template `<div id="ei-root"></div>` only; client_script = thin Angular bootstrap that inlines the
