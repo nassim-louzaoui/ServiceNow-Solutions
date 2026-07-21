@@ -198,6 +198,22 @@ Each built solution: house style + its own security bridge. Four-model collabora
   `EnterpriseAssistantModel.respond(text)`; `EnterpriseIntelligenceOperations` `.capabilities()/.describe(table)`.
   (Note: `_kstore/_mesh/_capk` grounding return null since the standalone knowledge SIs were removed
   in Phase 0 — the real generation is the four neural models running client-side.)
+- **CLIENT-SIDE INFERENCE — FUNDAMENTAL PROVEN, PERFORMANCE IS THE OPEN FORK (2026-07-21).** The
+  real pipeline is built + bundle-ready in the portal: `src/vendor/infer.js` (the box-validated
+  `EI_client_infer` forward pass, UMD→ESM), `src/vendor/tokenizer.js` (byte-level BPE), `src/model.js`
+  (bridge-driven loader `manifest`+`tokenizer`+`chunk` → `buildModel`, plus streaming greedy `generate`).
+  PROVEN in Node against the exact bridge-served format (see `CLIENT_INFERENCE_PROOF.txt`): technology
+  model (94 tensors, 119 chunks, 339MB, 15L/1280d/16k vocab) builds in 1.9s and produces coherent
+  domain text ("How do I create an ACL" → " experience by selecting Create > Experience …"; "A business
+  rule is" → " available in secure contexts (HTTPS) …"). **HARD CONSTRAINT: pure JS is ~6.3s/token**
+  (no WebGPU kernel in the engine) and the smallest model is 339MB over 119 bridge calls — so a *fast
+  interactive* client assistant is NOT viable in pure JS. Making it usable needs WebGPU kernels
+  (matmul/attention/layernorm WGSL) — a large build that needs a real GPU to validate (headless has
+  none) — and ideally instruction-tuning (base models continue text, they do not follow instructions).
+  DECISION PENDING with the user: (a) build WebGPU now, (b) ship the slow pure-JS path as an explicit
+  opt-in while the default stays the fast server-routed guidance, or (c) rethink transport/hosting.
+  Until then the live Assistant keeps the fast server-routed replies; the client pipeline is committed
+  and drops in the moment acceleration lands.
 - **Enterprise Intelligence portal (Phase 2, deployed + browser-verified 2026-07-21)** at
   `https://dev283926.service-now.com/ei`. Records in `x_intelligence`: `sp_widget id=ei-portal-app`
   (template `<div id="ei-root"></div>` only; client_script = thin Angular bootstrap that inlines the
