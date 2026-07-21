@@ -152,10 +152,26 @@ Each built solution: house style + its own security bridge. Four-model collabora
 
 ## 2. Control chain / infrastructure (how to reach everything)
 
-- **Control container (me)** → **OCI box `ei-builder` (eiagent)** via object-storage mailbox →
-  (H100 GPU was reached from the box; now deleted).
-- **Mailbox runbox:** `bash /root/.oci/runbox.sh <script.sh> <maxpoll>` writes the script to the
-  box, box executor `eic.sh` (systemd, runs as root) runs it, output returns. One command at a time.
+- **Control container (me) = ORCHESTRATOR.** **OCI box `ei-builder` = the autonomous BUILD AGENT:
+  it runs Claude Code CLI** (`/usr/local/bin/claude`, `@anthropic-ai/claude-code`, authed via
+  `CLAUDE_CODE_OAUTH_TOKEN` in `/home/eiagent/.claude_env`; charter at `/home/eiagent/ei/CLAUDE.md`).
+  **THE INTENDED MODEL: I hand the box's Claude high-level build MISSIONS; it does the heavy local
+  work (16 vCPU / 64 GB, open internet, can install anything, Node/Dawn WebGPU, training, packing,
+  code) under `~/ei/out`; I review its deliverables and perform the PRIVILEGED actions it cannot
+  (PDI deploys, object storage, git push).** The box Claude has NO PDI/cloud creds by design; it
+  requests privileged actions via `~/ei/broker-outbox/req-*.json`. Do NOT hand-run the box's build
+  work through one-off mailbox scripts — DELEGATE it to the box Claude.
+- **Launching the box Claude (must run AS user `eiagent`, NOT root):** the mailbox executor runs as
+  root and Claude refuses `--dangerously-skip-permissions` as root. Pattern:
+  `runuser -l eiagent -c 'cd ~/ei && source ~/.claude_env && export PATH="$PATH:/usr/local/bin" &&
+  nohup claude -p "$(cat ~/ei/mission_X.txt)" --dangerously-skip-permissions --verbose > ~/ei/status/X.log 2>&1 &'`.
+  Ensure any files I pre-create are `chown eiagent:eiagent` (root-owned files block eiagent writes).
+  The agent appends progress to `~/ei/status/*_progress.md` and writes a DONE marker when finished;
+  poll those + `~/ei/out/` via the mailbox. `~/ei/run_mission.sh` is the reference launcher.
+- **Mailbox runbox (for MY orchestration commands, not for build work):** `bash /root/.oci/runbox.sh
+  <script.sh> <maxpoll>` writes the script to the box, executor `eic.sh` (systemd, runs as ROOT)
+  runs it, output returns. One command at a time. Use it to launch/poll the box Claude and to run
+  my privileged deploys — not to hand-build what the box Claude should build.
 - **PAR URL (object storage `ei-control` bucket, read+write, plain curl, no creds):**
   `https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/-fvZyjo7sfHJLLt6pvb_7QxVPQldq-zvZlxgL0Jg56ivCXiLknA3mSeKBz8uw3Wq/n/fryrxfdwttez/b/ei-control/o/`
   Layout: `models/` (13.3GB int8 bundles + model.pt), `backup/` (code/corpora/runtime tgz),
