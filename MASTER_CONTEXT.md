@@ -337,12 +337,30 @@ Each built solution: house style + its own security bridge. Four-model collabora
   Assistant Model — `manifest`(259 chunks) + `tokenizer` via the public `x_intelligence`
   runtime, `chunks` via inline `sys_script_include` reads. So oin (x_solutions) delegates to the
   Enterprise Assistant Model (x_intelligence) through its dedicated bridge.
-  FlowPanel wires `action:'build'/'apply'` options to `build_solution`/`apply_change` and reports the
-  result in place (live URL / applied). Requirements: `docs/design/REQUIREMENTS_operations_intelligence.md`.
-  PENDING enhancements (the flows are still a minimal scaffold): richer New Solution Development
-  (live layout previews, module definition, access control, plan+demo per FACTORY_AND_CATALOG.md),
-  real Existing Solution Maintenance + Module Bridge Maintenance, and least-privilege per-app bridge.
-  Scripts: scratchpad `create_factory.sh`, `oin_user_build.py`, `rebuild_oin2.sh`.
+  Requirements: `docs/design/REQUIREMENTS_operations_intelligence.md`.
+  INTERACTIVE FACTORY (2026-07-21, all browser-verified):
+  - **New Solution Development** is a tile driven wizard (`NewSolutionWizard.jsx`): gather name +
+    purpose, the Assistant restates its understanding to confirm/refine, choose a LAYOUT from tiles
+    with live CSS shell previews, define MODULES and pick each module's CONTENT from tiles, set
+    access, review, build. Ends with a CLICKABLE RESULT TILE that opens the new app in a new tab.
+  - **Spec-driven built apps:** the wizard's spec (title, layout, modules, access) is passed to
+    `build_solution` -> factory bakes `var APP_SPEC = {...}` into the built app's server; `init`
+    returns it as `data.appSpec`. The SHARED bundle renders THAT app's nav modules, per-module content
+    (`ContentSection.jsx`: Service Catalog / Dashboard / Insights / Record workspace / Knowledge /
+    Assistant panel), layout (non ops layouts hide the Assistant rail), and brand (sidebar + header
+    from the app title). No appSpec (the /ei factory) -> default shell. Verified: built "Field
+    Operations" with modules Workspace/Metrics/Queue rendered its own branded shell + content.
+  - **Existing Solution Maintenance** is a wizard (`ExistingSolutionWizard.jsx`): live app picker
+    (`list_solutions`) -> Add a module (name + content tiles) -> `apply_change` -> factory
+    `addModule` edits the app's baked spec for real -> the app renders the new module. Verified:
+    added a Reports (Insights) module to Operations Intelligence; the app then shows it.
+  - **Least privilege per app:** the shared server gates build/list/describe/apply behind
+    `IS_FACTORY = !APP_SPEC`. Verified: a built app's `build_solution` returns "Unknown action",
+    its model bridge (manifest 259 chunks) still works, and `describe_bridge` reports only its own
+    caps. `EISolutionFactory` methods: build/addModule/listSolutions/describeBridge/remove.
+  PENDING: real layout reshaping for focus/grid/split beyond nav+content; Module Bridge Maintenance
+  grant/revoke are still guided stubs; a fresh everestdev requirements pass (no box creds for it).
+  Scripts: scratchpad `create_factory.sh`, `wizard_e2e.py`, `build_spec_e2e.py`, `maint2_e2e.py`.
 
 ### OCI box `/home/eiagent/ei`
 - Full pipeline source: `crawler/` (corpus + BM25 + graph), `out/` (deploy=BM25 shards,

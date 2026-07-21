@@ -80,8 +80,12 @@ EISolutionFactory.prototype = {
     var w = new GlideRecord('sp_widget');
     if (!w.get('id', name + '-app')) { return { status: 'error', error: 'app not found' }; }
     var script = '' + w.getValue('script');
-    var caps = [], re = /a === '([a-z_]+)'/g, m;
-    while ((m = re.exec(script))) { caps.push(m[1]); }
+    var caps = [], seen = {}, re = /a === '([a-z_]+)'/g, m;
+    while ((m = re.exec(script))) { if (!seen[m[1]]) { seen[m[1]] = 1; caps.push(m[1]); } }
+    // A built app (has a non null baked spec) does not expose the factory or maintenance actions.
+    var isBuilt = script.indexOf('var APP_SPEC = ') > -1 && script.indexOf('var APP_SPEC = null') < 0;
+    var factoryOnly = { build_solution: 1, list_solutions: 1, describe_bridge: 1, apply_change: 1 };
+    if (isBuilt) { caps = caps.filter(function (c) { return !factoryOnly[c]; }); }
     var model = script.indexOf('EnterpriseIntelligenceRuntime') > -1 || script.indexOf("'chunks'") > -1;
     return { status: 'ok', name: name, capabilities: caps, reaches_model: model,
       model_ops: ['manifest', 'tokenizer', 'chunks', 'assistant_query'] };
