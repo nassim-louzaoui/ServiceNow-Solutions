@@ -13,7 +13,9 @@ import { buildSystem } from '../collab.js';
 // addresses the user. The model loads through the bridge on the first message and stays running for
 // the session; every message is generated on-device.
 var CHAT_MODEL = 'assistant';
-var CHAT_TOKENS = 48;
+// The Assistant reasons privately then replies (Reasoning: / Reply:), so the budget must cover both
+// the hidden reasoning and a full visible reply; <|endoftext|> stops it as soon as the reply ends.
+var CHAT_TOKENS = 96;
 
 // Session-wide loaded model state, so it stays running across section changes and remounts.
 var _model = { st: null, loading: null, phase: 'idle', pct: 0 };
@@ -123,10 +125,14 @@ export default function AssistantPanel({ sectionId }) {
     };
     var done = function () { setBusy(false); };
     // Consult the specialists behind the scenes, then let the Assistant answer as the single voice.
+    // The model reasons privately first; show a thinking state until its reply begins, then stream
+    // only the reply (its reasoning is never shown to the user).
     var collab = buildSystem(text, sectionId);
     ensureModel(bridgeRef.current, onStatus).then(function (st) {
       patchMsg(mid, '');
-      return generateChat(st, collab.system, text, CHAT_TOKENS, function (soFar) { patchMsg(mid, soFar); });
+      return generateChat(st, collab.system, text, CHAT_TOKENS, function (reply, started) {
+        patchMsg(mid, started ? reply : '…');
+      });
     })['catch'](function () {
       // Only if the on-device model cannot load at all, fall back to the server bridge reply.
       return callServer({ action: 'assistant_query', section: sectionId, query: text }).then(function (res) {

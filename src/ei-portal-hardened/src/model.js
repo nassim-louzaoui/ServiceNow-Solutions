@@ -120,12 +120,27 @@ function pickArgmax(st, lg) {
   return st.kind === 'webgpu' ? EIWebGPUInfer.argmax(lg) : EIClientInfer.argmax(lg);
 }
 
+// The Enterprise Assistant is trained to answer in two parts:
+//   Reasoning: <its private thinking about what the user needs>
+//   Reply:
+//   <the user facing answer>
+// The reasoning is the model consulting itself and must never be shown; only the reply reaches the
+// user. replyOf() returns the visible reply, and whether the reply has started yet (so the panel can
+// show a thinking state while the model reasons). If the model ever answers without the markers, the
+// whole text is treated as the reply.
+function replyOf(text) {
+  var m = /(^|\n)\s*Reply\s*:\s*/i.exec(text);
+  if (m) return { visible: text.slice(m.index + m[0].length).replace(/^\s+/, ''), started: true };
+  if (/(^|\n)\s*Reasoning\s*:/i.test(text)) return { visible: '', started: false };
+  return { visible: text.replace(/^\s+/, ''), started: true };
+}
+
 // Chat generation, single voice. Builds the turn sequence
 //   <|system|> systemText <|user|> userText <|assistant|>
 // with the special token ids interleaved (the tokenizer does not encode the markers itself), then
-// generates greedily up to maxTokens, streaming the decoded assistant text via onToken(textSoFar).
-// Generation stops early at <|endoftext|> so replies end naturally. Same code path for WebGPU and
-// the pure JS fallback, so the on device answer is identical whichever backend is active.
+// generates greedily up to maxTokens. Streams ONLY the visible reply via onToken(replyText, started)
+// -- the model's Reasoning section stays hidden. Stops early at <|endoftext|>. Same code path for
+// WebGPU and the pure JS fallback, so the on device answer is identical whichever backend is active.
 export function generateChat(st, systemText, userText, maxTokens, onToken) {
   var SYS = special(st, '<|system|>', null), USR = special(st, '<|user|>', null);
   var ASST = special(st, '<|assistant|>', null), EOS = special(st, '<|endoftext|>', 1);
@@ -138,15 +153,16 @@ export function generateChat(st, systemText, userText, maxTokens, onToken) {
   if (SYS === null && USR === null && ASST === null) ids = st.tok.encode(userText);
 
   var produced = [], block = blockOf(st), n = 0;
+  function emit() { var r = replyOf(st.tok.decode(produced)); if (onToken) onToken(r.visible, r.started); return r; }
   return new Promise(function (resolve, reject) {
     function step() {
-      if (n >= maxTokens) { resolve(st.tok.decode(produced)); return; }
+      if (n >= maxTokens) { resolve(emit().visible); return; }
       var ctx = ids.length > block ? ids.slice(ids.length - block) : ids;
       forwardCtx(st, ctx).then(function (lg) {
         var next = pickArgmax(st, lg);
-        if (next === EOS) { resolve(st.tok.decode(produced)); return; }
+        if (next === EOS) { resolve(emit().visible); return; }
         ids.push(next); produced.push(next); n++;
-        if (onToken) onToken(st.tok.decode(produced));
+        emit();
         setTimeout(step, 0);
       })['catch'](reject);
     }
