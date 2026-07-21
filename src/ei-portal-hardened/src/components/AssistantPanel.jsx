@@ -100,11 +100,8 @@ export default function AssistantPanel({ sectionId }) {
     if (bottomRef.current) bottomRef.current.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // On-device model is always running: start loading it as soon as the Assistant mounts.
-  useEffect(function () {
-    ensureModel(bridgeRef.current, function () { force(function (x) { return x + 1; }); })['catch'](function () {});
-  }, []);
-
+  // On-device is the default (only) chat engine. It loads on the first message and then stays
+  // running for the session (loading 339MB on mount would freeze the portal for catalog-only use).
   function patchMsg(id, text) {
     setMessages(function (prev) { return prev.map(function (m) { return m.id === id ? { id: m.id, role: m.role, text: text } : m; }); });
   }
@@ -137,7 +134,7 @@ export default function AssistantPanel({ sectionId }) {
   var inFlow = activeFlow && FLOWS[activeFlow];
   var modelTag = _model.phase === 'ready'
     ? (backendOf(CHAT_MODEL) === 'webgpu' ? 'On device, GPU' : 'On device')
-    : (_model.phase === 'loading' ? 'Loading model ' + _model.pct + '%' : (_model.phase === 'gpu' ? 'Preparing' : (_model.phase === 'error' ? 'Model offline' : 'Starting')));
+    : (_model.phase === 'loading' ? 'Loading model ' + _model.pct + '%' : (_model.phase === 'gpu' ? 'Preparing' : (_model.phase === 'error' ? 'Model offline' : 'On device')));
 
   return (
     <div className="ei-assistant-panel">
