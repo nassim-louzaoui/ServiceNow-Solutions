@@ -87,6 +87,29 @@ EISolutionFactory.prototype = {
       model_ops: ['manifest', 'tokenizer', 'chunks', 'assistant_query'] };
   },
 
+  // Add a module to an already built application: edit its baked spec so the app renders the new
+  // module. This is what Existing Solution Maintenance does. Runs under system context.
+  addModule: function(rawName, moduleName, content) {
+    var name = ('' + (rawName || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    var w = new GlideRecord('sp_widget');
+    if (!name || !w.get('id', name + '-app')) { return { status: 'error', error: 'app not found' }; }
+    var script = '' + w.getValue('script');
+    var lead = 'var APP_SPEC = ';
+    var start = script.indexOf(lead);
+    if (start < 0) { return { status: 'error', error: 'app has no spec' }; }
+    var vstart = start + lead.length;
+    var vend = script.indexOf(';\n', vstart);
+    var spec; try { spec = JSON.parse(script.substring(vstart, vend)); } catch (e) { return { status: 'error', error: 'bad spec' }; }
+    if (!spec) { spec = {}; }
+    if (!spec.modules) { spec.modules = []; }
+    spec.modules.push({ name: '' + (moduleName || 'Module'), content: '' + (content || 'Service Catalog') });
+    var newJson = JSON.stringify(spec);
+    w.setValue('script', script.substring(0, vstart) + newJson + script.substring(vend));
+    w.setValue('description', newJson);
+    w.setWorkflow(false); w.update();
+    return { status: 'applied', url: '/' + name, modules: spec.modules.length };
+  },
+
   remove: function(rawName) {
     var name = ('' + (rawName || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     if (!name) { return { status: 'error', error: 'no name' }; }
