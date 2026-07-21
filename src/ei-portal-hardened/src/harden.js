@@ -4,19 +4,19 @@
 // defeat casual tampering, injected scripts, reverse-engineering at a glance, and they auto
 // revert unauthorized DOM edits. Every routine is best effort and fails closed but quiet.
 
-// ---- 1. Freeze the intrinsics (SES / lockdown style) to stop prototype pollution. ----
+// ---- 1. Seal the intrinsics against prototype pollution. ----
 export function freezeIntrinsics() {
-  // Freeze the prototypes that are the real prototype-pollution targets. We deliberately do NOT
-  // freeze Function.prototype (the host Service Portal page keeps running background scripts that
-  // legitimately redefine toString on it, and freezing it only produces hidden console noise
-  // without adding real defense once our app is mounted).
-  // Object.prototype and Array.prototype are the classic pollution targets and are not
-  // re-polyfilled by the host. We leave String/Number/Boolean/Function prototypes alone, since
-  // the legacy Service Portal page re-defines methods on them (e.g. String.prototype.trim) and
-  // freezing those only yields hidden console noise without adding real defense post-mount.
+  // The real pollution vector is ADDING a new inherited property (Object.prototype.isAdmin = true,
+  // Array.prototype[0] = x). Object.preventExtensions blocks exactly that, while leaving the
+  // existing built in methods writable. We deliberately do NOT Object.freeze these prototypes:
+  // freezing makes the inherited toString/valueOf non writable, so ordinary host and library code
+  // that does `someInstance.toString = fn` then throws in strict mode ("Cannot assign to read only
+  // property 'toString'"). preventExtensions gives the same anti pollution guarantee with none of
+  // that breakage. We leave Function/String/Number/Boolean prototypes alone, since the legacy
+  // Service Portal page re-defines methods on them and locking those adds no real defense post mount.
   var targets = [Object.prototype, Array.prototype];
   for (var i = 0; i < targets.length; i++) {
-    try { Object.freeze(targets[i]); } catch (e) {}
+    try { Object.preventExtensions(targets[i]); } catch (e) {}
   }
 }
 
