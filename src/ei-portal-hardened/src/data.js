@@ -33,3 +33,21 @@ export const CATALOG = [
     ],
   },
 ];
+
+// Spec-driven helpers: map a module content type to a house-style icon, and slugify a module name.
+export function iconForContent(content) {
+  switch (content) {
+    case 'Service Catalog': return 'ops_workspace';
+    case 'Dashboard': return 'insights';
+    case 'Insights report': return 'insights';
+    case 'Record workspace': return 'inbox';
+    case 'Knowledge base': return 'document';
+    case 'Assistant panel': return 'assistant';
+    default: return 'studio_icon';
+  }
+}
+export function slugifyName(s) { return ('' + (s || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
+export function brandInitials(title) {
+  var p = ('' + (title || 'App')).trim().split(/\s+/);
+  return ((p.length >= 2 ? (p[0].charAt(0) + p[1].charAt(0)) : (p[0] || 'A').slice(0, 2)) || 'A').toUpperCase();
+}

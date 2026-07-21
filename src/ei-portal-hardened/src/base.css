@@ -1665,3 +1665,39 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; }
 .ei-asst-status { margin-left: auto; flex-shrink: 0; align-self: center; white-space: nowrap;
   padding: 0.3vw 0.6vw; border-radius: 1vw; background: rgba(0,191,111,0.18);
   color: #DFF5EC; font-size: 0.66vw; font-weight: 700; letter-spacing: 0.02vw; }
+
+/* Spec-driven content sections for built applications (house style). */
+.ei-body-solo .ei-content { width: 100%; }
+.ei-cs { display: flex; flex-direction: column; gap: 1.4vh; height: 100%; }
+.ei-cs-head { display: flex; flex-direction: column; gap: 0.4vh; }
+.ei-cs-title { font-size: 1.15vw; font-weight: 700; color: #121212; }
+.ei-cs-sub { font-size: 0.85vw; color: #6E6E6E; }
+.ei-cs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2vh 1vw; }
+.ei-cs-card { background: #FFFFFF; border: 0.1vh solid #E4E4E4; border-radius: 0.8vh; padding: 1.6vh 1.2vw;
+  display: flex; flex-direction: column; gap: 0.5vh; }
+.ei-cs-metric { font-size: 1.7vw; font-weight: 700; color: #00895E; line-height: 1; }
+.ei-cs-metric-label { font-size: 0.82vw; color: #6E6E6E; }
+.ei-cs-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 1vw; }
+.ei-cs-chart { background: #FFFFFF; border: 0.1vh solid #E4E4E4; border-radius: 0.8vh; padding: 1.4vh 1.2vw;
+  display: flex; flex-direction: column; gap: 1vh; }
+.ei-cs-bars { display: flex; align-items: flex-end; gap: 0.6vw; height: 16vh; }
+.ei-cs-bars > i { flex: 1; background: linear-gradient(180deg,#00BF6F,#00895E); border-radius: 0.3vh 0.3vh 0 0; }
+.ei-cs-chart-label { font-size: 0.8vw; color: #6E6E6E; }
+.ei-cs-table { background: #FFFFFF; border: 0.1vh solid #E4E4E4; border-radius: 0.8vh; overflow: hidden; }
+.ei-cs-tr { display: grid; grid-template-columns: 2.4fr 1fr 1fr; align-items: center; gap: 0.8vw;
+  padding: 1.15vh 1.2vw; border-bottom: 0.1vh solid #EFEFEF; font-size: 0.86vw; color: #121212; }
+.ei-cs-tr:last-child { border-bottom: none; }
+.ei-cs-th { background: #F7F8F9; color: #6E6E6E; font-weight: 700; font-size: 0.78vw; text-transform: uppercase; letter-spacing: 0.03vw; }
+.ei-cs-pill { font-style: normal; font-size: 0.74vw; font-weight: 700; padding: 0.25vh 0.6vw; border-radius: 1vh; }
+.ei-cs-pill.green { background: #E4F7EE; color: #00895E; }
+.ei-cs-pill.amber { background: #FBF1DE; color: #A9761B; }
+.ei-cs-pill.grey { background: #EEF0F1; color: #6E6E6E; }
+.ei-cs-search { display: flex; align-items: center; gap: 0.6vw; background: #FFFFFF; border: 0.1vh solid #DCDCDC;
+  border-radius: 0.7vh; padding: 1vh 1vw; color: #6E6E6E; font-size: 0.86vw; }
+.ei-cs-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 1vh 1vw; }
+.ei-cs-kb { display: flex; align-items: center; gap: 0.7vw; background: #FFFFFF; border: 0.1vh solid #E4E4E4;
+  border-radius: 0.7vh; padding: 1.2vh 1vw; }
+.ei-cs-kb-ic { width: 2vw; height: 2vw; border-radius: 0.5vh; background: #EAF7F1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ei-cs-kb-tt { font-size: 0.88vw; font-weight: 600; color: #121212; }
+.ei-cs-note { font-size: 0.9vw; line-height: 1.6; color: #121212; white-space: pre-line; background: #FFFFFF;
+  border: 0.1vh solid #E4E4E4; border-radius: 0.8vh; padding: 1.6vh 1.2vw; }

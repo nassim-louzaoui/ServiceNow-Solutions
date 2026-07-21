@@ -3,7 +3,7 @@ import { useApp } from '../context.js';
 import OIIcon from '../icons.jsx';
 import { initials, ROLE_LABELS } from '../helpers.js';
 
-export default function Sidebar({ navItems, activeId, initData }) {
+export default function Sidebar({ navItems, activeId, initData, brandTitle, brandInitials }) {
   var app = useApp();
   var dispatch = app.dispatch;
   var loadSection = app.loadSection;
@@ -15,8 +15,8 @@ export default function Sidebar({ navItems, activeId, initData }) {
   return (
     <aside className="ei-sidebar">
       <div className="ei-brand">
-        <div className="ei-brand-initials">EI</div>
-        <span className="ei-brand-text">Enterprise Intelligence</span>
+        <div className="ei-brand-initials">{brandInitials || 'EI'}</div>
+        <span className="ei-brand-text">{brandTitle || 'Enterprise Intelligence'}</span>
       </div>
 
       <nav className="ei-nav">

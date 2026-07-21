@@ -2,7 +2,7 @@ import React from 'react';
 import { useApp } from '../context.js';
 import OIIcon from '../icons.jsx';
 
-export default function Header({ activeNav }) {
+export default function Header({ activeNav, brandTitle }) {
   var app = useApp();
   var dispatch = app.dispatch;
 
@@ -17,7 +17,7 @@ export default function Header({ activeNav }) {
           <OIIcon name="menu" size={20} />
         </button>
         <div className="ei-breadcrumb">
-          <span className="ei-breadcrumb-root">Enterprise Intelligence</span>
+          <span className="ei-breadcrumb-root">{brandTitle || 'Enterprise Intelligence'}</span>
           <span className="ei-breadcrumb-sep"><OIIcon name="chevron_right" size={14} /></span>
           <span className="ei-breadcrumb-current">{activeNav ? activeNav.label : ''}</span>
         </div>

@@ -48,6 +48,9 @@ EISolutionFactory.prototype = {
     // Model Bridge: the built app runs in another scope, so its server must reach the Enterprise
     // Assistant Model runtime by its scope qualified, cross scope callable name.
     var server = ('' + src.getValue('script')).split('new EnterpriseIntelligenceRuntime()').join('new x_intelligence.EnterpriseIntelligenceRuntime()');
+    // Bake the app spec into the built app's server so its init returns it and the shared bundle
+    // renders THIS application's modules, content, layout, and brand.
+    server = 'var APP_SPEC = ' + (specJson ? ('' + specJson) : 'null') + ';\n' + server;
     var w = mk('sp_widget', { id: widId, name: title, description: (specJson ? ('' + specJson) : ''), template: src.getValue('template'), css: src.getValue('css'), client_script: client, script: server, 'public': 'false' });
     var theme = mk('sp_theme', { name: title, css_variables: '--navbar-height:0;--footer-height:0;' });
     var page = mk('sp_page', { id: name + '-home', title: title });
