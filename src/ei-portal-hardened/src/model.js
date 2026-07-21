@@ -8,7 +8,13 @@ import EIWebGPUInfer from './vendor/webgpu_infer.js';
 import EITokenizer from './vendor/tokenizer.js';
 
 var _cache = {};
-var BATCH = 8; // chunks per bridge call
+// Weights arrive through many small requests run in parallel. The Service Portal data broker
+// (bridge.call) serialises every request through one channel, so we use bridge.post when the host
+// provides it: a direct fetch to the widget endpoint that the browser can run truly concurrently.
+// count is kept at 4 (about 15 MB) to stay under the widget response size limit; the instance is
+// throughput bound near 4 MB/s, so 8 requests in flight loads the largest model in a few minutes.
+var BATCH = 4;
+var CONCURRENCY = 8;
 
 export function isLoaded(model) { return !!_cache[model]; }
 export function backendOf(model) { return _cache[model] ? _cache[model].kind : null; }
@@ -20,9 +26,15 @@ function unwrap(r, key) {
 }
 function yieldToLoop() { return new Promise(function (res) { setTimeout(res, 0); }); }
 
+// Issue one weight request. Use the parallel-capable direct transport (bridge.post) when the host
+// provides it, otherwise the serialising data broker (bridge.call).
+function callChunks(bridge, body) {
+  return (bridge.post ? bridge.post(body) : bridge.call(body));
+}
+
 // Fetch a run of weight chunks. Prefer the batched 'chunks' action; fall back to per-chunk 'chunk'.
 function fetchBatch(bridge, model, parts) {
-  return bridge.call({ action: 'chunks', model: model, from: parts[0], count: parts.length })
+  return callChunks(bridge, { action: 'chunks', model: model, from: parts[0], count: parts.length })
     .then(function (r) {
       var payloads = unwrap(r, 'payloads');
       if (payloads && payloads.length === parts.length) {
@@ -52,18 +64,25 @@ export function loadModel(bridge, model, onProgress) {
     tokJson = unwrap(r, 'result');
     weights = manifest.chunks.filter(function (c) { return c.kind === 'weights'; })
       .sort(function (a, b) { return a.part - b.part; }).map(function (c) { return c.part; });
-    var total = weights.length, i = 0;
-    function nextBatch() {
-      if (i >= total) return Promise.resolve();
-      var parts = weights.slice(i, i + BATCH);
+    // Split into batches, then drain them through a pool of concurrent bridge calls. Fetch order
+    // does not matter (createSession sorts chunks by part), so parallelism is a pure speedup. This
+    // turns a ~40 minute sequential load of the largest model into a few minutes.
+    var batches = [];
+    for (var bi = 0; bi < weights.length; bi += BATCH) batches.push(weights.slice(bi, bi + BATCH));
+    var total = weights.length, doneChunks = 0, nextBatchIdx = 0;
+    function worker() {
+      if (nextBatchIdx >= batches.length) return Promise.resolve();
+      var parts = batches[nextBatchIdx++];
       return fetchBatch(bridge, model, parts).then(function (got) {
         for (var j = 0; j < got.length; j++) chunks.push(got[j]);
-        i += parts.length;
-        if (onProgress) onProgress(Math.min(i, total), total, 'weights');
-        return yieldToLoop().then(nextBatch);
+        doneChunks += parts.length;
+        if (onProgress) onProgress(Math.min(doneChunks, total), total, 'weights');
+        return yieldToLoop().then(worker);
       });
     }
-    return nextBatch();
+    var pool = [];
+    for (var w = 0; w < Math.min(CONCURRENCY, batches.length); w++) pool.push(worker());
+    return Promise.all(pool);
   }).then(function () {
     var tok = new EITokenizer(tokJson);
     if (typeof navigator !== 'undefined' && navigator.gpu) {
