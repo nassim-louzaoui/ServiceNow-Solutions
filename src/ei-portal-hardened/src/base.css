@@ -1599,3 +1599,8 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; }
   font-family: inherit; font-size: 0.82vw; font-weight: 700; cursor: pointer; transition: color .12s; }
 .ei-flow-back:hover { color: #00895E; }
 .ei-flow-back svg { transform: rotate(180deg); }
+
+/* ── Assistant on-device model status (read-only indicator, not a control) ────── */
+.ei-asst-status { margin-left: auto; flex-shrink: 0; align-self: center; white-space: nowrap;
+  padding: 0.3vw 0.6vw; border-radius: 1vw; background: rgba(0,191,111,0.18);
+  color: #DFF5EC; font-size: 0.66vw; font-weight: 700; letter-spacing: 0.02vw; }
