@@ -6,6 +6,8 @@ import { FLOWS } from '../flows.js';
 import { loadModel, generateChat, backendOf } from '../model.js';
 import { buildSystem } from '../collab.js';
 import SolutionStudio from './SolutionStudio.jsx';
+import SolutionMaintenance from './SolutionMaintenance.jsx';
+import SolutionDiagnostic from './SolutionDiagnostic.jsx';
 
 // Placeholder for the Solution Maintenance and Solution Diagnostic catalog items while they are built.
 function SolutionPlaceholder(props) {
@@ -258,8 +260,12 @@ export default function AssistantPanel({ sectionId }) {
         activeFlow === 'solution_development' ? (
           <SolutionStudio key={activeFlow + ':' + flowNonce}
             callServer={callServer} onExit={function () { dispatch({ type: 'END_FLOW' }); }} />
-        ) : (activeFlow === 'solution_maintenance' || activeFlow === 'solution_diagnostic') ? (
-          <SolutionPlaceholder title={flowTitle} onExit={function () { dispatch({ type: 'END_FLOW' }); }} />
+        ) : activeFlow === 'solution_maintenance' ? (
+          <SolutionMaintenance key={activeFlow + ':' + flowNonce}
+            callServer={callServer} onExit={function () { dispatch({ type: 'END_FLOW' }); }} />
+        ) : activeFlow === 'solution_diagnostic' ? (
+          <SolutionDiagnostic key={activeFlow + ':' + flowNonce}
+            callServer={callServer} onExit={function () { dispatch({ type: 'END_FLOW' }); }} />
         ) : (
           <FlowPanel key={activeFlow + ':' + flowNonce} flowId={activeFlow}
             callServer={callServer} solutionName={'operations-intelligence-new'}

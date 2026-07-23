@@ -1806,3 +1806,44 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; }
 .ei-cfg-mod-ct { font-size: 0.78vw; color: #6E6E6E; margin-left: auto; }
 .ei-cfg-mod-rm { width: 1.5vw; height: 1.5vw; border-radius: 0.4vh; border: 0.1vh solid #DCDCDC; background: #FFFFFF; color: #6E6E6E; cursor: pointer; }
 .ei-cfg-mod-rm:hover { border-color: #D9534F; color: #D9534F; }
+
+/* ---- Navigation Configuration (drag and drop) ---- */
+.ei-nc{display:flex;flex-direction:column;gap:10px}
+.ei-nc-toolbar{display:flex;gap:8px;align-items:center}
+.ei-nc-cols{display:flex;gap:12px}
+.ei-nc-col{display:flex;flex-direction:column;gap:6px;flex:1}
+.ei-nc-col.wide{flex:1.4}
+.ei-nc-side{display:flex;flex-direction:column;gap:12px;flex:1}
+.ei-nc-col-label{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#5A6B66}
+.ei-nc-drop{min-height:70px;border:1px dashed #C4D2CD;border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;background:#F6F9F8}
+.ei-nc-drop.layout{min-height:150px}
+.ei-nc-hint{font-size:12px;color:#8A9793;padding:6px}
+.ei-nc-hint.small{font-size:11px}
+.ei-nc-mod,.ei-nc-sectile{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #D8E2DE;border-radius:6px;padding:6px 8px;cursor:grab;font-size:13px;position:relative}
+.ei-nc-mod-icon{width:24px;height:24px;border:1px solid #D8E2DE;border-radius:5px;background:#F1F6F4;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.ei-nc-mod-nm{flex:1}
+.ei-nc-section{background:#fff;border:1px solid #D8E2DE;border-radius:6px;overflow:hidden}
+.ei-nc-section-hd{display:flex;align-items:center;gap:6px;padding:7px 9px;background:#293E40;color:#CFE8DE;cursor:pointer;font-size:12px;font-weight:600}
+.ei-nc-section-body{padding:7px;display:flex;flex-direction:column;gap:5px}
+.ei-icon-picker{position:absolute;top:30px;left:0;z-index:30;background:#fff;border:1px solid #D8E2DE;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.16);padding:8px;display:grid;grid-template-columns:repeat(8,1fr);gap:2px;max-height:180px;overflow:auto;width:280px}
+.ei-icon-opt{width:30px;height:30px;border:0;background:transparent;border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.ei-icon-opt:hover{background:#EAF3F0}
+
+/* ---- Maintenance / Diagnostic ---- */
+.ei-tag{margin-left:8px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:20px;vertical-align:middle}
+.ei-tag.live{background:#DCF3E9;color:#00895E}
+.ei-tag.maint{background:#FBF0D2;color:#8A6D00}
+.ei-tile-sub{display:block;font-size:11px;color:#8A9793;margin-top:2px}
+.ei-cfg-row.static{font-size:12px;color:#3A4A46;padding:4px 0}
+.ei-diag{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+.ei-diag-stat{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:8px;border:1px solid #E1E8E6;background:#fff}
+.ei-diag-stat.ok{border-color:#BFE6D5;background:#F4FBF8}
+.ei-diag-stat.warn{border-color:#F0DFAE;background:#FDFAF0}
+.ei-diag-stat.bad{border-color:#F0C4C4;background:#FDF4F4}
+.ei-diag-ic{width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.ei-diag-stat.ok .ei-diag-ic{color:#00895E}
+.ei-diag-stat.warn .ei-diag-ic{color:#B08900}
+.ei-diag-stat.bad .ei-diag-ic{color:#C0392B}
+.ei-diag-tx{display:flex;flex-direction:column}
+.ei-diag-k{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:#5A6B66}
+.ei-diag-v{font-size:13px;color:#28332F}
