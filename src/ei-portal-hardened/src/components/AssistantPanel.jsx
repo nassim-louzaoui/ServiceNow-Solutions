@@ -238,6 +238,39 @@ export default function AssistantPanel({ sectionId }) {
 
   function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }
 
+  // The Module Configuration content chat runs the SAME on-device models: the Enterprise Assistant is
+  // the single voice, consulting the specialists through its system channel. On 'discuss' it replies
+  // (and may ask a clarification); on 'finalize' it produces the requirements plan and the
+  // implementation design plan. Falls back to a deterministic template only if the model cannot load.
+  function moduleCollab(p) {
+    var mod = p.module || 'this module';
+    var hist = (p.history || []).map(function (h) { return (h.role === 'user' ? 'User: ' : 'Assistant: ') + h.text; }).join('\n');
+    var ctx = (hist ? hist + '\n' : '') + (p.message ? 'User: ' + p.message : '');
+    return ensureModel(bridgeRef.current, function () {}).then(function (st) {
+      if (p.phase === 'finalize') {
+        var reqSys = buildSystem('content requirements for the ' + mod + ' module', sectionId).system + ' Summarise the agreed content requirements for the ' + mod + ' module content area as a clear requirements plan.';
+        var implSys = buildSystem('implementation design for the ' + mod + ' module', sectionId).system + ' Produce an implementation design plan for the ' + mod + ' module content area: the house-style tables, tiles, catalog or assistant interfaces, and data.';
+        return generateChat(st, reqSys, ctx || mod, 160, function () {}).then(function (req) {
+          return generateChat(st, implSys, ctx || mod, 160, function () {}).then(function (impl) {
+            return { result: { reply: 'The requirements plan and the implementation design plan are ready.', requirementsPlan: req, implementationPlan: impl, needsClarification: false } };
+          });
+        });
+      }
+      var dsys = buildSystem('design the content area of the ' + mod + ' module: ' + (p.message || ''), sectionId).system
+        + ' You are shaping the content area of the ' + mod + ' module. If anything is unclear, ask one short clarification question; otherwise restate the requirements clearly.';
+      return generateChat(st, dsys, p.message || mod, CHAT_TOKENS, function () {}).then(function (reply) {
+        return { result: { reply: reply, needsClarification: /\?\s*$/.test((reply || '').trim()) } };
+      });
+    })['catch'](function () {
+      if (p.phase === 'finalize') return { result: { reply: 'Both plans are ready.', requirementsPlan: 'Requirements for ' + mod + ':\n' + (p.message || 'as discussed.'), implementationPlan: 'Implementation for ' + mod + ': a house-style content area rendering the requested elements, bridged to the Enterprise Intelligence models where useful.', needsClarification: false } };
+      return { result: { reply: 'Understood. I will design the ' + mod + ' content area accordingly. Approve to generate the plans, or Adjust to refine.', needsClarification: false } };
+    });
+  }
+  function studioServer(payload) {
+    if (payload && payload.action === 'module_collab') return moduleCollab(payload);
+    return callServer(payload);
+  }
+
   var STUDIO = { solution_development: 'Solution Development', solution_maintenance: 'Solution Maintenance', solution_diagnostic: 'Solution Diagnostic' };
   var inFlow = activeFlow && (FLOWS[activeFlow] || STUDIO[activeFlow]);
   var flowTitle = activeFlow ? (STUDIO[activeFlow] || (FLOWS[activeFlow] && FLOWS[activeFlow].title)) : '';
@@ -259,7 +292,7 @@ export default function AssistantPanel({ sectionId }) {
       {inFlow ? (
         activeFlow === 'solution_development' ? (
           <SolutionStudio key={activeFlow + ':' + flowNonce}
-            callServer={callServer} onExit={function () { dispatch({ type: 'END_FLOW' }); }} />
+            callServer={studioServer} onExit={function () { dispatch({ type: 'END_FLOW' }); }} />
         ) : activeFlow === 'solution_maintenance' ? (
           <SolutionMaintenance key={activeFlow + ':' + flowNonce}
             callServer={callServer} onExit={function () { dispatch({ type: 'END_FLOW' }); }} />

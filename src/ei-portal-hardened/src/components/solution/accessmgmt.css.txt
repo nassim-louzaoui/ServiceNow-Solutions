@@ -1,0 +1,120 @@
+/* Access Management Configuration surface. House style: green #00895E / #00BF6F, dark #293E40,
+   surfaces #F6F9F8, borders #D8E2DE. Sub-windows are absolutely-positioned dropdowns with shadow.
+   Paste these rules into base.css (kept separate here as a .txt to review first). */
+
+.ei-acc { display: flex; flex-direction: column; gap: 1vh; }
+
+/* ---- toolbar above the role container ---- */
+.ei-acc-toolbar { display: flex; align-items: center; gap: 0.6vw; }
+.ei-acc-toolbar .ei-wiz-input { max-width: 18vw; }
+
+/* ---- role container ---- */
+.ei-acc-roles {
+  display: flex; flex-direction: column; gap: 0.7vh;
+  padding: 0.9vh 0.8vw; min-height: 8vh;
+  background: #F6F9F8; border: 0.1vh solid #D8E2DE; border-radius: 0.6vh;
+}
+
+/* ---- role tile ---- */
+.ei-acc-role {
+  position: relative; display: flex; align-items: center; gap: 0.6vw;
+  padding: 1vh 0.9vw; background: #FFFFFF;
+  border: 0.1vh solid #D8E2DE; border-radius: 0.5vh;
+  cursor: pointer; transition: border-color 0.12s, box-shadow 0.12s;
+}
+.ei-acc-role:hover { border-color: #00BF6F; box-shadow: 0 0.1vh 0.4vh rgba(0,0,0,0.06); }
+.ei-acc-role.selected { border-color: #00895E; box-shadow: 0 0 0 0.12vh rgba(0,137,94,0.18); }
+.ei-acc-role-nm { font-size: 0.9vw; font-weight: 600; color: #293E40; }
+.ei-acc-role-meta { margin-left: auto; display: flex; align-items: center; gap: 0.5vw; }
+.ei-acc-role-meta em { font-style: normal; font-size: 0.72vw; color: #7A8783; }
+
+/* ---- action menu (first dropdown, anchored to the tile) ---- */
+.ei-acc-menu {
+  position: absolute; top: 0.4vh; left: 100%; margin-left: 0.5vw; z-index: 40;
+  display: flex; flex-direction: column; min-width: 8.5vw;
+  background: #FFFFFF; border: 0.1vh solid #D8E2DE; border-radius: 0.5vh;
+  box-shadow: 0 0.5vh 1.4vh rgba(41,62,64,0.18); padding: 0.35vh;
+}
+.ei-acc-menu-opt {
+  text-align: left; background: transparent; border: none; font-family: inherit;
+  font-size: 0.84vw; font-weight: 600; color: #293E40;
+  padding: 0.8vh 0.7vw; border-radius: 0.4vh; cursor: pointer; transition: background 0.12s, color 0.12s;
+}
+.ei-acc-menu-opt:hover:not(:disabled) { background: #F6F9F8; color: #00895E; }
+.ei-acc-menu-opt:disabled { opacity: 0.4; cursor: default; }
+.ei-acc-menu-opt.faded { opacity: 0.4; }
+
+/* ---- sub-window (second dropdown, next to the menu) ---- */
+.ei-acc-sub {
+  position: absolute; top: 0.4vh; left: 100%; margin-left: 10vw; z-index: 41;
+  width: 22vw; display: flex; flex-direction: column; gap: 1vh;
+  background: #FFFFFF; border: 0.1vh solid #D8E2DE; border-radius: 0.6vh;
+  box-shadow: 0 0.7vh 1.8vh rgba(41,62,64,0.22); padding: 1.2vh 1vw;
+}
+.ei-acc-sub-title {
+  font-size: 0.82vw; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.04vw; color: #00895E;
+}
+
+/* ---- appoint: search container ---- */
+.ei-acc-search { display: flex; flex-direction: column; gap: 0.8vh; }
+.ei-acc-search-bar {
+  display: flex; align-items: center; gap: 0.5vw;
+  padding: 0 0.6vw; background: #F6F9F8;
+  border: 0.1vh solid #D8E2DE; border-radius: 0.5vh;
+}
+.ei-acc-search-bar .ei-wiz-input {
+  border: none; background: transparent; padding-left: 0; padding-right: 0;
+}
+.ei-acc-search-list {
+  display: flex; flex-direction: column; gap: 0.5vh;
+  max-height: 26vh; overflow-y: auto; padding-right: 0.2vw;
+}
+
+/* ---- user / group tile ---- */
+.ei-acc-usertile {
+  display: flex; align-items: center; gap: 0.6vw;
+  padding: 0.8vh 0.7vw; background: #FFFFFF;
+  border: 0.1vh solid #D8E2DE; border-radius: 0.5vh;
+  cursor: pointer; transition: border-color 0.12s, background 0.12s;
+}
+.ei-acc-usertile:hover { border-color: #00BF6F; }
+.ei-acc-usertile.tagged, .ei-acc-usertile.selected {
+  border-color: #00895E; background: rgba(0,137,94,0.06);
+}
+.ei-acc-usertile-lbl { font-size: 0.84vw; color: #293E40; display: flex; flex-direction: column; }
+.ei-acc-usertile.tagged .ei-acc-usertile-lbl,
+.ei-acc-usertile.selected .ei-acc-usertile-lbl { font-weight: 600; }
+.ei-acc-usertile-lbl .ei-acc-usertile-sub,
+.ei-acc-usertile-sub { font-style: normal; font-size: 0.7vw; color: #7A8783; }
+.ei-acc-usertile .ei-acc-usertile-lbl { margin-right: auto; }
+
+/* ---- divider between tagged and fresh results ---- */
+.ei-acc-divider { height: 0.1vh; background: #D8E2DE; margin: 0.4vh 0; border: none; }
+
+/* ---- configure form ---- */
+.ei-acc-form { display: flex; flex-direction: column; gap: 1vh; }
+.ei-acc-form-group {
+  display: flex; flex-direction: column; gap: 0.5vh;
+  padding: 0.8vh 0.8vw; background: #F6F9F8;
+  border: 0.1vh solid #D8E2DE; border-radius: 0.5vh;
+}
+.ei-acc-form .ei-cfg-row.disabled { opacity: 0.4; cursor: default; }
+
+/* ---- allocate: navigation checklist ---- */
+.ei-acc-alloc { display: flex; flex-direction: column; gap: 0.6vh; max-height: 34vh; overflow-y: auto; }
+.ei-acc-alloc-section {
+  border: 0.1vh solid #D8E2DE; border-radius: 0.5vh;
+  background: #F6F9F8; padding: 0.7vh 0.7vw;
+}
+.ei-acc-alloc-section > .ei-cfg-row strong { font-weight: 700; color: #293E40; }
+.ei-acc-alloc-children {
+  display: flex; flex-direction: column; gap: 0.4vh;
+  margin: 0.5vh 0 0 1.1vw; padding-left: 0.7vw; border-left: 0.15vh solid #D8E2DE;
+}
+
+/* ---- bottom actions (centered Save / Cancel) ---- */
+.ei-acc-actions {
+  display: flex; justify-content: center; align-items: center; gap: 0.8vw;
+  padding-top: 0.8vh; border-top: 0.1vh solid #D8E2DE;
+}

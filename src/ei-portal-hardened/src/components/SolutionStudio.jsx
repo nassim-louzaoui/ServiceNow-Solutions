@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import OIIcon from '../icons.jsx';
 import Modal from './solution/Modal.jsx';
 import LayoutFrame, { LAYOUTS } from './solution/LayoutFrame.jsx';
@@ -85,15 +85,28 @@ export default function SolutionStudio(props) {
     })['catch'](function () { setNote('The draft could not be saved right now.'); setModal('note'); });
   }
 
+  var abortRef = useRef(false);
   function develop() { setModal('confirm_develop'); }
   function runDevelop() {
-    setModal(null); setDeploy({ busy: true });
-    var spec = { title: draft.name, layout: draft.layout, refine: draft.refine,
-      modules: (draft.refine && draft.refine.modules) || [], access: (draft.refine && draft.refine.access) || 'everyone' };
+    setModal(null); abortRef.current = false; setDeploy({ busy: true });
+    var refine = draft.refine || {};
+    var spec = { title: draft.name, layout: draft.layout,
+      general: refine.general || {}, modules: refine.modules || [], moduleConfig: refine.moduleConfig || {},
+      accessModel: refine.accessModel || null, access: refine.access || 'everyone' };
     callServer({ action: 'build_solution', name: slug(draft.name), spec: JSON.stringify(spec) }).then(function (r) {
       var res = (r && r.result) || r || {};
+      if (abortRef.current) {
+        // rollback anything that was created, then return to the editable state
+        callServer({ action: 'remove_solution', name: slug(draft.name) })['catch'](function () {});
+        setDeploy(null); return;
+      }
       if (res.url) setDeploy({ url: res.url }); else setDeploy({ error: res.error || 'The build could not complete.' });
-    })['catch'](function (e) { setDeploy({ error: '' + e }); });
+    })['catch'](function (e) { if (!abortRef.current) setDeploy({ error: '' + e }); else setDeploy(null); });
+  }
+  function confirmAbort() { setModal('confirm_abort'); }
+  function runAbort() {
+    abortRef.current = true; setModal(null); setDeploy({ aborting: true });
+    callServer({ action: 'remove_solution', name: slug(draft.name) })['catch'](function () {}).then(function () { setDeploy(null); });
   }
 
   function continueDraft(d) {
@@ -191,7 +204,14 @@ export default function SolutionStudio(props) {
             <span className="ei-route-tx"><span className="ei-route-title">Back to the menu</span></span></button></div>
         </div>
         {deploy && deploy.busy ? (
-          <div className="ei-deploy-bar"><div className="ei-deploy-fill" /><span>Developing and deploying into Enterprise Solutions.</span></div>
+          <div className="ei-deploy-bar">
+            <div className="ei-deploy-fill" />
+            <span>Developing and deploying into Enterprise Solutions.</span>
+            <button className="ei-deploy-abort" onClick={confirmAbort}><OIIcon name="remove" size={14} fill="currentColor" />Abort</button>
+          </div>
+        ) : null}
+        {deploy && deploy.aborting ? (
+          <div className="ei-deploy-bar aborting"><div className="ei-deploy-fill" /><span>Aborting and rolling back from Enterprise Solutions.</span></div>
         ) : null}
         {deploy && deploy.url ? (
           <a className="ei-result-tile" href={deploy.url} target="_blank" rel="noopener noreferrer">
@@ -259,6 +279,13 @@ export default function SolutionStudio(props) {
         <Modal title="Develop and deploy" onSave={runDevelop} onClose={function () { setModal(null); }}>
           <p className="ei-modal-help">The solution details are finalised and will now be developed and deployed into Enterprise Solutions.
           {'\n'}Confirm to begin, or close to keep editing.</p>
+        </Modal>
+      ) : null}
+
+      {modal === 'confirm_abort' ? (
+        <Modal title="Abort development" onSave={runAbort} onClose={function () { setModal(null); }}>
+          <p className="ei-modal-help">Abort the development of this solution? Everything created in Enterprise Solutions so far is rolled back and deleted.
+          {'\n'}You can then adjust the tasks above and try again, or save as a draft.</p>
         </Modal>
       ) : null}
 
