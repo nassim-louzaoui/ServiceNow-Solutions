@@ -24,12 +24,12 @@ export const CATALOG = [
     color: '#00BF6F',
     desc: 'Develop and maintain scoped web applications.',
     items: [
-      { id: 'new_solution_development', name: 'New Solution Development',
-        desc: 'Design and build a new web application.' },
-      { id: 'existing_solution_maintenance', name: 'Existing Solution Maintenance',
-        desc: 'Adjust an application already in production.' },
-      { id: 'module_bridge_maintenance', name: 'Module Bridge Maintenance',
-        desc: 'Inspect and tune an application bridge under least privilege.' },
+      { id: 'solution_development', name: 'Solution Development',
+        desc: 'Create a new solution and deploy it into Enterprise Solutions.' },
+      { id: 'solution_maintenance', name: 'Solution Maintenance',
+        desc: 'Open, maintain, and update your deployed solutions.' },
+      { id: 'solution_diagnostic', name: 'Solution Diagnostic',
+        desc: 'Check the health, usage, and errors of your solutions.' },
     ],
   },
 ];

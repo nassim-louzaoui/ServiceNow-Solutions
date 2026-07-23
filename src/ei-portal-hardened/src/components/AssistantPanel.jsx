@@ -5,8 +5,22 @@ import { ASSISTANT_CONFIGS } from '../data.js';
 import { FLOWS } from '../flows.js';
 import { loadModel, generateChat, backendOf } from '../model.js';
 import { buildSystem } from '../collab.js';
-import NewSolutionWizard from './NewSolutionWizard.jsx';
-import ExistingSolutionWizard from './ExistingSolutionWizard.jsx';
+import SolutionStudio from './SolutionStudio.jsx';
+
+// Placeholder for the Solution Maintenance and Solution Diagnostic catalog items while they are built.
+function SolutionPlaceholder(props) {
+  return (
+    <div className="ei-wiz">
+      <div className="ei-flow-title">{props.title}</div>
+      <div className="ei-wiz-body">
+        <div className="ei-wiz-echo">{props.title} is being built. It will appear here shortly.</div>
+      </div>
+      <div className="ei-wiz-actions">
+        <button className="ei-btn-ghost" onClick={props.onExit}><OIIcon name="chevron_right" size={14} fill="currentColor" />Back to the catalog</button>
+      </div>
+    </div>
+  );
+}
 
 // The Enterprise Assistant is the ONLY model that speaks to the user. It ALWAYS generates on-device
 // (WebGPU, with a byte-identical pure-JS fallback); this is the default and only chat engine, not an
@@ -222,7 +236,9 @@ export default function AssistantPanel({ sectionId }) {
 
   function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }
 
-  var inFlow = activeFlow && FLOWS[activeFlow];
+  var STUDIO = { solution_development: 'Solution Development', solution_maintenance: 'Solution Maintenance', solution_diagnostic: 'Solution Diagnostic' };
+  var inFlow = activeFlow && (FLOWS[activeFlow] || STUDIO[activeFlow]);
+  var flowTitle = activeFlow ? (STUDIO[activeFlow] || (FLOWS[activeFlow] && FLOWS[activeFlow].title)) : '';
   var modelTag = _model.phase === 'ready'
     ? (backendOf(CHAT_MODEL) === 'webgpu' ? 'On device, GPU' : 'On device')
     : (_model.phase === 'loading' ? 'Loading model ' + _model.pct + '%' : (_model.phase === 'gpu' ? 'Preparing' : (_model.phase === 'error' ? 'Model offline' : 'On device')));
@@ -233,18 +249,17 @@ export default function AssistantPanel({ sectionId }) {
         <div className="ei-asst-hdr-icon"><OIIcon name="assistant" size={16} fill="#FFFFFF" /></div>
         <div className="ei-asst-hdr-info">
           <div className="ei-asst-hdr-name">{cfg.name}</div>
-          <div className="ei-asst-hdr-tag">{inFlow ? FLOWS[activeFlow].title : cfg.tagline}</div>
+          <div className="ei-asst-hdr-tag">{inFlow ? flowTitle : cfg.tagline}</div>
         </div>
         {!inFlow && <span className="ei-asst-status">{modelTag}</span>}
       </div>
 
       {inFlow ? (
-        activeFlow === 'new_solution_development' ? (
-          <NewSolutionWizard key={activeFlow + ':' + flowNonce}
+        activeFlow === 'solution_development' ? (
+          <SolutionStudio key={activeFlow + ':' + flowNonce}
             callServer={callServer} onExit={function () { dispatch({ type: 'END_FLOW' }); }} />
-        ) : activeFlow === 'existing_solution_maintenance' ? (
-          <ExistingSolutionWizard key={activeFlow + ':' + flowNonce}
-            callServer={callServer} onExit={function () { dispatch({ type: 'END_FLOW' }); }} />
+        ) : (activeFlow === 'solution_maintenance' || activeFlow === 'solution_diagnostic') ? (
+          <SolutionPlaceholder title={flowTitle} onExit={function () { dispatch({ type: 'END_FLOW' }); }} />
         ) : (
           <FlowPanel key={activeFlow + ':' + flowNonce} flowId={activeFlow}
             callServer={callServer} solutionName={'operations-intelligence-new'}

@@ -1701,3 +1701,108 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; }
 .ei-cs-kb-tt { font-size: 0.88vw; font-weight: 600; color: #121212; }
 .ei-cs-note { font-size: 0.9vw; line-height: 1.6; color: #121212; white-space: pre-line; background: #FFFFFF;
   border: 0.1vh solid #E4E4E4; border-radius: 0.8vh; padding: 1.6vh 1.2vw; }
+
+/* ===== Solution Studio ===== */
+.ei-hero { display: flex; flex-direction: column; gap: 0.5vh; background: linear-gradient(180deg,#F3FCF8,#EAF7F1);
+  border: 0.1vh solid #CDEBDE; border-radius: 0.8vh; padding: 1.4vh 1.1vw; }
+.ei-hero.small { padding: 1vh 1vw; }
+.ei-hero-ic { width: 2.4vw; height: 2.4vw; border-radius: 0.6vh; background: #00BF6F; display: flex; align-items: center; justify-content: center; }
+.ei-hero-tt { font-size: 1vw; font-weight: 700; color: #0B5B44; }
+.ei-hero-sub { font-size: 0.82vw; color: #3B6B58; line-height: 1.5; white-space: pre-line; }
+.ei-route-list { display: flex; flex-direction: column; gap: 0.7vh; }
+.ei-route-control { margin-top: 0.4vh; }
+.ei-route { display: flex; align-items: stretch; border: 0.1vh solid #DCDCDC; border-radius: 0.7vh; background: #FFFFFF;
+  overflow: hidden; transition: border-color .12s, box-shadow .12s; }
+.ei-route:hover { border-color: #00BF6F; box-shadow: 0 0.3vh 1vh rgba(0,137,94,0.08); }
+.ei-route.disabled { opacity: 0.5; }
+.ei-route.disabled:hover { border-color: #DCDCDC; box-shadow: none; }
+.ei-route.develop .ei-route-title { color: #00895E; }
+.ei-route-main { flex: 1; display: flex; align-items: center; gap: 0.7vw; padding: 1vh 1vw; background: transparent;
+  border: none; font-family: inherit; cursor: pointer; text-align: left; min-width: 0; }
+.ei-route-main:disabled { cursor: default; }
+.ei-route-ic { width: 1.9vw; height: 1.9vw; border-radius: 0.5vh; background: #EEF3F1; color: #00895E; display: flex;
+  align-items: center; justify-content: center; flex-shrink: 0; }
+.ei-route-tx { display: flex; flex-direction: column; gap: 0.15vh; min-width: 0; }
+.ei-route-title { font-size: 0.88vw; font-weight: 700; color: #121212; }
+.ei-route-sub { font-size: 0.76vw; color: #6E6E6E; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ei-route-status { display: flex; align-items: center; gap: 0.4vw; padding: 0 0.8vw; flex-shrink: 0; }
+.ei-route-done, .ei-route-pending { display: flex; align-items: center; }
+.ei-route-edit { width: 1.7vw; height: 1.7vw; border-radius: 0.4vh; border: 0.1vh solid #DCDCDC; background: #FFFFFF;
+  color: #6E6E6E; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.ei-route-edit:hover { border-color: #00BF6F; color: #00895E; }
+.ei-count { min-width: 1.6vw; height: 1.6vw; padding: 0 0.4vw; border-radius: 1vh; background: #00895E; color: #FFFFFF;
+  font-size: 0.76vw; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.ei-deploy-bar { position: relative; margin-top: 0.4vh; padding: 1vh 1vw; border-radius: 0.6vh; background: #EAF7F1;
+  border: 0.1vh solid #CDE8DD; font-size: 0.8vw; color: #0B5B44; overflow: hidden; }
+.ei-deploy-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 40%; background: rgba(0,191,111,0.25);
+  animation: ei-deploy 1.4s ease-in-out infinite; }
+@keyframes ei-deploy { 0% { left: -40%; } 100% { left: 100%; } }
+.ei-draft-scroll { max-height: 26vh; overflow-y: auto; display: flex; flex-direction: column; gap: 0.6vh; padding-right: 0.3vw; }
+
+/* ===== Modal ===== */
+.ei-modal-overlay { position: fixed; inset: 0; background: rgba(18,24,26,0.55); z-index: 9000; display: flex;
+  align-items: center; justify-content: center; padding: 4vh 3vw; }
+.ei-modal { width: 46vw; max-width: 46vw; max-height: 88vh; background: #FFFFFF; border-radius: 1vh; display: flex;
+  flex-direction: column; overflow: hidden; box-shadow: 0 3vh 8vh rgba(0,0,0,0.4); }
+.ei-modal-wide { width: 72vw; max-width: 72vw; }
+.ei-modal-hd { display: flex; align-items: center; justify-content: space-between; padding: 1.4vh 1.4vw;
+  background: #293E40; color: #FFFFFF; }
+.ei-modal-title { font-size: 1vw; font-weight: 700; }
+.ei-modal-hd-actions { display: flex; align-items: center; gap: 0.6vw; }
+.ei-modal-ic { width: 2vw; height: 2vw; border-radius: 0.5vh; border: none; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; }
+.ei-modal-ic.save { background: #00BF6F; color: #FFFFFF; }
+.ei-modal-ic.save:disabled { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.4); cursor: default; }
+.ei-modal-ic.close { background: rgba(255,255,255,0.12); color: #FFFFFF; }
+.ei-modal-ic.close:hover { background: rgba(255,255,255,0.22); }
+.ei-modal-body { padding: 1.8vh 1.6vw; overflow-y: auto; display: flex; flex-direction: column; gap: 1.2vh; }
+.ei-modal-help { font-size: 0.86vw; color: #444; line-height: 1.55; white-space: pre-line; margin: 0; }
+.ei-modal-counter { font-size: 0.76vw; color: #6E6E6E; text-align: right; }
+
+/* ===== Layout picker + frame ===== */
+.ei-layout-picker { display: flex; align-items: center; gap: 1vw; }
+.ei-arrow { width: 2.6vw; height: 2.6vw; border-radius: 50%; border: 0.1vh solid #DCDCDC; background: #FFFFFF;
+  color: #00895E; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ei-arrow:hover { border-color: #00BF6F; background: #F3FCF8; }
+.ei-arrow svg { transform: rotate(180deg); }
+.ei-arrow.next svg { transform: none; }
+.ei-layout-frame { flex: 1; height: 26vh; border: 0.1vh solid #E4E4E4; border-radius: 0.6vh; background: #F0F2F5; padding: 0.6vh; }
+.ei-layout-frame.big { height: 40vh; }
+.ei-layout-name { align-self: center; padding: 0.8vh 1.6vw; border-radius: 0.6vh; border: 0.12vh solid #DCDCDC;
+  background: #FFFFFF; color: #121212; font-family: inherit; font-size: 0.88vw; font-weight: 700; cursor: pointer; }
+.ei-layout-name.selected { background: #00895E; color: #FFFFFF; border-color: #00895E; }
+.ei-lf { width: 100%; height: 100%; display: flex; gap: 0.5vh; }
+.ei-lf.row { flex-direction: row; }
+.ei-lf.col { flex-direction: column; }
+.ei-lf-nav, .ei-lf-bar, .ei-lf-header, .ei-lf-content { display: flex; align-items: center; justify-content: center;
+  border-radius: 0.4vh; font-size: 0.72vw; font-weight: 700; letter-spacing: 0.02vw; }
+.ei-lf-nav { background: #293E40; color: #CFE8DE; }
+.ei-lf-nav.v { width: 18%; }
+.ei-lf-bar { background: #1F3033; color: #CFE8DE; }
+.ei-lf-bar.h { height: 16%; }
+.ei-lf-bar.v { width: 16%; writing-mode: vertical-rl; text-orientation: mixed; }
+.ei-lf-header { background: #3A5A5E; color: #DCF0EA; height: 16%; }
+.ei-lf-content { background: #FFFFFF; color: #6E6E6E; border: 0.1vh dashed #C7D2CE; flex: 1; }
+.ei-lf-nav.v span, .ei-lf-bar.v span { transform: none; }
+
+/* ===== Tabs + refine config ===== */
+.ei-tabs { display: flex; width: 100%; border-bottom: 0.12vh solid #E4E4E4; }
+.ei-tab { flex: 1; padding: 1.1vh 0; background: #F7F8F9; border: none; border-bottom: 0.2vh solid transparent;
+  font-family: inherit; font-size: 0.88vw; font-weight: 700; color: #6E6E6E; cursor: pointer; }
+.ei-tab.active { background: #FFFFFF; color: #00895E; border-bottom-color: #00BF6F; }
+.ei-refine-preview { display: flex; flex-direction: column; gap: 1vh; }
+.ei-refine-config { display: flex; flex-direction: column; gap: 1.6vh; }
+.ei-cfg-sec { display: flex; flex-direction: column; gap: 0.8vh; }
+.ei-cfg-title { font-size: 0.82vw; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04vw; color: #00895E; }
+.ei-cfg-row { display: flex; align-items: center; gap: 0.6vw; font-size: 0.86vw; color: #121212; cursor: pointer; }
+.ei-cfg-row input { width: 1vw; height: 1vw; accent-color: #00BF6F; }
+.ei-cfg-addrow { display: flex; gap: 0.6vw; align-items: center; }
+.ei-cfg-select { padding: 0.8vh 0.6vw; border: 0.1vh solid #DCDCDC; border-radius: 0.5vh; font-family: inherit; font-size: 0.84vw; }
+.ei-cfg-empty { font-size: 0.82vw; color: #6E6E6E; }
+.ei-cfg-modlist { display: flex; flex-direction: column; gap: 0.6vh; }
+.ei-cfg-mod { display: flex; align-items: center; gap: 0.6vw; padding: 0.8vh 0.8vw; border: 0.1vh solid #E4E4E4; border-radius: 0.6vh; }
+.ei-cfg-mod-ic { width: 1.6vw; height: 1.6vw; border-radius: 0.4vh; background: #EAF7F1; display: flex; align-items: center; justify-content: center; }
+.ei-cfg-mod-nm { font-size: 0.86vw; font-weight: 700; color: #121212; }
+.ei-cfg-mod-ct { font-size: 0.78vw; color: #6E6E6E; margin-left: auto; }
+.ei-cfg-mod-rm { width: 1.5vw; height: 1.5vw; border-radius: 0.4vh; border: 0.1vh solid #DCDCDC; background: #FFFFFF; color: #6E6E6E; cursor: pointer; }
+.ei-cfg-mod-rm:hover { border-color: #D9534F; color: #D9534F; }
