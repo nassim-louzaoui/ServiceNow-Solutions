@@ -1,0 +1,9 @@
+loaded manifest tensors=94 weight_chunks=119 total_bytes=338822144 config={"vocab_size":16000,"block_size":1536,"n_layer":15,"n_head":16,"n_embd":1280,"dropout":0.1,"bias":false}
+model built in 1.9s; vocab=16000
+PROMPT: "How do I create an ACL"
+  ids=6 -> +16 tok in 101.6s (6349ms/tok)
+  CONT: " experience by selecting Create > Experience .\n\nGive me a one line"
+PROMPT: "A business rule is"
+  ids=4 -> +16 tok in 86.3s (5392ms/tok)
+  CONT: " available in secure contexts (HTTPS), in some or all supporting browsers.\n"
+__EXIT=0

@@ -1,0 +1,85 @@
+/* ---- Module Configuration ---- */
+.ei-modcfg { display: flex; flex-direction: column; gap: 10px; }
+
+/* Two columns: module list on the left, requirements chat on the right. */
+.ei-modcfg-cols { display: flex; gap: 14px; align-items: stretch; }
+
+/* Left: stacked list of every active module. */
+.ei-modcfg-list {
+  width: 260px; flex: 0 0 260px; display: flex; flex-direction: column; gap: 8px;
+  padding: 10px; background: #F6F9F8; border: 1px solid #D8E2DE; border-radius: 8px;
+  max-height: 460px; overflow-y: auto;
+}
+.ei-modcfg-list .ei-cfg-title { margin-bottom: 2px; }
+
+.ei-modcfg-tile {
+  display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+  padding: 9px 10px; background: #FFFFFF; border: 1px solid #D8E2DE; border-radius: 7px;
+  cursor: pointer; font-family: inherit; font-size: 13px; color: #293E40; transition: all .15s ease;
+}
+.ei-modcfg-tile:hover { border-color: #00BF6F; box-shadow: 0 3px 12px rgba(0,137,94,0.12); }
+.ei-modcfg-tile.selected { border-color: #00895E; background: #F0FBF6; box-shadow: 0 0 0 1.5px #00895E inset; }
+.ei-modcfg-tile-ic {
+  width: 28px; height: 28px; flex-shrink: 0; border-radius: 6px; background: #F1F6F4;
+  border: 1px solid #E1EAE6; display: flex; align-items: center; justify-content: center;
+}
+.ei-modcfg-tile-nm { flex: 1; min-width: 0; font-weight: 600; display: flex; flex-direction: column; gap: 2px; }
+.ei-modcfg-tile-sec { font-size: 10.5px; font-weight: 500; color: #8A9793; text-transform: uppercase; letter-spacing: .03em; }
+.ei-modcfg-chip { flex-shrink: 0; display: flex; align-items: center; }
+
+/* Right: chat container for content area requirements. */
+.ei-modcfg-chat {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px;
+  padding: 12px; background: #FFFFFF; border: 1px solid #D8E2DE; border-radius: 8px;
+  max-height: 460px;
+}
+
+/* Plan toolbar shown once the module is finalised. */
+.ei-modcfg-plans { display: flex; gap: 8px; flex-wrap: wrap; padding-bottom: 8px; border-bottom: 1px solid #EAF0ED; }
+.ei-modcfg-plans .ei-btn-ghost {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px;
+  background: #F1F6F4; border: 1px solid #D8E2DE; border-radius: 6px; color: #00895E; font-size: 12.5px;
+}
+.ei-modcfg-plans .ei-btn-ghost:hover { background: #E4F7EE; border-color: #00BF6F; }
+.ei-modcfg-plans .ei-btn-ghost svg { transform: none; }
+
+/* Scrollable message list. */
+.ei-modcfg-msgs {
+  flex: 1; min-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+  padding: 10px; background: #F6F9F8; border: 1px solid #E1EAE6; border-radius: 8px;
+}
+.ei-modcfg-msg {
+  max-width: 78%; padding: 9px 12px; border-radius: 12px; font-size: 13px; line-height: 1.5;
+  white-space: pre-wrap; word-wrap: break-word;
+}
+.ei-modcfg-msg.user {
+  align-self: flex-end; background: #00895E; color: #FFFFFF; border-bottom-right-radius: 4px;
+}
+.ei-modcfg-msg.asst {
+  align-self: flex-start; background: #FFFFFF; color: #293E40; border: 1px solid #D8E2DE; border-bottom-left-radius: 4px;
+}
+
+/* Typing indicator. */
+.ei-modcfg-msg.typing { display: flex; align-items: center; gap: 5px; padding: 12px 14px; }
+.ei-modcfg-dot { width: 6px; height: 6px; border-radius: 50%; background: #9AA6A2; animation: ei-modcfg-blink 1.2s infinite ease-in-out; }
+.ei-modcfg-dot:nth-child(2) { animation-delay: .2s; }
+.ei-modcfg-dot:nth-child(3) { animation-delay: .4s; }
+@keyframes ei-modcfg-blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+
+/* Adjust / Approve route options inside the chat. */
+.ei-modcfg-routes { align-self: flex-start; display: flex; gap: 8px; margin-top: 2px; }
+.ei-modcfg-routes .ei-btn-ghost {
+  padding: 7px 16px; background: #FFFFFF; border: 1px solid #D8E2DE; border-radius: 6px; color: #293E40;
+}
+.ei-modcfg-routes .ei-btn-ghost:hover { border-color: #00BF6F; color: #00895E; }
+.ei-modcfg-routes .ei-btn-primary { padding: 7px 18px; }
+
+/* Input row at the bottom of the chat. */
+.ei-modcfg-input { display: flex; gap: 8px; align-items: flex-end; }
+.ei-modcfg-input .ei-wiz-input {
+  flex: 1; min-height: 44px; max-height: 120px; resize: vertical; font-family: inherit; line-height: 1.5;
+}
+.ei-modcfg-input .ei-wiz-input:read-only { background: #F1F4F3; color: #6E6E6E; cursor: default; }
+.ei-modcfg-input .ei-btn-primary {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; align-self: stretch; padding: 0 16px;
+}

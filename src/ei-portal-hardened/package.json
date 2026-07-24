@@ -1,0 +1,17 @@
+{
+  "name": "ei-hardened-portal",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "dependencies": {
+    "jsdom": "^29.1.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.21.5",
+    "javascript-obfuscator": "4.1.1"
+  }
+}
